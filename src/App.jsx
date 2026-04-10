@@ -99,9 +99,9 @@ const Field = ({ label, children, style = {} }) => (
   </div>
 );
 
-const Input = ({ value, onChange, placeholder, type = "text", readOnly = false, highlight, step }) => (
+const Input = ({ value, onChange, onKeyDown, placeholder, type = "text", readOnly = false, highlight, step }) => (
   <input
-    type={type} step={step} value={value || ""} onChange={onChange}
+    type={type} step={step} value={value || ""} onChange={onChange} onKeyDown={onKeyDown}
     placeholder={placeholder} readOnly={readOnly}
     style={{
       width: "100%", background: readOnly ? theme.surface : theme.bg,
@@ -204,28 +204,77 @@ const initState = () => {
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 function Login({ onLogin, usuarios }) {
-  const [login, setLogin] = useState("");
-  const [senha, setSenha] = useState("");
-  const [err, setErr] = useState("");
+  const [login, setLogin]       = useState("");
+  const [senha, setSenha]       = useState("");
+  const [err, setErr]           = useState("");
+  const [showSenha, setShowSenha] = useState(false);
+
   const handleLogin = () => {
-    const user = (usuarios || []).find(u => u.login === login && u.senha === senha);
-    if (user) { onLogin(user); } else { setErr("Usuário ou senha inválidos."); }
+    const loginTrim = login.trim().toLowerCase();
+    const senhaTrim = senha.trim();
+    // Busca ignorando maiúsculas/minúsculas no login e sem espaços extras
+    const user = (usuarios || []).find(
+      u => u.login?.trim().toLowerCase() === loginTrim && u.senha?.trim() === senhaTrim
+    );
+    if (user) {
+      setErr("");
+      onLogin(user);
+    } else {
+      setErr("Usuário ou senha inválidos.");
+    }
   };
+
+  const handleKey = (e) => { if (e.key === "Enter") handleLogin(); };
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, position: "relative" }}>
       <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 65% 40%, ${theme.accent}1a 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, ${theme.gold}12 0%, transparent 50%)` }} />
-      <div style={{ width: 400, position: "relative", zIndex: 1 }}>
+      <div style={{ width: 420, position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div style={{ width: 68, height: 68, background: `linear-gradient(135deg,${theme.accent},${theme.gold})`, borderRadius: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 34, marginBottom: 14, boxShadow: `0 0 40px ${theme.accent}44` }}>🌾</div>
           <h1 style={{ fontWeight: 900, fontSize: 30, color: theme.text, letterSpacing: -1, margin: 0 }}>AgriGest</h1>
           <p style={{ color: theme.muted, fontSize: 13, marginTop: 6 }}>Sistema de Gestão do Agronegócio</p>
         </div>
         <Card>
-          <Field label="Usuário"><Input value={login} onChange={e => setLogin(e.target.value)} placeholder="Digite seu usuário" /></Field>
-          <Field label="Senha"><Input type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" /></Field>
-          {err && <p style={{ color: theme.danger, fontSize: 12, marginBottom: 10 }}>{err}</p>}
-          <Btn onClick={handleLogin} style={{ width: "100%", marginTop: 4, padding: 13 }} size="lg">Entrar no Sistema</Btn>
-          
+          <Field label="Usuário">
+            <Input
+              value={login}
+              onChange={e => { setLogin(e.target.value); setErr(""); }}
+              onKeyDown={handleKey}
+              placeholder="Digite seu usuário"
+            />
+          </Field>
+          <Field label="Senha">
+            <div style={{ position: "relative" }}>
+              <input
+                type={showSenha ? "text" : "password"}
+                value={senha}
+                onChange={e => { setSenha(e.target.value); setErr(""); }}
+                onKeyDown={handleKey}
+                placeholder="••••••••"
+                style={{
+                  width: "100%", background: theme.bg, border: `1px solid ${err ? theme.danger : theme.border}`,
+                  color: theme.text, padding: "9px 42px 9px 12px", borderRadius: 8,
+                  fontFamily: "inherit", fontSize: 13, outline: "none", boxSizing: "border-box"
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowSenha(s => !s)}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: theme.muted, fontSize: 16, lineHeight: 1 }}
+              >{showSenha ? "🙈" : "👁️"}</button>
+            </div>
+          </Field>
+
+          {err && (
+            <div style={{ background: `${theme.danger}18`, border: `1px solid ${theme.danger}44`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, color: theme.danger, fontSize: 13 }}>
+              ⚠️ {err}
+            </div>
+          )}
+
+          <Btn onClick={handleLogin} style={{ width: "100%", marginTop: 4, padding: 13 }} size="lg">
+            Entrar no Sistema
+          </Btn>
         </Card>
       </div>
     </div>
@@ -621,56 +670,183 @@ function CrudPage({ title, icon, fields, stateKey, state, setState }) {
 
 // ─── USUÁRIOS ─────────────────────────────────────────────────────────────────
 function Usuarios({ state, setState }) {
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({});
+  const [open, setOpen]       = useState(false);
+  const [form, setForm]       = useState({});
   const [editing, setEditing] = useState(null);
+  const [showSenha, setShowSenha]     = useState(false);
+  const [confirma, setConfirma]       = useState("");
+  const [erroForm, setErroForm]       = useState("");
+
   const usuarios = state.usuarios || [];
-  const openNew = () => { setForm({ role: "operador" }); setEditing(null); setOpen(true); };
-  const openEdit = u => { setForm({ ...u }); setEditing(u.id); setOpen(true); };
-  const del = id => {
-    if (usuarios.length === 1) { alert("Não é possível excluir o único usuário."); return; }
-    if (window.confirm("Excluir este usuário?")) setState(s => ({ ...s, usuarios: s.usuarios.filter(u => u.id !== id) }));
+
+  const openNew = () => {
+    setForm({ role: "operador", nome: "", login: "", senha: "" });
+    setEditing(null);
+    setConfirma("");
+    setErroForm("");
+    setShowSenha(false);
+    setOpen(true);
   };
+
+  const openEdit = u => {
+    // Ao editar, mantemos a senha já salva mas exibimos em texto para o admin ver
+    setForm({ ...u });
+    setEditing(u.id);
+    setConfirma(u.senha); // preenche confirmação com a senha atual
+    setErroForm("");
+    setShowSenha(false);
+    setOpen(true);
+  };
+
+  const del = id => {
+    if (id === "1") { alert("O usuário administrador padrão não pode ser excluído."); return; }
+    if (usuarios.length === 1) { alert("Não é possível excluir o único usuário."); return; }
+    if (window.confirm("Excluir este usuário?"))
+      setState(s => ({ ...s, usuarios: s.usuarios.filter(u => u.id !== id) }));
+  };
+
   const save = () => {
-    if (!form.nome || !form.login || !form.senha) { alert("Preencha todos os campos."); return; }
-    const item = { ...form, id: editing || uid() };
-    setState(s => ({ ...s, usuarios: editing ? s.usuarios.map(u => u.id === editing ? item : u) : [...s.usuarios, item] }));
+    setErroForm("");
+    if (!form.nome?.trim())  { setErroForm("Preencha o nome completo."); return; }
+    if (!form.login?.trim()) { setErroForm("Preencha o login."); return; }
+    if (!form.senha?.trim()) { setErroForm("Preencha a senha."); return; }
+    if (form.senha.length < 4) { setErroForm("A senha deve ter pelo menos 4 caracteres."); return; }
+    if (form.senha !== confirma) { setErroForm("As senhas não coincidem."); return; }
+
+    // Verifica login duplicado
+    const loginExiste = usuarios.some(u => u.login === form.login.trim() && u.id !== editing);
+    if (loginExiste) { setErroForm("Este login já está em uso por outro usuário."); return; }
+
+    const item = { ...form, login: form.login.trim(), nome: form.nome.trim(), id: editing || uid() };
+    setState(s => ({
+      ...s,
+      usuarios: editing
+        ? s.usuarios.map(u => u.id === editing ? item : u)
+        : [...s.usuarios, item]
+    }));
     setOpen(false);
   };
+
+  const fp = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const senhaInput = (label, val, onChange) => (
+    <Field label={label}>
+      <div style={{ position: "relative" }}>
+        <input
+          type={showSenha ? "text" : "password"}
+          value={val}
+          onChange={onChange}
+          autoComplete="new-password"
+          style={{
+            width: "100%", background: theme.bg, border: `1px solid ${theme.border}`,
+            color: theme.text, padding: "9px 40px 9px 12px", borderRadius: 8,
+            fontFamily: "inherit", fontSize: 13, outline: "none", boxSizing: "border-box"
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => setShowSenha(s => !s)}
+          style={{
+            position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", cursor: "pointer", color: theme.muted, fontSize: 16, lineHeight: 1
+          }}
+        >{showSenha ? "🙈" : "👁️"}</button>
+      </div>
+    </Field>
+  );
+
   return (
     <div>
       <SectionTitle action={<Btn onClick={openNew}>+ Novo Usuário</Btn>}>👥 Usuários do Sistema</SectionTitle>
+
+      <Card style={{ marginBottom: 16, background: `${theme.info}0a`, borderColor: `${theme.info}33` }}>
+        <p style={{ color: theme.muted, fontSize: 13 }}>
+          ℹ️ Usuários cadastrados aqui podem acessar o sistema com seu login e senha. O administrador pode criar, editar e excluir usuários.
+        </p>
+      </Card>
+
       <Card>
         {usuarios.length === 0 ? <EmptyState icon="👥" text="Nenhum usuário cadastrado." /> : (
-          <Table headers={["Nome", "Login", "Nível", "Ações"]} rows={usuarios.map(u => (
-            <tr key={u.id}>
-              <Td>{u.nome}</Td><Td>{u.login}</Td>
-              <Td><Badge color={u.role === "admin" ? "gold" : "blue"}>{u.role === "admin" ? "Administrador" : "Operador"}</Badge></Td>
-              <Td>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <Btn size="sm" variant="secondary" onClick={() => openEdit(u)}>✏️</Btn>
-                  <Btn size="sm" variant="danger" onClick={() => del(u.id)}>🗑️</Btn>
-                </div>
-              </Td>
-            </tr>
-          ))} />
+          <Table
+            headers={["Nome", "Login", "Nível de Acesso", "Ações"]}
+            rows={usuarios.map(u => (
+              <tr key={u.id}>
+                <Td><strong>{u.nome}</strong></Td>
+                <Td>
+                  <span style={{ fontFamily: "monospace", background: theme.surface, padding: "2px 8px", borderRadius: 6, fontSize: 12 }}>
+                    {u.login}
+                  </span>
+                </Td>
+                <Td>
+                  <Badge color={u.role === "admin" ? "gold" : "blue"}>
+                    {u.role === "admin" ? "👑 Administrador" : "👤 Operador"}
+                  </Badge>
+                </Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(u)}>✏️ Editar</Btn>
+                    <Btn size="sm" variant="danger"    onClick={() => del(u.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
         )}
       </Card>
+
       <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Novo"} Usuário`}>
-        <Field label="Nome Completo"><Input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} /></Field>
+        <Field label="Nome Completo">
+          <Input value={form.nome} onChange={e => fp("nome", e.target.value)} placeholder="Ex: João da Silva" />
+        </Field>
+
+        <Field label="Login (usado para entrar no sistema)">
+          <Input
+            value={form.login}
+            onChange={e => fp("login", e.target.value.toLowerCase().replace(/\s/g, ""))}
+            placeholder="Ex: joao.silva"
+          />
+        </Field>
+
         <Row>
-          <Field label="Login"><Input value={form.login} onChange={e => setForm(p => ({ ...p, login: e.target.value }))} /></Field>
-          <Field label="Senha"><Input type="password" value={form.senha} onChange={e => setForm(p => ({ ...p, senha: e.target.value }))} /></Field>
+          {senhaInput("Senha", form.senha || "", e => fp("senha", e.target.value))}
+          {senhaInput("Confirmar Senha", confirma, e => setConfirma(e.target.value))}
         </Row>
+
         <Field label="Nível de Acesso">
-          <Select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
-            <option value="operador">Operador</option>
-            <option value="admin">Administrador</option>
+          <Select value={form.role || "operador"} onChange={e => fp("role", e.target.value)}>
+            <option value="operador">👤 Operador</option>
+            <option value="admin">👑 Administrador</option>
           </Select>
         </Field>
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+
+        {erroForm && (
+          <div style={{ background: `${theme.danger}18`, border: `1px solid ${theme.danger}44`, borderRadius: 8, padding: "10px 14px", marginTop: 8, color: theme.danger, fontSize: 13 }}>
+            ⚠️ {erroForm}
+          </div>
+        )}
+
+        {/* Dica visual de força da senha */}
+        {form.senha && (
+          <div style={{ marginTop: 8, fontSize: 12, color: theme.muted }}>
+            Senha: {" "}
+            {form.senha.length < 4
+              ? <span style={{ color: theme.danger }}>muito curta</span>
+              : form.senha.length < 8
+                ? <span style={{ color: theme.warning }}>razoável</span>
+                : <span style={{ color: theme.accent }}>boa ✓</span>
+            }
+            {form.senha && confirma && form.senha !== confirma && (
+              <span style={{ color: theme.danger, marginLeft: 12 }}>senhas não coincidem ✗</span>
+            )}
+            {form.senha && confirma && form.senha === confirma && (
+              <span style={{ color: theme.accent, marginLeft: 12 }}>senhas coincidem ✓</span>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
           <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
-          <Btn onClick={save}>💾 Salvar</Btn>
+          <Btn onClick={save}>💾 Salvar Usuário</Btn>
         </div>
       </Modal>
     </div>

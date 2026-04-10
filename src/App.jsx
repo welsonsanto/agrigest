@@ -28,6 +28,9 @@ const safrasOpcoes = ["2023/2024", "2024/2025", "2025/2026", "2026/2027"];
 const uid = () => Math.random().toString(36).slice(2, 9);
 const padNum = (n) => String(n).padStart(5, "0");
 
+// USUÁRIO PADRÃO - será usado se não houver nenhum
+const USUARIO_PADRAO = { id: "1", nome: "Administrador", login: "admin", senha: "agro2024", role: "admin" };
+
 // ─── CÁLCULO DE DESCONTO DE UMIDADE — DUPLA FAIXA ────────────────────────────
 function calcDescUmidade(umidade, umRef, umDesc, umDescPesado) {
   const v = parseFloat(umidade) || 0;
@@ -179,7 +182,7 @@ const Table = ({ headers, rows }) => (
 const Td = ({ children }) => (
   <td style={{ padding: "11px 14px", borderBottom: `1px solid ${theme.border}18`, fontSize: 13 }}>
     {children}
-  </td>
+   </td>
 );
 
 const STORAGE_KEY = "agrigest_data";
@@ -189,16 +192,22 @@ const initState = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      // Garantir que usuarios existe e tem pelo menos o admin padrão
+      if (!parsed.usuarios || parsed.usuarios.length === 0) {
+        parsed.usuarios = [USUARIO_PADRAO];
+      }
       if (!parsed.talhoes) parsed.talhoes = [];
       return parsed;
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("Erro ao carregar dados:", e);
+  }
   return {
     fazenda: null, clientes: [], transportadoras: [], fornecedores: [], caminhoes: [], motoristas: [],
     contratos: [], insumos: [], estoqueInsumos: [], recebimentoInsumos: [],
     romaneiosEntrada: [], romaneiosSaida: [], romaneiosEntradaLixeira: [], romaneiosSaidalixeira: [],
     expedicoes: [], classificacaoParams: {}, romaneioCounter: 1, talhoes: [],
-    usuarios: [{ id: "1", nome: "Administrador", login: "admin", senha: "agro2024", role: "admin" }]
+    usuarios: [USUARIO_PADRAO]
   };
 };
 
@@ -629,7 +638,7 @@ function CrudPage({ title, icon, fields, stateKey, state, setState }) {
                       <Btn size="sm" variant="danger" onClick={() => del(item.id)}>🗑️</Btn>
                     </div>
                   </Td>
-                </tr>
+                </table>
               ))}
             />
           )}
@@ -689,10 +698,9 @@ function Usuarios({ state, setState }) {
   };
 
   const openEdit = u => {
-    // Ao editar, mantemos a senha já salva mas exibimos em texto para o admin ver
     setForm({ ...u });
     setEditing(u.id);
-    setConfirma(u.senha); // preenche confirmação com a senha atual
+    setConfirma(u.senha);
     setErroForm("");
     setShowSenha(false);
     setOpen(true);
@@ -713,7 +721,6 @@ function Usuarios({ state, setState }) {
     if (form.senha.length < 4) { setErroForm("A senha deve ter pelo menos 4 caracteres."); return; }
     if (form.senha !== confirma) { setErroForm("As senhas não coincidem."); return; }
 
-    // Verifica login duplicado
     const loginExiste = usuarios.some(u => u.login === form.login.trim() && u.id !== editing);
     if (loginExiste) { setErroForm("Este login já está em uso por outro usuário."); return; }
 
@@ -825,7 +832,6 @@ function Usuarios({ state, setState }) {
           </div>
         )}
 
-        {/* Dica visual de força da senha */}
         {form.senha && (
           <div style={{ marginTop: 8, fontSize: 12, color: theme.muted }}>
             Senha: {" "}
@@ -1947,7 +1953,7 @@ function RelatorioMotoristas({ state }) {
       <h2>👷 ${d.nome}</h2>
       <table>
         <tr><th>Data</th><th>Viagens no Dia</th><th>Toneladas no Dia</th><th>Sacos no Dia</th></tr>
-        ${d.diasDetalhes.map(dd => `<tr><td>${dd.data}</td><td>${dd.viagensDia}</td><td>${dd.tonDia} t</td><td>${dd.sacosDia} sc</td></tr>`).join("")}
+        ${d.diasDetalhes.map(dd => `<tr><td>${dd.data}</td><td>${dd.viagensDia}</td><td>${dd.tonDia} t</td><td>${dd.sacosDia} sc</td>`).join("")}
         <tr class="tot"><td>TOTAL</td><td>${d.totalViagens} viagens</td><td>${d.totalTon.toFixed(3)} t</td><td>${Math.round(d.totalSacos).toLocaleString()} sc</td></tr>
         <tr class="tot"><td>MÉDIA/VIAGEM</td><td>—</td><td>${d.mediaTon.toFixed(3)} t</td><td>${d.mediaSacos.toFixed(1)} sc</td></tr>
       </table>
@@ -2132,9 +2138,9 @@ function RelatoriosDiarios({ state }) {
       const sacasTalhao = dados.totalKg / SC_KG;
       const info = talhoes.find(t => t.nome === nome);
       const areaTotal = (info?.culturas || []).reduce((a, c) => a + (parseFloat(c.area) || 0), 0);
-      return `<h2>🗺️ ${nome}</h2><table><tr><th>Nº Romaneio</th><th>Grão</th><th>Placa</th><th>Motorista</th><th>Peso Final (kg)</th><th>Sacas (60kg)</th></tr>${dados.cargas.map(r => `<tr><td style="font-family:monospace">${r.numero}</td><td>${r.grao || "—"}</td><td>${r.placa || "—"}</td><td>${r.motorista || "—"}</td><td>${(parseFloat(r.pesoFinal) || 0).toLocaleString()} kg</td><td>${Math.round((parseFloat(r.pesoFinal) || 0) / SC_KG)} sc</td></tr>`).join("")}<tr class="tot"><td colspan="3">TOTAL DO TALHÃO</td><td>${dados.cargas.length} carga(s)</td><td>${dados.totalKg.toLocaleString()} kg</td><td>${Math.round(sacasTalhao).toLocaleString()} sc${areaTotal > 0 ? ` · ${(sacasTalhao / areaTotal).toFixed(1)} sc/ha` : ""}</td></tr></table>`;
+      return `<h2>🗺️ ${nome}</h2><table><th>Nº Romaneio</th><th>Grão</th><th>Placa</th><th>Motorista</th><th>Peso Final (kg)</th><th>Sacas (60kg)</th>${dados.cargas.map(r => `<tr><td style="font-family:monospace">${r.numero}</td><td>${r.grao || "—"}</td><td>${r.placa || "—"}</td><td>${r.motorista || "—"}</td><td>${(parseFloat(r.pesoFinal) || 0).toLocaleString()} kg</td><td>${Math.round((parseFloat(r.pesoFinal) || 0) / SC_KG)} sc</td>`).join("")}<tr class="tot"><td colspan="3">TOTAL DO TALHÃO</td><td>${dados.cargas.length} carga(s)</td><td>${dados.totalKg.toLocaleString()} kg</td><td>${Math.round(sacasTalhao).toLocaleString()} sc${areaTotal > 0 ? ` · ${(sacasTalhao / areaTotal).toFixed(1)} sc/ha` : ""}</td></tr></td>`;
     }).join("")}
-    <table><tr class="grand"><td>▶ TOTAL GERAL DO DIA</td><td>${talhaoEntries.length} talhão(ões)</td><td>${totalCargasDia} carga(s)</td><td>${totalKgDia.toLocaleString()} kg</td><td colspan="2">${Math.round(totalSacasDia).toLocaleString()} sacas</td></tr></table>
+    <table class="grand"><tr><td>▶ TOTAL GERAL DO DIA</td><td>${talhaoEntries.length} talhão(ões)</td><td>${totalCargasDia} carga(s)</td><td>${totalKgDia.toLocaleString()} kg</td><td colspan="2">${Math.round(totalSacasDia).toLocaleString()} sacas</td></tr></table>
     <div class="footer">AgriGest · Relatório Diário de Colheita · ${new Date().toLocaleString("pt-BR")}</div>
     </body></html>`);
     win.document.close();
@@ -2299,7 +2305,7 @@ export default function App() {
 
   const usuariosAtivos = (state.usuarios && state.usuarios.length > 0)
     ? state.usuarios
-    : [{ id: "1", nome: "Administrador", login: "admin", senha: "agro2024", role: "admin" }];
+    : [USUARIO_PADRAO];
 
   if (!loggedIn) return <Login onLogin={handleLogin} usuarios={usuariosAtivos} />;
 

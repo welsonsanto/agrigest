@@ -1398,14 +1398,14 @@ const gerarHTML = () => {
       </div>
       <div class="cab-direita">
         <div class="tipo-badge ${isEntrada ? "badge-entrada" : "badge-saida"}">${isEntrada ? "RECEBIMENTO" : "EXPEDIÇÃO"}</div>
-        <div class="romaneio-num">ROMANEIO Nº ${form.numero}</div>
+        <div class="romaneio-num">Nº ${form.numero}</div>
         <div class="romaneio-data">${dataFormatada}</div>
       </div>
     </div>
 
     <div class="grid-2col">
       <div>
-        <div class="sec-title">🚛 DADOS DO TRANSPORTE</div>
+        <div class="sec-title">🚛 TRANSPORTE</div>
         <table class="info-table">
           <tr><td class="lbl">Motorista</td><td class="val">${form.motorista || "—"}</td></tr>
           <tr><td class="lbl">Placa</td><td class="val">${form.placa || "—"}${ufPlaca ? ` · ${ufPlaca}` : ""}</td></tr>
@@ -1413,7 +1413,7 @@ const gerarHTML = () => {
         </table>
       </div>
       <div>
-        <div class="sec-title">🌾 DADOS DA CARGA</div>
+        <div class="sec-title">🌾 CARGA</div>
         <table class="info-table">
           <tr><td class="lbl">Grão</td><td class="val accent">${form.grao || "—"}</td></tr>
           ${isEntrada ? `<tr><td class="lbl">Talhão</td><td class="val">${form.talhao || "—"}</td></tr>` : `<tr><td class="lbl">Contrato</td><td class="val">${form.contrato || "—"}</td></tr>`}
@@ -1424,108 +1424,81 @@ const gerarHTML = () => {
     </div>
 
     ${isEntrada && talhaoInfo && talhaoInfo.culturas?.length > 0 ? `
-    <div class="sec-title">🗺️ CULTURAS DO TALHÃO</div>
     <div class="culturas-box">
       ${talhaoInfo.culturas.map(c => `<span class="cultura-tag">🌾 ${c.grao} · ${c.area} ha</span>`).join("")}
     </div>
     ` : ""}
 
-    <div class="sec-title">⚖️ PESAGEM</div>
     <div class="pesagem-grid">
       <div class="peso-card">
         <div class="peso-label">PESO BRUTO</div>
-        <div class="peso-value">${formatNumber(form.pesoBruto)} <span class="peso-unit">kg</span></div>
+        <div class="peso-value">${formatNumber(form.pesoBruto)}</div>
+        <div class="peso-unit">kg</div>
       </div>
       <div class="peso-sep">−</div>
       <div class="peso-card">
         <div class="peso-label">TARA</div>
-        <div class="peso-value">${formatNumber(form.pesoTara)} <span class="peso-unit">kg</span></div>
+        <div class="peso-value">${formatNumber(form.pesoTara)}</div>
+        <div class="peso-unit">kg</div>
       </div>
       <div class="peso-sep">=</div>
       <div class="peso-card destaque">
-        <div class="peso-label">PESO LÍQUIDO</div>
-        <div class="peso-value green">${formatNumber(liq)} <span class="peso-unit">kg</span></div>
+        <div class="peso-label">LÍQUIDO</div>
+        <div class="peso-value green">${formatNumber(liq)}</div>
+        <div class="peso-unit">kg</div>
       </div>
     </div>
 
-    <div class="sec-title">🔬 CLASSIFICAÇÃO</div>
     <table class="class-table">
       <thead>
-        <tr>
-          <th>ITEM</th>
-          <th>VALOR AFERIDO</th>
-          <th>TOLERÂNCIA</th>
-          <th>DESCONTO</th>
-        </tr>
+        <tr><th>ITEM</th><th>AFERIDO</th><th>TOLERÂNCIA</th><th>DESCONTO</th></tr>
       </thead>
       <tbody>
-        <tr>
-          <td class="item-name">💧 Umidade ${faixaUmidade === "pesada" ? '<span class="badge-warning">PESADA</span>' : ''}</td>
-          <td class="center">${formatNumberDec(form.umidade)} %</td>
-          <td class="center">${p.umRef ? formatNumberDec(p.umRef) : "—"} %</td>
-          <td class="center ${parseFloat(dUm) > 0 ? "desc-red" : ""}">${dUm} %</td>
+        <tr><td class="item-name">💧 Umidade${faixaUmidade === "pesada" ? ' <span class="badge-warning">!</span>' : ''}</td>
+          <td class="center">${formatNumberDec(form.umidade)}%</td>
+          <td class="center">${p.umRef ? formatNumberDec(p.umRef) : "—"}%</td>
+          <td class="center ${parseFloat(dUm) > 0 ? "desc-red" : ""}">${dUm}%</td>
         </tr>
-        <tr class="alt">
-          <td class="item-name">🪨 Impureza</td>
-          <td class="center">${formatNumberDec(form.impureza)} %</td>
-          <td class="center">${p.impRef ? formatNumberDec(p.impRef) : "—"} %</td>
-          <td class="center ${parseFloat(dImp) > 0 ? "desc-red" : ""}">${dImp} %</td>
+        <tr class="alt"><td class="item-name">🪨 Impureza</td>
+          <td class="center">${formatNumberDec(form.impureza)}%</td>
+          <td class="center">${p.impRef ? formatNumberDec(p.impRef) : "—"}%</td>
+          <td class="center ${parseFloat(dImp) > 0 ? "desc-red" : ""}">${dImp}%</td>
         </tr>
-        <tr>
-          <td class="item-name">🔴 Avariado</td>
-          <td class="center">${formatNumberDec(form.avariado)} %</td>
-          <td class="center">${p.avRef ? formatNumberDec(p.avRef) : "—"} %</td>
-          <td class="center ${parseFloat(dAv) > 0 ? "desc-red" : ""}">${dAv} %</td>
+        <tr><td class="item-name">🔴 Avariado</td>
+          <td class="center">${formatNumberDec(form.avariado)}%</td>
+          <td class="center">${p.avRef ? formatNumberDec(p.avRef) : "—"}%</td>
+          <td class="center ${parseFloat(dAv) > 0 ? "desc-red" : ""}">${dAv}%</td>
         </tr>
-        <tr class="total-row">
-          <td colspan="3" class="total-label">TOTAL DE DESCONTO</td>
-          <td class="center total-desc-val">${totalDesc} %</td>
+        <tr class="total-row"><td colspan="3" class="total-label">TOTAL</td>
+          <td class="center total-desc-val">${totalDesc}%</td>
         </tr>
       </tbody>
     </table>
 
     <div class="resultado-final">
-      <div class="resumo-desconto">
-        <div class="resumo-item">
-          <span class="resumo-label">Peso Líquido</span>
-          <span class="resumo-value">${formatNumber(liq)} kg</span>
-        </div>
-        <div class="resumo-item red">
-          <span class="resumo-label">(−) Desconto</span>
-          <span class="resumo-value">${totalDesc} %</span>
-        </div>
+      <div class="resultado-item">
+        <span class="resultado-label">Peso Líquido</span>
+        <span class="resultado-valor">${formatNumber(liq)} kg</span>
+      </div>
+      <div class="resultado-item red">
+        <span class="resultado-label">(−) Desconto</span>
+        <span class="resultado-valor">${totalDesc}%</span>
       </div>
       <div class="resultado-destaque">
-        <div class="resultado-label">PESO FINAL LÍQUIDO SECO</div>
-        <div class="resultado-valor">${formatNumber(pesoFinal)} <span class="resultado-unit">kg</span></div>
+        <span class="resultado-label">PESO FINAL</span>
+        <span class="resultado-valor-final">${formatNumber(pesoFinal)} kg</span>
       </div>
     </div>
 
-    ${form.obs ? `
-    <div class="obs-box">
-      <strong>📝 Observações:</strong> ${form.obs}
-    </div>
-    ` : ""}
+    ${form.obs ? `<div class="obs-box">📝 ${form.obs}</div>` : ""}
 
     <div class="assinaturas">
-      <div class="assinatura">
-        <div class="assinatura-linha"></div>
-        <div class="assinatura-nome">Motorista / Transportador</div>
-      </div>
-      <div class="assinatura">
-        <div class="assinatura-linha"></div>
-        <div class="assinatura-nome">Responsável pelo Recebimento</div>
-      </div>
-      <div class="assinatura">
-        <div class="assinatura-linha"></div>
-        <div class="assinatura-nome">Responsável pela Expedição</div>
-      </div>
+      <div class="assinatura"><div class="assinatura-linha"></div><div class="assinatura-nome">Motorista</div></div>
+      <div class="assinatura"><div class="assinatura-linha"></div><div class="assinatura-nome">Recebimento</div></div>
+      <div class="assinatura"><div class="assinatura-linha"></div><div class="assinatura-nome">Expedição</div></div>
     </div>
 
-    <div class="footer-info">
-      <div class="footer-text">AgriGest · Sistema de Gestão do Agronegócio</div>
-      <div class="footer-data">Emitido em ${new Date().toLocaleString("pt-BR")}</div>
-    </div>
+    <div class="footer-info">AgriGest · ${new Date().toLocaleString("pt-BR")}</div>
   </div>
   `;
 
@@ -1533,29 +1506,21 @@ const gerarHTML = () => {
   <html lang="pt-BR">
   <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Romaneio Nº ${form.numero} — ${isEntrada ? "Recebimento" : "Expedição"}</title>
+    <title>Romaneio Nº ${form.numero}</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+      * { margin: 0; padding: 0; box-sizing: border-box; }
       
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      
-      @page {
-        size: A4;
-        margin: 0.8cm 0.6cm;
+      @page { 
+        size: A4; 
+        margin: 0.5cm 0.6cm;
       }
       
       body {
         font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
         background: #e2e8f0;
-        padding: 12px;
-        font-size: 10px;
+        padding: 6px;
+        font-size: 9px;
         color: #1e293b;
-        line-height: 1.4;
       }
       
       .page {
@@ -1564,512 +1529,236 @@ const gerarHTML = () => {
       }
       
       .via {
-        background: #ffffff;
+        background: #fff;
         border: 1px solid #cbd5e1;
-        border-radius: 12px;
-        padding: 14px 18px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
         break-inside: avoid;
+        page-break-inside: avoid;
       }
       
       .corte {
         text-align: center;
-        padding: 8px 0;
-        margin: 4px 0;
-        font-size: 8px;
+        padding: 4px 0;
+        margin: 2px 0;
+        font-size: 7px;
         font-weight: 800;
-        letter-spacing: 3px;
-        text-transform: uppercase;
+        letter-spacing: 2px;
         color: #92400e;
         background: #fffbeb;
-        border-top: 2px dashed #fbbf24;
-        border-bottom: 2px dashed #fbbf24;
-        position: relative;
+        border-top: 1px dashed #fbbf24;
+        border-bottom: 1px dashed #fbbf24;
       }
       
-      .corte::before,
-      .corte::after {
-        content: "✂";
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 12px;
-        color: #f59e0b;
-      }
-      
-      .corte::before { left: 10px; }
-      .corte::after { right: 10px; }
-      
-      /* Header da via */
       .via-header {
         text-align: center;
-        margin-bottom: 12px;
+        margin-bottom: 6px;
       }
       
       .via-label {
         display: inline-block;
-        font-size: 7px;
+        font-size: 6px;
         font-weight: 800;
-        letter-spacing: 2.5px;
-        text-transform: uppercase;
-        padding: 4px 16px;
-        border-radius: 30px;
+        letter-spacing: 2px;
+        padding: 2px 12px;
+        border-radius: 20px;
         background: ${isEntrada ? "#dbeafe" : "#fef3c7"};
         color: ${isEntrada ? "#1d4ed8" : "#92400e"};
         border: 1px solid ${isEntrada ? "#93c5fd" : "#fcd34d"};
       }
       
-      /* Cabeçalho principal */
       .cabecalho {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        border-bottom: 2px solid #0f172a;
-        padding-bottom: 12px;
-        margin-bottom: 16px;
-        gap: 16px;
-        flex-wrap: wrap;
+        border-bottom: 1px solid #0f172a;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+        gap: 10px;
       }
       
       .cab-esquerda {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
         flex: 1;
       }
       
-      .logo {
-        width: 48px;
-        height: 48px;
-        object-fit: contain;
-        border-radius: 8px;
-      }
+      .logo { width: 36px; height: 36px; object-fit: contain; border-radius: 6px; }
+      .logo-placeholder { width: 36px; height: 36px; background: #f0fdf4; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
       
-      .logo-placeholder {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-      }
+      .faz-info { flex: 1; }
+      .faz-nome { font-size: 10px; font-weight: 900; margin-bottom: 2px; }
+      .faz-sub { font-size: 6.5px; color: #475569; line-height: 1.3; }
       
-      .faz-info {
-        flex: 1;
-      }
+      .cab-direita { text-align: right; flex-shrink: 0; }
+      .tipo-badge { font-size: 6px; font-weight: 800; letter-spacing: 1.5px; padding: 2px 8px; border-radius: 16px; display: inline-block; margin-bottom: 4px; }
+      .badge-entrada { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+      .badge-saida { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+      .romaneio-num { font-size: 16px; font-weight: 900; font-family: monospace; }
+      .romaneio-data { font-size: 7px; color: #64748b; }
       
-      .faz-nome {
-        font-size: 12px;
-        font-weight: 900;
-        color: #0f172a;
-        margin-bottom: 3px;
-      }
-      
-      .faz-sub {
-        font-size: 7.5px;
-        color: #475569;
-        line-height: 1.4;
-      }
-      
-      .cab-direita {
-        text-align: right;
-        flex-shrink: 0;
-      }
-      
-      .tipo-badge {
-        font-size: 7px;
-        font-weight: 800;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        padding: 3px 12px;
-        border-radius: 20px;
-        display: inline-block;
-        margin-bottom: 6px;
-      }
-      
-      .badge-entrada {
-        background: #dbeafe;
-        color: #1d4ed8;
-        border: 1px solid #93c5fd;
-      }
-      
-      .badge-saida {
-        background: #fef3c7;
-        color: #92400e;
-        border: 1px solid #fcd34d;
-      }
-      
-      .romaneio-num {
-        font-size: 20px;
-        font-weight: 900;
-        font-family: monospace;
-        color: #0f172a;
-        line-height: 1.2;
-        letter-spacing: -0.5px;
-      }
-      
-      .romaneio-data {
-        font-size: 8px;
-        color: #64748b;
-        margin-top: 3px;
-      }
-      
-      /* Grid de 2 colunas */
       .grid-2col {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 12px;
+        gap: 10px;
+        margin-bottom: 6px;
       }
       
-      /* Seções */
       .sec-title {
-        font-size: 7px;
+        font-size: 6px;
         font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 1px;
         color: #166534;
         background: #f0fdf4;
-        border-left: 3px solid #16a34a;
-        padding: 5px 10px;
-        margin: 10px 0 8px 0;
-        border-radius: 0 4px 4px 0;
+        border-left: 2px solid #16a34a;
+        padding: 3px 6px;
+        margin: 4px 0;
       }
       
-      /* Tabelas de informação */
       .info-table {
         width: 100%;
         border-collapse: collapse;
-        background: #f8fafc;
-        border-radius: 8px;
-        overflow: hidden;
+        font-size: 7.5px;
       }
       
       .info-table td {
-        padding: 6px 10px;
+        padding: 3px 5px;
         border: 1px solid #e2e8f0;
-        font-size: 8.5px;
       }
       
       .lbl {
         background: #f1f5f9;
         font-weight: 700;
-        color: #475569;
-        width: 35%;
-        font-size: 7.5px;
+        width: 40%;
       }
       
-      .val {
-        color: #0f172a;
-        font-weight: 500;
-      }
+      .val.accent { color: #16a34a; font-weight: 700; }
       
-      .val.accent {
-        color: #16a34a;
-        font-weight: 700;
-        font-size: 9px;
-      }
-      
-      /* Culturas */
       .culturas-box {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 8px 12px;
+        border-radius: 6px;
+        padding: 4px 8px;
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: 5px;
+        margin: 6px 0;
       }
       
       .cultura-tag {
         background: #e0f2fe;
         color: #0369a1;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 7.5px;
+        padding: 2px 8px;
+        border-radius: 16px;
+        font-size: 6.5px;
         font-weight: 600;
       }
       
-      /* Pesagem */
       .pesagem-grid {
         display: flex;
         align-items: center;
         justify-content: space-between;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 10px 16px;
-        margin-bottom: 12px;
+        border-radius: 6px;
+        padding: 6px 10px;
+        margin: 8px 0;
       }
       
       .peso-card {
         flex: 1;
         text-align: center;
-        padding: 6px;
       }
       
-      .peso-card.destaque {
-        background: #f0fdf4;
-        border-radius: 8px;
-      }
+      .peso-card.destaque { background: #f0fdf4; border-radius: 6px; padding: 3px; }
+      .peso-label { font-size: 5.5px; font-weight: 700; letter-spacing: 0.5px; color: #64748b; }
+      .peso-value { font-size: 14px; font-weight: 900; }
+      .peso-value.green { color: #16a34a; }
+      .peso-unit { font-size: 6px; color: #64748b; }
+      .peso-sep { font-size: 14px; font-weight: 900; color: #94a3b8; padding: 0 5px; }
       
-      .peso-label {
-        font-size: 6.5px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #64748b;
-        margin-bottom: 4px;
-      }
-      
-      .peso-value {
-        font-size: 18px;
-        font-weight: 900;
-        color: #1e293b;
-      }
-      
-      .peso-value.green {
-        color: #16a34a;
-      }
-      
-      .peso-unit {
-        font-size: 8px;
-        font-weight: 500;
-        color: #64748b;
-      }
-      
-      .peso-sep {
-        font-size: 20px;
-        font-weight: 900;
-        color: #94a3b8;
-        padding: 0 8px;
-      }
-      
-      /* Tabela de classificação */
       .class-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 12px;
-        font-size: 8px;
+        margin: 8px 0;
+        font-size: 7px;
       }
       
       .class-table th {
         background: #1e293b;
-        color: #ffffff;
-        padding: 6px 10px;
-        font-size: 6.5px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        color: #fff;
+        padding: 4px 5px;
+        font-size: 5.5px;
         text-align: center;
       }
       
       .class-table td {
-        padding: 6px 10px;
+        padding: 4px 5px;
         border: 1px solid #e2e8f0;
-      }
-      
-      .class-table tr.alt td {
-        background: #f8fafc;
-      }
-      
-      .item-name {
-        font-weight: 700;
-        color: #334155;
-        white-space: nowrap;
-      }
-      
-      .center {
         text-align: center;
       }
       
-      .desc-red {
-        color: #dc2626;
-        font-weight: 800;
-      }
+      .class-table td:first-child { text-align: left; }
+      .item-name { font-weight: 700; white-space: nowrap; }
+      .desc-red { color: #dc2626; font-weight: 800; }
+      .total-row td { background: #fef2f2; border-top: 1px solid #fca5a5; font-weight: 700; }
+      .total-label { text-align: right; }
+      .total-desc-val { font-size: 10px; font-weight: 900; color: #dc2626; }
+      .badge-warning { display: inline-block; background: #fee2e2; color: #dc2626; font-size: 5px; padding: 1px 4px; border-radius: 8px; margin-left: 3px; }
       
-      .total-row td {
-        background: #fef2f2;
-        border-top: 2px solid #fca5a5;
-        font-weight: 700;
-      }
-      
-      .total-label {
-        text-align: right;
-        font-weight: 800;
-        color: #7f1d1d;
-      }
-      
-      .total-desc-val {
-        font-size: 12px;
-        font-weight: 900;
-        color: #dc2626;
-      }
-      
-      .badge-warning {
-        display: inline-block;
-        background: #fee2e2;
-        color: #dc2626;
-        font-size: 6px;
-        font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 12px;
-        margin-left: 6px;
-      }
-      
-      /* Resultado final */
       .resultado-final {
-        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-        border: 1px solid #cbd5e1;
-        border-radius: 10px;
-        overflow: hidden;
-        margin: 12px 0;
-      }
-      
-      .resumo-desconto {
         display: flex;
-        justify-content: space-between;
-        padding: 8px 16px;
-        border-bottom: 1px solid #e2e8f0;
-      }
-      
-      .resumo-item {
-        display: flex;
-        gap: 12px;
-        font-size: 9px;
-      }
-      
-      .resumo-item.red {
-        color: #dc2626;
-      }
-      
-      .resumo-label {
-        font-weight: 500;
-        color: #64748b;
-      }
-      
-      .resumo-value {
-        font-weight: 700;
-      }
-      
-      .resultado-destaque {
-        display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 12px 20px;
-        background: #0f172a;
+        justify-content: space-between;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 6px 10px;
+        margin: 8px 0;
       }
       
-      .resultado-label {
-        font-size: 8px;
-        font-weight: 800;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        color: #94a3b8;
-      }
+      .resultado-item { display: flex; gap: 8px; font-size: 8px; }
+      .resultado-item.red { color: #dc2626; }
+      .resultado-label { font-weight: 500; color: #64748b; }
+      .resultado-valor { font-weight: 700; }
+      .resultado-destaque { background: #0f172a; padding: 4px 12px; border-radius: 6px; }
+      .resultado-valor-final { font-size: 16px; font-weight: 900; color: #4ade80; }
       
-      .resultado-valor {
-        font-size: 22px;
-        font-weight: 900;
-        font-family: monospace;
-        color: #4ade80;
-      }
-      
-      .resultado-unit {
-        font-size: 10px;
-        font-weight: 500;
-      }
-      
-      /* Observações */
       .obs-box {
         background: #fefce8;
-        border: 1px solid #fde68a;
-        border-left: 3px solid #f59e0b;
-        border-radius: 6px;
-        padding: 8px 12px;
-        margin: 10px 0;
-        font-size: 7.5px;
+        border-left: 2px solid #f59e0b;
+        padding: 4px 8px;
+        margin: 6px 0;
+        font-size: 6.5px;
         color: #78350f;
       }
       
-      /* Assinaturas */
       .assinaturas {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-        margin: 16px 0 12px 0;
+        gap: 12px;
+        margin: 10px 0 6px;
       }
       
-      .assinatura {
-        text-align: center;
-      }
+      .assinatura-linha { border-top: 0.5px solid #0f172a; margin-bottom: 3px; }
+      .assinatura-nome { font-size: 6px; font-weight: 600; text-align: center; }
       
-      .assinatura-linha {
-        border-top: 1px solid #0f172a;
-        margin-bottom: 6px;
-        width: 100%;
-      }
-      
-      .assinatura-nome {
-        font-size: 7px;
-        font-weight: 600;
-        color: #475569;
-      }
-      
-      /* Footer */
       .footer-info {
         text-align: center;
-        margin-top: 12px;
-        padding-top: 8px;
-        border-top: 1px solid #e2e8f0;
-      }
-      
-      .footer-text {
-        font-size: 6px;
+        font-size: 5px;
         color: #94a3b8;
-        letter-spacing: 0.5px;
+        margin-top: 6px;
+        padding-top: 4px;
+        border-top: 0.5px solid #e2e8f0;
       }
       
-      .footer-data {
-        font-size: 6px;
-        color: #94a3b8;
-        margin-top: 3px;
-      }
-      
-      /* Print styles */
       @media print {
-        body {
-          background: white;
-          padding: 0;
-          margin: 0;
-        }
-        
-        @page {
-          size: A4;
-          margin: 0.7cm 0.5cm;
-        }
-        
-        .via {
-          box-shadow: none;
-          border: 1px solid #ccc;
-          break-inside: avoid;
-          page-break-inside: avoid;
-        }
-        
-        .corte {
-          break-inside: avoid;
-          page-break-inside: avoid;
-          border-color: #999;
-        }
-        
-        .corte::before,
-        .corte::after {
-          content: "";
-        }
+        body { background: #fff; padding: 0; }
+        @page { margin: 0.4cm 0.5cm; }
+        .via { box-shadow: none; break-inside: avoid; }
+        .corte { break-inside: avoid; }
       }
     </style>
   </head>
@@ -2082,6 +1771,7 @@ const gerarHTML = () => {
   </body>
   </html>`;
 };
+
     const handleImprimir = () => {
       const win = window.open("", "_blank");
       win.document.write(gerarHTML());

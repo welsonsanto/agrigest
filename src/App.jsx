@@ -379,47 +379,71 @@ function Sidebar({ active, setActive, fazenda, usuario }) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ state }) {
+function Dashboard({ state, setActive }) {
   const stats = [
-    { label: "Contratos Ativos", value: state.contratos.filter(c => c.status === "Ativo").length, icon: "📋", color: theme.accent },
-    { label: "Romaneios Entrada", value: state.romaneiosEntrada.length, icon: "📥", color: theme.info },
-    { label: "Romaneios Saída", value: state.romaneiosSaida.length, icon: "📤", color: theme.gold },
-    { label: "Estoque (un)", value: state.estoqueInsumos.reduce((a, i) => a + (parseFloat(i.qtd) || 0), 0).toFixed(0), icon: "📦", color: theme.warning },
-    { label: "Clientes", value: state.clientes.length, icon: "👥", color: theme.accentLight },
-    { label: "Motoristas", value: state.motoristas.length, icon: "👷", color: theme.muted },
+    { label: "Contratos Ativos", value: state.contratos.filter(c => c.status === "Ativo").length, icon: "📋", color: theme.accent, link: "contratos" },
+    { label: "Romaneios Entrada", value: state.romaneiosEntrada.length, icon: "📥", color: theme.info, link: "romaneiosEntrada" },
+    { label: "Romaneios Saída", value: state.romaneiosSaida.length, icon: "📤", color: theme.gold, link: "romaneiosSaida" },
+    { label: "Estoque (un)", value: state.estoqueInsumos.reduce((a, i) => a + (parseFloat(i.qtd) || 0), 0).toFixed(0), icon: "📦", color: theme.warning, link: "estoque" },
+    { label: "Clientes", value: state.clientes.length, icon: "👥", color: theme.accentLight, link: "clientes" },
+    { label: "Motoristas", value: state.motoristas.length, icon: "👷", color: theme.muted, link: "motoristas" },
   ];
   return (
     <div>
       <SectionTitle>Dashboard</SectionTitle>
       {state.fazenda ? (
-        <Card style={{ marginBottom: 20, background: `linear-gradient(135deg,${theme.accent}14,${theme.gold}0a)`, borderColor: `${theme.accent}44` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 56, height: 56, background: `${theme.accent}2a`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🏡</div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 18, color: theme.text }}>{state.fazenda.nome}</div>
-              <div style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>{state.fazenda.produtor} · {state.fazenda.cidade}/{state.fazenda.estado}</div>
-              <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                {state.fazenda.graos?.map(g => <Badge key={g} color="green">{g}</Badge>)}
+        <div
+          onClick={() => setActive("fazenda")}
+          style={{ cursor: "pointer", marginBottom: 20, transition: "transform .15s, box-shadow .15s" }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 4px 20px ${theme.accent}22`; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+        >
+          <Card style={{ background: `linear-gradient(135deg,${theme.accent}14,${theme.gold}0a)`, borderColor: `${theme.accent}44` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ width: 56, height: 56, background: `${theme.accent}2a`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🏡</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 18, color: theme.text }}>{state.fazenda.nome}</div>
+                <div style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>{state.fazenda.produtor} · {state.fazenda.cidade}/{state.fazenda.estado}</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                  {state.fazenda.graos?.map(g => <Badge key={g} color="green">{g}</Badge>)}
+                </div>
               </div>
+              <div style={{ color: theme.muted, fontSize: 18, opacity: 0.5 }}>→</div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       ) : (
-        <Card style={{ marginBottom: 20, borderColor: `${theme.gold}44`, background: `${theme.gold}0a` }}>
-          <p style={{ color: theme.gold, fontSize: 13 }}>⚠️ Nenhuma fazenda cadastrada. Vá em <strong>Fazenda</strong> para começar.</p>
-        </Card>
+        <div
+          onClick={() => setActive("fazenda")}
+          style={{ cursor: "pointer", marginBottom: 20, transition: "transform .15s, box-shadow .15s" }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 4px 20px ${theme.gold}22`; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+        >
+          <Card style={{ borderColor: `${theme.gold}44`, background: `${theme.gold}0a` }}>
+            <p style={{ color: theme.gold, fontSize: 13, margin: 0 }}>⚠️ Nenhuma fazenda cadastrada. <strong style={{ textDecoration: "underline" }}>Clique aqui para cadastrar sua Fazenda</strong>.</p>
+          </Card>
+        </div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
         {stats.map(s => (
-          <Card key={s.label} style={{ borderLeft: `3px solid ${s.color}`, padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <div style={{ color: theme.muted, fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{s.label}</div>
-                <div style={{ fontWeight: 900, fontSize: 32, color: s.color }}>{s.value}</div>
+          <div
+            key={s.label}
+            onClick={() => setActive(s.link)}
+            style={{ cursor: "pointer", transition: "transform .15s, box-shadow .15s" }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 6px 24px ${s.color}22`; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+          >
+            <Card style={{ borderLeft: `3px solid ${s.color}`, padding: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ color: theme.muted, fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{s.label}</div>
+                  <div style={{ fontWeight: 900, fontSize: 32, color: s.color }}>{s.value}</div>
+                </div>
+                <span style={{ fontSize: 24 }}>{s.icon}</span>
               </div>
-              <span style={{ fontSize: 24 }}>{s.icon}</span>
-            </div>
-          </Card>
+              <div style={{ marginTop: 10, fontSize: 11, color: s.color, opacity: 0.7, fontWeight: 600 }}>Clique para acessar →</div>
+            </Card>
+          </div>
         ))}
       </div>
     </div>
@@ -2605,7 +2629,7 @@ export default function App() {
   const page = () => {
     if (crudPages[active]) return <CrudPage key={active} {...crudPages[active]} state={state} setState={ss} />;
     switch (active) {
-      case "dashboard": return <Dashboard state={state} />;
+      case "dashboard": return <Dashboard state={state} setActive={setActive} />;
       case "fazenda": return <Fazenda state={state} setState={ss} />;
       case "graos": return <Graos state={state} />;
       case "talhoes": return <Talhoes state={state} setState={ss} />;

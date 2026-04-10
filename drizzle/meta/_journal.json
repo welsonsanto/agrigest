@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1775841791852,
+      "tag": "0000_charming_slipstream",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1775842040499,
+      "tag": "0001_complete_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1775842198663,
+      "tag": "0002_blue_doctor_spectrum",
+      "breakpoints": true
+    }
+  ]
+}

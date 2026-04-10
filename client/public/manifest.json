@@ -1,0 +1,24 @@
+{
+  "name": "AgriGest - Gestão do Agronegócio",
+  "short_name": "AgriGest",
+  "description": "Sistema completo de gestão do agronegócio com controle de grãos, romaneios, contratos e insumos.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663526997958/CgD26ftwrhWUA8C2zyUAJy/icon-192_31529be2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663526997958/CgD26ftwrhWUA8C2zyUAJy/icon-512_51e52c07.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

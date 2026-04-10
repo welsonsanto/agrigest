@@ -1,0 +1,1 @@
+ALTER TABLE `fazendas` MODIFY COLUMN `graos` json;

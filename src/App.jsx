@@ -209,7 +209,7 @@ function Login({ onLogin, usuarios }) {
   const [err, setErr] = useState("");
   const handleLogin = () => {
     const user = (usuarios || []).find(u => u.login === login && u.senha === senha);
-    if (user) { onLogin(user); } else { setErr("Usuário ou senha inválidos. Tente: admin / agro2024"); }
+    if (user) { onLogin(user); } else { setErr("Usuário ou senha inválidos."); }
   };
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, position: "relative" }}>
@@ -225,7 +225,7 @@ function Login({ onLogin, usuarios }) {
           <Field label="Senha"><Input type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" /></Field>
           {err && <p style={{ color: theme.danger, fontSize: 12, marginBottom: 10 }}>{err}</p>}
           <Btn onClick={handleLogin} style={{ width: "100%", marginTop: 4, padding: 13 }} size="lg">Entrar no Sistema</Btn>
-          <p style={{ color: theme.muted, fontSize: 11, textAlign: "center", marginTop: 14 }}>admin / agro2024</p>
+          
         </Card>
       </div>
     </div>

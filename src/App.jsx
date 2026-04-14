@@ -71,7 +71,6 @@ const modulosDisponiveis = [
 ];
 
 const todosModuloIds = modulosDisponiveis.flatMap(g => g.modulos.map(m => m.id));
-
 const padNum = (n) => String(n).padStart(5, "0");
 
 // ─── CÁLCULO DE DESCONTO DE UMIDADE — DUPLA FAIXA ────────────────────────────
@@ -225,10 +224,31 @@ const Table = ({ headers, rows }) => (
 const Td = ({ children }) => (
   <td style={{ padding: "11px 14px", borderBottom: `1px solid ${theme.border}18`, fontSize: 13 }}>
     {children}
-   </td>
+    </td>
 );
 
 const STORAGE_KEY = "agrigest_data";
+const USUARIOS_KEY = "agrigest_usuarios";
+
+const DEFAULT_USUARIOS = [
+  { id: "1", nome: "Administrador", login: "admin", senha: "agro2024", role: "admin", modulos: [] }
+];
+
+const loadUsuarios = () => {
+  try {
+    const saved = localStorage.getItem(USUARIOS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0)
+        return parsed.map(u => ({ ...u, modulos: u.modulos || [] }));
+    }
+  } catch (e) {}
+  return DEFAULT_USUARIOS;
+};
+
+const saveUsuarios = (usuarios) => {
+  try { localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios)); } catch (e) {}
+};
 
 const initState = () => {
   try {
@@ -241,6 +261,16 @@ const initState = () => {
       if (!parsed.pecas) parsed.pecas = [];
       if (!parsed.movimentacaoPecas) parsed.movimentacaoPecas = [];
       if (!parsed.fichasAplicacao) parsed.fichasAplicacao = [];
+      if (!parsed.vendasMilho) parsed.vendasMilho = [];
+      if (!parsed.configPixVenda) parsed.configPixVenda = {
+        chave: "",
+        tipo: "CPF",
+        nomeTitular: "",
+        cidade: "",
+        instrucoes: "Após o pagamento, envie o comprovante para o WhatsApp da fazenda."
+      };
+      // Sempre carrega usuários da chave dedicada (compartilhável entre dispositivos)
+      parsed.usuarios = loadUsuarios();
       return parsed;
     }
   } catch (e) {}
@@ -254,7 +284,15 @@ const initState = () => {
     pecas: [],
     movimentacaoPecas: [],
     fichasAplicacao: [],
-    usuarios: [{ id: "1", nome: "Administrador", login: "admin", senha: "agro2024", role: "admin" }]
+    vendasMilho: [],
+    configPixVenda: {
+      chave: "",
+      tipo: "CPF",
+      nomeTitular: "",
+      cidade: "",
+      instrucoes: "Após o pagamento, envie o comprovante para o WhatsApp da fazenda."
+    },
+    usuarios: loadUsuarios()
   };
 };
 
@@ -268,9 +306,11 @@ function Login({ onLogin, usuarios }) {
   const handleLogin = () => {
     const loginTrim = login.trim().toLowerCase();
     const senhaTrim = senha.trim();
+    
     const user = (usuarios || []).find(
       u => u.login?.trim().toLowerCase() === loginTrim && u.senha?.trim() === senhaTrim
     );
+    
     if (user) {
       setErr("");
       onLogin(user);
@@ -339,73 +379,71 @@ function Login({ onLogin, usuarios }) {
 // ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 const navGroups = (isAdmin, userModulos) => {
   const allGroups = [
-  {
-    title: "🌾 GRÃOS", icon: "🌾",
-    items: [
-      { id: "dashboard", label: "Dashboard", icon: "📊" },
-      { id: "fazenda", label: "Fazenda", icon: "🏡" },
-      { id: "graos", label: "Grãos em Produção", icon: "🌾" },
-      { id: "talhoes", label: "Talhões", icon: "🗺️" },
-      { id: "produtividade", label: "Produtividade", icon: "📈" },
-      { id: "classificacao", label: "Classificação", icon: "⚙️" },
-      { id: "contratos", label: "Contratos", icon: "📋" },
-      { id: "romaneiosEntrada", label: "Recebimento de Grãos", icon: "📥" },
-      { id: "romaneiosSaida", label: "Expedição de Grãos", icon: "📤" },
-      { id: "expedicao", label: "Agendamentos", icon: "🚚" },
-      { id: "relatorioMotoristas", label: "Rel. Motoristas", icon: "📊" },
-      { id: "relatoriosDiarios", label: "Rel. Diário de Colheita", icon: "📅" },
-      { id: "relatorioCarregamentos", label: "Rel. Carregamentos", icon: "📦" },
-      { id: "vendaMilho", label: "Venda de Milho", icon: "🌽" },
-    ]
-  },
-  {
-    title: "🧪 INSUMOS", icon: "🧪",
-    items: [
-      { id: "insumos", label: "Cadastro de Insumos", icon: "🧪" },
-      { id: "estoque", label: "Estoque Insumos", icon: "📦" },
-      { id: "recebimentoInsumos", label: "Recebimento de Insumos", icon: "📥" },
-      { id: "fichasAplicacao", label: "Fichas de Aplicação", icon: "📋" },
-    ]
-  },
-  {
-    title: "⛽ COMBUSTÍVEL", icon: "⛽",
-    items: [
-      { id: "maquinas", label: "Máquinas", icon: "🚜" },
-      { id: "abastecimento", label: "Abastecimento", icon: "⛽" },
-      { id: "relatorioCombustivel", label: "Rel. Consumo", icon: "📈" },
-    ]
-  },
-  {
-    title: "🔧 ALMOXARIFADO", icon: "🔧",
-    items: [
-      { id: "pecas", label: "Peças", icon: "🔧" },
-      { id: "movimentacaoPecas", label: "Movimentação", icon: "📦" },
-      { id: "estoquePecas", label: "Estoque Peças", icon: "📊" },
-    ]
-  },
-  {
-    title: "📋 CADASTROS", icon: "📋",
-    items: [
-      { id: "clientes", label: "Clientes", icon: "👥" },
-      { id: "transportadoras", label: "Transportadoras", icon: "🚛" },
-      { id: "fornecedores", label: "Fornecedores", icon: "🏭" },
-      { id: "caminhoes", label: "Caminhões", icon: "🚜" },
-      { id: "motoristas", label: "Motoristas", icon: "👷" },
-    ]
-  },
-  ...(isAdmin ? [{
-    title: "⚙️ ADMIN", icon: "⚙️",
-    items: [
-      { id: "usuarios", label: "Usuários", icon: "👥" },
-      { id: "lixeira", label: "Lixeira", icon: "🗑️" },
-    ]
-  }] : [])
+    {
+      title: "🌾 GRÃOS", icon: "🌾",
+      items: [
+        { id: "dashboard", label: "Dashboard", icon: "📊" },
+        { id: "fazenda", label: "Fazenda", icon: "🏡" },
+        { id: "graos", label: "Grãos em Produção", icon: "🌾" },
+        { id: "talhoes", label: "Talhões", icon: "🗺️" },
+        { id: "produtividade", label: "Produtividade", icon: "📈" },
+        { id: "classificacao", label: "Classificação", icon: "⚙️" },
+        { id: "contratos", label: "Contratos", icon: "📋" },
+        { id: "romaneiosEntrada", label: "Recebimento de Grãos", icon: "📥" },
+        { id: "romaneiosSaida", label: "Expedição de Grãos", icon: "📤" },
+        { id: "expedicao", label: "Agendamentos", icon: "🚚" },
+        { id: "relatorioMotoristas", label: "Rel. Motoristas", icon: "📊" },
+        { id: "relatoriosDiarios", label: "Rel. Diário de Colheita", icon: "📅" },
+        { id: "relatorioCarregamentos", label: "Rel. Carregamentos", icon: "📦" },
+        { id: "vendaMilho", label: "Venda de Milho", icon: "🌽" },
+      ]
+    },
+    {
+      title: "🧪 INSUMOS", icon: "🧪",
+      items: [
+        { id: "insumos", label: "Cadastro de Insumos", icon: "🧪" },
+        { id: "estoque", label: "Estoque Insumos", icon: "📦" },
+        { id: "recebimentoInsumos", label: "Recebimento de Insumos", icon: "📥" },
+        { id: "fichasAplicacao", label: "Fichas de Aplicação", icon: "📋" },
+      ]
+    },
+    {
+      title: "⛽ COMBUSTÍVEL", icon: "⛽",
+      items: [
+        { id: "maquinas", label: "Máquinas", icon: "🚜" },
+        { id: "abastecimento", label: "Abastecimento", icon: "⛽" },
+        { id: "relatorioCombustivel", label: "Rel. Consumo", icon: "📈" },
+      ]
+    },
+    {
+      title: "🔧 ALMOXARIFADO", icon: "🔧",
+      items: [
+        { id: "pecas", label: "Peças", icon: "🔧" },
+        { id: "movimentacaoPecas", label: "Movimentação", icon: "📦" },
+        { id: "estoquePecas", label: "Estoque Peças", icon: "📊" },
+      ]
+    },
+    {
+      title: "📋 CADASTROS", icon: "📋",
+      items: [
+        { id: "clientes", label: "Clientes", icon: "👥" },
+        { id: "transportadoras", label: "Transportadoras", icon: "🚛" },
+        { id: "fornecedores", label: "Fornecedores", icon: "🏭" },
+        { id: "caminhoes", label: "Caminhões", icon: "🚜" },
+        { id: "motoristas", label: "Motoristas", icon: "👷" },
+      ]
+    },
+    ...(isAdmin ? [{
+      title: "⚙️ ADMIN", icon: "⚙️",
+      items: [
+        { id: "usuarios", label: "Usuários", icon: "👥" },
+        { id: "lixeira", label: "Lixeira", icon: "🗑️" },
+      ]
+    }] : [])
   ];
 
-  // Admin tem acesso a tudo
   if (isAdmin) return allGroups;
 
-  // Operador: filtrar por módulos permitidos
   const permitidos = userModulos || [];
   return allGroups
     .map(g => ({ ...g, items: g.items.filter(item => permitidos.includes(item.id)) }))
@@ -462,7 +500,6 @@ function Dashboard({ state, setActive }) {
   const estoqueTotal     = state.estoqueInsumos.reduce((a, i) => a + (parseFloat(i.qtd) || 0), 0);
   const saldoEstoquePecas = (state.estoquePecas || []).reduce((a, i) => a + (parseFloat(i.qtd) || 0), 0);
 
-  // Card clicável
   const StatCard = ({ label, value, icon, color, page, sub }) => (
     <div
       onClick={() => page && setActive(page)}
@@ -471,7 +508,6 @@ function Dashboard({ state, setActive }) {
         borderLeft: `4px solid ${color}`, borderRadius: 10, padding: "14px 16px",
         cursor: page ? "pointer" : "default",
         transition: "all .18s",
-        position: "relative", overflow: "hidden",
       }}
       onMouseEnter={e => { if (page) { e.currentTarget.style.borderColor = color; e.currentTarget.style.background = `color-mix(in srgb, ${color} 8%, ${theme.card})`; }}}
       onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.background = theme.card; e.currentTarget.style.borderLeftColor = color; }}
@@ -490,7 +526,6 @@ function Dashboard({ state, setActive }) {
     </div>
   );
 
-  // Grupo de seção do dashboard
   const Group = ({ title, color, children }) => (
     <div style={{ marginBottom: 24 }}>
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color, borderBottom: `2px solid ${color}33`, paddingBottom: 6, marginBottom: 12 }}>
@@ -506,7 +541,6 @@ function Dashboard({ state, setActive }) {
     <div>
       <SectionTitle>Dashboard</SectionTitle>
 
-      {/* Card da fazenda */}
       {state.fazenda ? (
         <div
           onClick={() => setActive("fazenda")}
@@ -536,7 +570,6 @@ function Dashboard({ state, setActive }) {
         </div>
       )}
 
-      {/* ── GRÃOS ── */}
       <Group title="🌾 Grãos & Contratos" color={theme.accent}>
         <StatCard label="Contratos Ativos"    value={state.contratos.filter(c => c.status === "Ativo").length} icon="📋" color={theme.accent}      page="contratos"        sub="Clique para gerenciar" />
         <StatCard label="Recebimentos"        value={state.romaneiosEntrada.length}  icon="📥" color={theme.info}        page="romaneiosEntrada"  sub="Romaneios de entrada" />
@@ -544,7 +577,6 @@ function Dashboard({ state, setActive }) {
         <StatCard label="Agendamentos"        value={(state.expedicoes || []).length} icon="🚚" color={theme.warning}    page="expedicao"         sub="Expedições agendadas" />
       </Group>
 
-      {/* ── PRODUÇÃO ── */}
       <Group title="📈 Produção & Talhões" color={theme.accentLight}>
         <StatCard label="Talhões Cadastrados" value={(state.talhoes || []).length}   icon="🗺️" color={theme.accentLight} page="talhoes"          sub="Áreas da fazenda" />
         <StatCard label="Grãos em Produção"   value={(state.fazenda?.graos || []).length} icon="🌾" color={theme.accent} page="graos"            sub="Culturas ativas" />
@@ -552,7 +584,6 @@ function Dashboard({ state, setActive }) {
         <StatCard label="Fichas de Aplicação" value={totalFichas}                    icon="🧪" color={theme.accent}      page="fichasAplicacao"  sub="Aplicações registradas" />
       </Group>
 
-      {/* ── INSUMOS ── */}
       <Group title="🧪 Insumos & Estoque" color={theme.warning}>
         <StatCard label="Insumos Cadastrados" value={(state.insumos || []).length}   icon="🧪" color={theme.warning}    page="insumos"          sub="Produtos registrados" />
         <StatCard label="Qtd em Estoque"      value={estoqueTotal.toFixed(0)}        icon="📦" color={theme.gold}       page="estoque"          sub="Unidades disponíveis" />
@@ -560,7 +591,6 @@ function Dashboard({ state, setActive }) {
         <StatCard label="Fichas de Aplicação" value={totalFichas}                   icon="📋" color={theme.accent}      page="fichasAplicacao"  sub="Baixas no estoque" />
       </Group>
 
-      {/* ── FROTA & MANUTENÇÃO ── */}
       <Group title="🚜 Frota & Manutenção" color={theme.info}>
         <StatCard label="Máquinas"            value={(state.maquinas || []).length}  icon="🚜" color={theme.info}       page="maquinas"         sub="Equipamentos cadastrados" />
         <StatCard label="Litros Abastecidos"  value={totalCombustivel.toFixed(0)}    icon="⛽" color={theme.warning}    page="abastecimento"    sub="Total de combustível" />
@@ -568,7 +598,6 @@ function Dashboard({ state, setActive }) {
         <StatCard label="Estoque de Peças"    value={saldoEstoquePecas.toFixed(0)}   icon="📦" color={theme.gold}       page="estoquePecas"     sub="Unidades em estoque" />
       </Group>
 
-      {/* ── CADASTROS & RELATÓRIOS ── */}
       <Group title="📋 Cadastros & Relatórios" color={theme.gold}>
         <StatCard label="Clientes"            value={state.clientes.length}          icon="👥" color={theme.accentLight} page="clientes"        sub="Compradores cadastrados" />
         <StatCard label="Motoristas"          value={state.motoristas.length}        icon="👷" color={theme.muted}       page="motoristas"      sub="Condutores ativos" />
@@ -851,7 +880,7 @@ function Usuarios({ state, setState }) {
   };
 
   const openEdit = u => {
-    setForm({ ...u });
+    setForm({ ...u, senha: u.senha });
     setEditing(u.id);
     setConfirma(u.senha);
     setErroForm("");
@@ -874,11 +903,23 @@ function Usuarios({ state, setState }) {
     if (form.senha.length < 4) { setErroForm("A senha deve ter pelo menos 4 caracteres."); return; }
     if (form.senha !== confirma) { setErroForm("As senhas não coincidem."); return; }
 
-    const loginExiste = usuarios.some(u => u.login === form.login.trim() && u.id !== editing);
+    const loginExiste = usuarios.some(u => u.login?.trim().toLowerCase() === form.login.trim().toLowerCase() && u.id !== editing);
     if (loginExiste) { setErroForm("Este login já está em uso por outro usuário."); return; }
-    if (form.role !== "admin" && (!form.modulos || form.modulos.length === 0)) { setErroForm("Selecione pelo menos um módulo de acesso para o operador."); return; }
+    
+    if (form.role !== "admin" && (!form.modulos || form.modulos.length === 0)) { 
+      setErroForm("Selecione pelo menos um módulo de acesso para o operador."); 
+      return; 
+    }
 
-    const item = { ...form, login: form.login.trim(), nome: form.nome.trim(), id: editing || uid() };
+    const item = { 
+      ...form, 
+      login: form.login.trim().toLowerCase(),
+      nome: form.nome.trim(), 
+      senha: form.senha.trim(),
+      id: editing || uid(),
+      modulos: form.role === "admin" ? [] : (form.modulos || [])
+    };
+    
     setState(s => ({
       ...s,
       usuarios: editing
@@ -889,6 +930,46 @@ function Usuarios({ state, setState }) {
   };
 
   const fp = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  // ─── Exportar / Importar usuários ───────────────────────────────────────────
+  const exportarUsuarios = () => {
+    const dados = JSON.stringify(usuarios, null, 2);
+    const blob = new Blob([dados], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "agrigest_usuarios.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importarUsuarios = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const importados = JSON.parse(ev.target.result);
+        if (!Array.isArray(importados) || importados.length === 0) {
+          alert("Arquivo inválido. Certifique-se de importar um arquivo de usuários exportado pelo AgriGest.");
+          return;
+        }
+        const validos = importados.filter(u => u.id && u.login && u.senha && u.nome);
+        if (validos.length === 0) {
+          alert("Nenhum usuário válido encontrado no arquivo.");
+          return;
+        }
+        if (window.confirm(`Importar ${validos.length} usuário(s)?\n\nOs usuários existentes serão substituídos pelos importados.`)) {
+          setState(s => ({ ...s, usuarios: validos }));
+          alert(`${validos.length} usuário(s) importado(s) com sucesso!`);
+        }
+      } catch (err) {
+        alert("Erro ao ler o arquivo. Verifique se é um arquivo JSON válido.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
   const senhaInput = (label, val, onChange) => (
     <Field label={label}>
@@ -918,11 +999,24 @@ function Usuarios({ state, setState }) {
 
   return (
     <div>
-      <SectionTitle action={<Btn onClick={openNew}>+ Novo Usuário</Btn>}>👥 Usuários do Sistema</SectionTitle>
+      <SectionTitle action={
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <Btn variant="secondary" size="sm" onClick={exportarUsuarios}>📤 Exportar Usuários</Btn>
+          <label style={{ cursor: "pointer" }}>
+            <span style={{
+              display: "inline-block", padding: "5px 12px", fontSize: 12, borderRadius: 8,
+              background: `${theme.info}22`, color: theme.info, border: `1px solid ${theme.info}44`,
+              fontFamily: "inherit", fontWeight: 600, cursor: "pointer"
+            }}>📥 Importar Usuários</span>
+            <input type="file" accept=".json" onChange={importarUsuarios} style={{ display: "none" }} />
+          </label>
+          <Btn onClick={openNew}>+ Novo Usuário</Btn>
+        </div>
+      }>👥 Usuários do Sistema</SectionTitle>
 
-      <Card style={{ marginBottom: 16, background: `${theme.info}0a`, borderColor: `${theme.info}33` }}>
+      <Card style={{ marginBottom: 16, background: `${theme.warning}0a`, borderColor: `${theme.warning}33` }}>
         <p style={{ color: theme.muted, fontSize: 13 }}>
-          ℹ️ Usuários cadastrados aqui podem acessar o sistema com seu login e senha. O administrador pode criar, editar e excluir usuários.
+          ℹ️ Usuários são salvos separadamente dos dados da fazenda. Para usar os mesmos usuários em outro dispositivo ou navegador, clique em <strong style={{ color: theme.warning }}>Exportar Usuários</strong> e depois <strong style={{ color: theme.info }}>Importar Usuários</strong> no outro dispositivo.
         </p>
       </Card>
 
@@ -1475,7 +1569,6 @@ function Produtividade({ state }) {
     </div>
   );
 }
-
 // ─── ROMANEIOS DE ENTRADA ─────────────────────────────────────────────────────
 function RomaneiosEntrada({ state, setState }) {
   return <RomaneiosGeneric state={state} setState={setState} tipo="Entrada" />;
@@ -1978,55 +2071,104 @@ function Estoque({ state, setState }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
   const estoque = state.estoqueInsumos || [];
+  
   const addMov = () => {
+    if (!form.insumoId) {
+      alert("Selecione um insumo!");
+      return;
+    }
+    if (!form.qtd || parseFloat(form.qtd) <= 0) {
+      alert("Informe uma quantidade válida!");
+      return;
+    }
+    
     setState(s => {
       const est = [...(s.estoqueInsumos || [])];
       const ins = (s.insumos || []).find(i => i.id === form.insumoId);
       const idx = est.findIndex(e => e.insumoId === form.insumoId);
       const delta = form.tipo === "Saída" ? -(parseFloat(form.qtd) || 0) : (parseFloat(form.qtd) || 0);
-      if (idx >= 0) est[idx] = { ...est[idx], qtd: ((parseFloat(est[idx].qtd) || 0) + delta).toFixed(2) };
-      else est.push({ insumoId: form.insumoId, insumoNome: ins?.nome, qtd: delta.toFixed(2), unidade: ins?.unidade });
+      
+      if (idx >= 0) {
+        const novaQtd = (parseFloat(est[idx].qtd) || 0) + delta;
+        if (form.tipo === "Saída" && novaQtd < 0) {
+          alert(`Estoque insuficiente! Disponível: ${est[idx].qtd} ${est[idx].unidade}`);
+          return s;
+        }
+        est[idx] = { ...est[idx], qtd: novaQtd.toFixed(2) };
+      } else {
+        if (form.tipo === "Saída") {
+          alert("Estoque zerado ou insumo não encontrado!");
+          return s;
+        }
+        est.push({ 
+          insumoId: form.insumoId, 
+          insumoNome: ins?.nome, 
+          qtd: delta.toFixed(2), 
+          unidade: ins?.unidade 
+        });
+      }
       return { ...s, estoqueInsumos: est };
     });
     setOpen(false);
     setForm({});
   };
+  
   return (
     <div>
-      <SectionTitle action={<Btn onClick={() => { setForm({}); setOpen(true); }}>+ Movimentar</Btn>}>📦 Estoque de Insumos</SectionTitle>
+      <SectionTitle action={<Btn onClick={() => { setForm({}); setOpen(true); }}>+ Movimentar</Btn>}>
+        📦 Estoque de Insumos
+      </SectionTitle>
       <Card>
-        {estoque.length === 0 ? <EmptyState icon="📦" text="Nenhum insumo em estoque." /> : (
-          <Table headers={["Insumo", "Quantidade", "Unidade", "Status"]} rows={estoque.map(e => {
-            const qty = parseFloat(e.qtd);
-            return (
-              <tr key={e.insumoId}>
-                <Td>{e.insumoNome}</Td>
-                <Td><strong style={{ color: qty > 0 ? theme.accent : theme.danger }}>{e.qtd}</strong></Td>
-                <Td>{e.unidade}</Td>
-                <Td><Badge color={qty > 10 ? "green" : qty > 0 ? "gold" : "red"}>{qty > 10 ? "Normal" : qty > 0 ? "Baixo" : "Zerado"}</Badge></Td>
-              </tr>
-            );
-          })} />
+        {estoque.length === 0 ? (
+          <EmptyState icon="📦" text="Nenhum insumo em estoque." />
+        ) : (
+          <Table 
+            headers={["Insumo", "Quantidade", "Unidade", "Status"]} 
+            rows={estoque.map(e => {
+              const qty = parseFloat(e.qtd);
+              return (
+                <tr key={e.insumoId}>
+                  <Td>{e.insumoNome}</Td>
+                  <Td><strong style={{ color: qty > 0 ? theme.accent : theme.danger }}>{e.qtd}</strong></Td>
+                  <Td>{e.unidade}</Td>
+                  <Td>
+                    <Badge color={qty > 10 ? "green" : qty > 0 ? "gold" : "red"}>
+                      {qty > 10 ? "Normal" : qty > 0 ? "Baixo" : "Zerado"}
+                    </Badge>
+                  </Td>
+                </tr>
+              );
+            })}
+          />
         )}
       </Card>
       <Modal open={open} onClose={() => setOpen(false)} title="Movimentação de Estoque">
         <Field label="Insumo">
           <Select value={form.insumoId} onChange={e => setForm(f => ({ ...f, insumoId: e.target.value }))}>
             <option value="">Selecione...</option>
-            {(state.insumos || []).map(i => <option key={i.id} value={i.id}>{i.nome}</option>)}
+            {(state.insumos || []).map(i => (
+              <option key={i.id} value={i.id}>{i.nome}</option>
+            ))}
           </Select>
         </Field>
         <Row>
           <Field label="Tipo">
             <Select value={form.tipo || "Entrada"} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
-              <option>Entrada</option><option>Saída</option>
+              <option value="Entrada">📥 Entrada</option>
+              <option value="Saída">📤 Saída</option>
             </Select>
           </Field>
           <Field label="Quantidade">
-            <Input type="number" value={form.qtd} onChange={e => setForm(f => ({ ...f, qtd: e.target.value }))} />
+            <Input 
+              type="number" 
+              step="0.01" 
+              value={form.qtd || ""} 
+              onChange={e => setForm(f => ({ ...f, qtd: e.target.value }))} 
+              placeholder="0.00"
+            />
           </Field>
         </Row>
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
           <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
           <Btn onClick={addMov}>Registrar</Btn>
         </div>
@@ -2034,7 +2176,6 @@ function Estoque({ state, setState }) {
     </div>
   );
 }
-
 // ─── GRÃOS ────────────────────────────────────────────────────────────────────
 function Graos({ state }) {
   const graos = state.fazenda?.graos || [];
@@ -2181,7 +2322,8 @@ function Abastecimento({ state, setState }) {
     <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div class="faz-sub">Relatório de Abastecimento</div></div><div style="text-align:right">Gerado: ${new Date().toLocaleString("pt-BR")}</div></div>
     <table><thead><tr><th>Data</th><th>Máquina</th><th>Operador</th><th>Tipo</th><th>Litros</th><th>Preço/L</th><th>Total</th><th>Hodômetro</th></tr></thead><tbody>
     ${items.map(a => `<tr><td>${a.data}</td><td>${a.maquina}</td><td>${a.operador || "—"}</td><td>${a.tipo || "Diesel"}</td><td>${a.litros} L</td><td>R$ ${parseFloat(a.precoLitro || 0).toFixed(2)}</td><td>R$ ${((parseFloat(a.litros) || 0) * (parseFloat(a.precoLitro) || 0)).toFixed(2)}</td><td>${a.hodometro || "—"}</td>`).join("")}
-    </tbody><tfoot><tr class="tot"><td colspan="4"><strong>TOTAIS</strong></td><td><strong>${totalLitros.toFixed(0)} L</strong></td><td></td><td><strong>R$ ${totalGastos.toFixed(2)}</strong></td><td></td></tr></tfoot></table>
+    </tbody><tfoot><tr class="tot"><td colspan="4"><strong>TOTAIS</strong></td><td><strong>${totalLitros.toFixed(0)} L</strong></td><td></td><td><strong>R$ ${totalGastos.toFixed(2)}</strong></td><td></td></tr></tfoot>
+    </table>
     <div class="footer">AgriGest · Relatório de Abastecimento</div></body></html>`);
     win.document.close();
     setTimeout(() => win.print(), 400);
@@ -2321,9 +2463,10 @@ function RelatorioCombustivel({ state }) {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório de Consumo</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}.faz-nome{font-size:17px;font-weight:900}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
     <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div>Relatório de Consumo de Combustível</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
-    <table><thead><tr><th>Máquina</th><th>Litros</th><th>Gasto (R$)</th><th>Abastecimentos</th><th>Média (L/abast)</th></tr></thead><tbody>
+    <tr><thead><tr><th>Máquina</th><th>Litros</th><th>Gasto (R$)</th><th>Abastecimentos</th><th>Média (L/abast)</th></tr></thead><tbody>
     ${Object.entries(porMaquina).map(([nome, dados]) => `<tr><td><strong>${nome}</strong></td><td>${dados.litros.toFixed(0)} L</td><td>R$ ${dados.gasto.toFixed(2)}</td><td>${dados.abastecimentos.length}</td><td>${(dados.litros / dados.abastecimentos.length).toFixed(1)} L</td>`).join("")}
-    </tbody><tfoot><tr class="tot"><td><strong>TOTAIS</strong></td><td><strong>${totalLitros.toFixed(0)} L</strong></td><td><strong>R$ ${totalGasto.toFixed(2)}</strong></td><td>${dadosFiltrados.length} abast.</td><td>${dadosFiltrados.length > 0 ? (totalLitros / dadosFiltrados.length).toFixed(1) : 0} L</td></tr></tfoot></table>
+    </tbody><tfoot><tr class="tot"><td><strong>TOTAIS</strong></td><td><strong>${totalLitros.toFixed(0)} L</strong></td><td><strong>R$ ${totalGasto.toFixed(2)}</strong></td><td>${dadosFiltrados.length} abast.</td><td>${dadosFiltrados.length > 0 ? (totalLitros / dadosFiltrados.length).toFixed(1) : 0} L</td></tr></tfoot>
+    </table>
     <div class="footer">AgriGest · Relatório de Consumo</div></body></html>`);
     win.document.close();
     setTimeout(() => win.print(), 400);
@@ -2530,8 +2673,10 @@ function MovimentacaoPecas({ state, setState }) {
     <table><thead><tr><th>Data</th><th>Peça</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Destino/Origem</th><th>Motivo</th></tr></thead><tbody>
     ${items.map(m => {
       const peca = pecas.find(p => p.id === m.pecaId);
-      return `<tr><td>${m.data}</td><td>${peca?.descricao || peca?.nome || m.pecaId}</td><td><strong>${m.tipo}</strong></td><td>${m.quantidade}</td><td>${m.responsavel || "—"}</td><td>${m.destino || m.origem || "—"}</td><td>${m.motivo || "—"}</td>`    }).join("")}
-    </tbody><tfoot><tr class="tot"><td colspan="3"><strong>RESUMO</strong></td><td><strong>Entradas: ${totalEntradas}</strong></td><td><strong>Saídas: ${totalSaidas}</strong></td><td colspan="2"><strong>Saldo: ${(totalEntradas - totalSaidas).toFixed(0)}</strong></td></tr></tfoot></table>
+      return `<tr><td style="white-space:nowrap">${m.data}</td><td>${peca?.descricao || peca?.nome || m.pecaId}</td><td><Badge color={m.tipo === "Entrada" ? "green" : "red"} style={{background:"none",padding:0}}>${m.tipo}</Badge></td><td style="text-align:center">${m.quantidade}</td><td>${m.responsavel || "—"}</td><td>${m.destino || m.origem || "—"}</td><td>${m.motivo || "—"}</td>`;
+    }).join("")}
+    </tbody><tfoot><tr class="tot"><td colspan="3"><strong>RESUMO</strong></td><td><strong>Entradas: ${totalEntradas}</strong></td><td><strong>Saídas: ${totalSaidas}</strong></td><td colspan="2"><strong>Saldo: ${(totalEntradas - totalSaidas).toFixed(0)}</strong></td></tr></tfoot>
+    </table>
     <div class="footer">AgriGest · Movimentação de Peças</div></body></html>`);
     win.document.close();
     setTimeout(() => win.print(), 400);
@@ -2720,17 +2865,17 @@ function EstoquePecas({ state }) {
 
 // ─── FICHAS DE APLICAÇÃO (DEFENSIVOS/INSUMOS) ─────────────────────────────────
 function FichasAplicacao({ state, setState }) {
-  const [open, setOpen]               = useState(false);
+  const [open, setOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [viewOpen, setViewOpen]       = useState(false);
-  const [form, setForm]               = useState({});
-  const [itensForm, setItensForm]     = useState([]);
-  const [editing, setEditing]         = useState(null);
-  const [viewItem, setViewItem]       = useState(null);
-  const items          = state.fichasAplicacao || [];
-  const insumos        = state.insumos || [];
+  const [viewOpen, setViewOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [itensForm, setItensForm] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [viewItem, setViewItem] = useState(null);
+  const items = state.fichasAplicacao || [];
+  const insumos = state.insumos || [];
   const estoqueInsumos = state.estoqueInsumos || [];
-  const talhoes        = state.talhoes || [];
+  const talhoes = state.talhoes || [];
 
   const getSaldoInsumo = (insumoId) => {
     const e = estoqueInsumos.find(e => e.insumoId === insumoId);
@@ -2761,7 +2906,7 @@ function FichasAplicacao({ state, setState }) {
       alert("Selecione um insumo e informe a quantidade!"); return;
     }
     const insumo = insumos.find(i => i.id === form.insumoId);
-    const saldo  = getSaldoInsumo(form.insumoId);
+    const saldo = getSaldoInsumo(form.insumoId);
     if (parseFloat(form.quantidade) > saldo) {
       alert(`Estoque insuficiente! Disponível: ${saldo} ${insumo?.unidade || "un"}`); return;
     }
@@ -2831,113 +2976,118 @@ function FichasAplicacao({ state, setState }) {
   const gerarHTML = (ficha) => {
     const faz = state.fazenda || {};
     const talhaoInfo = talhoes.find(t => t.nome === ficha.talhao);
-    const areaTotal  = parseFloat(talhaoInfo?.area) || 0;
+    const areaTotal = parseFloat(talhaoInfo?.area) || 0;
+    const isPreview = !ficha.id || ficha.id.toString().startsWith("preview");
+    
     return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Ficha de Aplicação - ${ficha.numero}</title>
-  <style>
-    @page { size: A4 portrait; margin: 1.2cm 1.4cm; }
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1e293b; background:#fff; padding:20px; }
-    .cab { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #16a34a; padding-bottom:12px; margin-bottom:16px; gap:12px; }
-    .cab-l { display:flex; align-items:center; gap:12px; }
-    .logo { width:52px; height:52px; object-fit:contain; border-radius:8px; }
-    .logo-ph { width:52px; height:52px; background:#f0fdf4; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:26px; border:1px solid #bbf7d0; }
-    .faz-nome { font-size:15px; font-weight:900; color:#0f172a; }
-    .faz-sub  { font-size:9px; color:#475569; margin-top:2px; line-height:1.5; }
-    .cab-r { text-align:right; }
-    .badge { background:#166534; color:#fff; font-size:8px; font-weight:800; letter-spacing:1.5px; padding:4px 12px; border-radius:20px; text-transform:uppercase; }
-    .num { font-size:24px; font-weight:900; font-family:monospace; color:#0f172a; margin-top:5px; }
-    .dt  { font-size:9px; color:#64748b; margin-top:2px; }
-    .sec { font-size:8.5px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#166534; background:#f0fdf4; border-left:4px solid #16a34a; padding:4px 10px; margin:14px 0 8px; border-radius:0 4px 4px 0; }
-    .info-grid { display:grid; grid-template-columns:1fr 1fr; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin-bottom:8px; }
-    .ii { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; font-size:10px; }
-    .ii:nth-child(even) { border-right:none; }
-    .il { font-weight:700; color:#475569; font-size:9px; }
-    .iv { color:#0f172a; font-weight:500; }
-    .iv.g { color:#16a34a; font-weight:700; }
-    table { width:100%; border-collapse:collapse; margin-bottom:8px; }
-    th { background:#1e293b; color:#fff; padding:6px 10px; font-size:8.5px; text-transform:uppercase; letter-spacing:1px; font-weight:700; text-align:left; }
-    td { padding:6px 10px; border:1px solid #e2e8f0; font-size:10px; }
-    tr:nth-child(even) td { background:#f8fafc; }
-    tfoot td { background:#f0fdf4; font-weight:700; border-top:2px solid #16a34a; }
-    .obs { background:#fefce8; border:1px solid #fde68a; border-left:3px solid #f59e0b; border-radius:4px; padding:6px 10px; font-size:9px; color:#78350f; margin:8px 0; }
-    .assinaturas { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:22px; }
-    .ass { text-align:center; }
-    .asl { border-top:1.5px solid #0f172a; padding-top:5px; margin-bottom:3px; }
-    .asn { font-size:9px; font-weight:700; color:#334155; }
-    .asc { font-size:8px; color:#94a3b8; margin-top:1px; }
-    .footer { margin-top:16px; font-size:7.5px; color:#94a3b8; text-align:center; border-top:1px solid #f1f5f9; padding-top:6px; }
-    @media print { body { padding:0; } }
-  </style>
-</head>
-<body>
-  <div class="cab">
-    <div class="cab-l">
-      ${faz.logo ? `<img src="${faz.logo}" class="logo"/>` : '<div class="logo-ph">🌾</div>'}
-      <div>
-        <div class="faz-nome">${faz.nome || "FAZENDA"}</div>
-        <div class="faz-sub">Produtor: <strong>${faz.produtor || "—"}</strong></div>
-        <div class="faz-sub">CNPJ/CPF: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div>
-        <div class="faz-sub">${faz.endereco || ""} ${faz.numero || ""}, ${faz.cidade || ""}/${faz.estado || ""}</div>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8"/>
+      <title>Ficha de Aplicação - ${ficha.numero}</title>
+      <style>
+        @page { size: A4 portrait; margin: 1.2cm 1.4cm; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1e293b; background:#fff; padding:20px; }
+        .cab { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #16a34a; padding-bottom:12px; margin-bottom:16px; gap:12px; }
+        .cab-l { display:flex; align-items:center; gap:12px; }
+        .logo { width:52px; height:52px; object-fit:contain; border-radius:8px; }
+        .logo-ph { width:52px; height:52px; background:#f0fdf4; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:26px; border:1px solid #bbf7d0; }
+        .faz-nome { font-size:15px; font-weight:900; color:#0f172a; }
+        .faz-sub  { font-size:9px; color:#475569; margin-top:2px; line-height:1.5; }
+        .cab-r { text-align:right; }
+        .badge { background:#166534; color:#fff; font-size:8px; font-weight:800; letter-spacing:1.5px; padding:4px 12px; border-radius:20px; text-transform:uppercase; }
+        .badge-preview { background:#f59e0b; }
+        .num { font-size:24px; font-weight:900; font-family:monospace; color:#0f172a; margin-top:5px; }
+        .dt  { font-size:9px; color:#64748b; margin-top:2px; }
+        .sec { font-size:8.5px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#166534; background:#f0fdf4; border-left:4px solid #16a34a; padding:4px 10px; margin:14px 0 8px; border-radius:0 4px 4px 0; }
+        .info-grid { display:grid; grid-template-columns:1fr 1fr; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin-bottom:8px; }
+        .ii { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; font-size:10px; }
+        .ii:nth-child(even) { border-right:none; }
+        .il { font-weight:700; color:#475569; font-size:9px; }
+        .iv { color:#0f172a; font-weight:500; }
+        .iv.g { color:#16a34a; font-weight:700; }
+        table { width:100%; border-collapse:collapse; margin-bottom:8px; }
+        th { background:#1e293b; color:#fff; padding:6px 10px; font-size:8.5px; text-transform:uppercase; letter-spacing:1px; font-weight:700; text-align:left; }
+        td { padding:6px 10px; border:1px solid #e2e8f0; font-size:10px; }
+        tr:nth-child(even) td { background:#f8fafc; }
+        tfoot td { background:#f0fdf4; font-weight:700; border-top:2px solid #16a34a; }
+        .obs { background:#fefce8; border:1px solid #fde68a; border-left:3px solid #f59e0b; border-radius:4px; padding:6px 10px; font-size:9px; color:#78350f; margin:8px 0; }
+        .assinaturas { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:22px; }
+        .ass { text-align:center; }
+        .asl { border-top:1.5px solid #0f172a; padding-top:5px; margin-bottom:3px; }
+        .asn { font-size:9px; font-weight:700; color:#334155; }
+        .asc { font-size:8px; color:#94a3b8; margin-top:1px; }
+        .footer { margin-top:16px; font-size:7.5px; color:#94a3b8; text-align:center; border-top:1px solid #f1f5f9; padding-top:6px; }
+        @media print { body { padding:0; } }
+      </style>
+    </head>
+    <body>
+      <div class="cab">
+        <div class="cab-l">
+          ${faz.logo ? `<img src="${faz.logo}" class="logo"/>` : '<div class="logo-ph">🌾</div>'}
+          <div>
+            <div class="faz-nome">${faz.nome || "FAZENDA"}</div>
+            <div class="faz-sub">Produtor: <strong>${faz.produtor || "—"}</strong></div>
+            <div class="faz-sub">CNPJ/CPF: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div>
+            <div class="faz-sub">${faz.endereco || ""} ${faz.numero || ""}, ${faz.cidade || ""}/${faz.estado || ""}</div>
+          </div>
+        </div>
+        <div class="cab-r">
+          <span class="badge ${isPreview ? 'badge-preview' : ''}">${isPreview ? "PRÉ-VISUALIZAÇÃO" : "FICHA DE APLICAÇÃO"}</span>
+          <div class="num">${ficha.numero}</div>
+          <div class="dt">Emitido em ${new Date().toLocaleString("pt-BR")}</div>
+        </div>
       </div>
-    </div>
-    <div class="cab-r">
-      <span class="badge">Ficha de Aplicação</span>
-      <div class="num">${ficha.numero}</div>
-      <div class="dt">Emitido em ${new Date().toLocaleString("pt-BR")}</div>
-    </div>
-  </div>
 
-  <div class="sec">INFORMAÇÕES GERAIS</div>
-  <div class="info-grid">
-    <div class="ii"><span class="il">📅 Data</span><span class="iv">${ficha.data || "—"}</span></div>
-    <div class="ii"><span class="il">👤 Responsável</span><span class="iv">${ficha.responsavel || "—"}</span></div>
-    <div class="ii"><span class="il">🗺️ Talhão</span><span class="iv g">${ficha.talhao || "—"}</span></div>
-    <div class="ii"><span class="il">🌾 Cultura</span><span class="iv">${ficha.cultura || "—"}</span></div>
-    <div class="ii"><span class="il">🧪 Tipo</span><span class="iv">${ficha.tipo || "—"}</span></div>
-    <div class="ii"><span class="il">🌤️ Clima</span><span class="iv">${ficha.clima || "—"}</span></div>
-    ${areaTotal > 0 ? `<div class="ii"><span class="il">📐 Área</span><span class="iv g">${areaTotal.toFixed(2)} ha</span></div><div class="ii"><span class="il">📦 Produtos</span><span class="iv">${ficha.itens.length} item(ns)</span></div>` : ""}
-  </div>
+      <div class="sec">INFORMAÇÕES GERAIS</div>
+      <div class="info-grid">
+        <div class="ii"><span class="il">📅 Data</span><span class="iv">${ficha.data || "—"}</span></div>
+        <div class="ii"><span class="il">👤 Responsável</span><span class="iv">${ficha.responsavel || "—"}</span></div>
+        <div class="ii"><span class="il">🗺️ Talhão</span><span class="iv g">${ficha.talhao || "—"}</span></div>
+        <div class="ii"><span class="il">🌾 Cultura</span><span class="iv">${ficha.cultura || "—"}</span></div>
+        <div class="ii"><span class="il">🧪 Tipo</span><span class="iv">${ficha.tipo || "—"}</span></div>
+        <div class="ii"><span class="il">🌤️ Clima</span><span class="iv">${ficha.clima || "—"}</span></div>
+        ${areaTotal > 0 ? `<div class="ii"><span class="il">📐 Área</span><span class="iv g">${areaTotal.toFixed(2)} ha</span></div><div class="ii"><span class="il">📦 Produtos</span><span class="iv">${ficha.itens.length} item(ns)</span></div>` : ""}
+      </div>
 
-  <div class="sec">PRODUTOS APLICADOS</div>
-  <table>
-    <thead><tr><th>Produto</th><th>Quantidade</th><th>Unidade</th><th>Dosagem</th><th>Observação</th></tr></thead>
-    <tbody>
-      ${ficha.itens.map(item => `
-      <tr>
-        <td><strong>${item.insumoNome || "—"}</strong></td>
-        <td style="text-align:center">${item.quantidade.toLocaleString("pt-BR")}</td>
-        <td style="text-align:center">${item.unidade || "—"}</td>
-        <td>${item.dosagem || "—"}</td>
-        <td>${item.observacao || "—"}</td>
-      </tr>`).join("")}
-    </tbody>
-    <tfoot>
-      <tr><td colspan="4" style="text-align:right;font-size:9px;color:#475569">TOTAL DE ITENS</td>
-      <td style="text-align:center;font-size:13px;color:#16a34a">${ficha.itens.length}</td></tr>
-    </tfoot>
-  </table>
+      <div class="sec">PRODUTOS APLICADOS</div>
+      <table>
+        <thead><tr><th>Produto</th><th>Quantidade</th><th>Unidade</th><th>Dosagem</th><th>Observação</th></tr></thead>
+        <tbody>
+          ${ficha.itens.map(item => `
+          <tr>
+            <td><strong>${item.insumoNome || "—"}</strong></td>
+            <td style="text-align:center">${item.quantidade.toLocaleString("pt-BR")}</td>
+            <td style="text-align:center">${item.unidade || "—"}</td>
+            <td>${item.dosagem || "—"}</td>
+            <td>${item.observacao || "—"}</td>
+          </tr>`).join("")}
+        </tbody>
+        <tfoot>
+          <tr><td colspan="4" style="text-align:right;font-size:9px;color:#475569">TOTAL DE ITENS</td>
+          <td style="text-align:center;font-size:13px;color:#16a34a">${ficha.itens.length}</td>
+        </tr>
+        </tfoot>
+      </table>
 
-  ${ficha.observacoes ? `<div class="obs"><strong>📝 Observações:</strong> ${ficha.observacoes}</div>` : ""}
+      ${ficha.observacoes ? `<div class="obs"><strong>📝 Observações:</strong> ${ficha.observacoes}</div>` : ""}
 
-  <div class="assinaturas">
-    <div class="ass"><div class="asl"></div><div class="asn">Aplicador</div><div class="asc">Nome / Assinatura</div></div>
-    <div class="ass"><div class="asl"></div><div class="asn">Responsável Técnico</div><div class="asc">Nome / CREA ou CRBio</div></div>
-    <div class="ass"><div class="asl"></div><div class="asn">Engenheiro Agrônomo</div><div class="asc">Nome / CREA</div></div>
-  </div>
+      <div class="assinaturas">
+        <div class="ass"><div class="asl"></div><div class="asn">Aplicador</div><div class="asc">Nome / Assinatura</div></div>
+        <div class="ass"><div class="asl"></div><div class="asn">Responsável Técnico</div><div class="asc">Nome / CREA ou CRBio</div></div>
+        <div class="ass"><div class="asl"></div><div class="asn">Engenheiro Agrônomo</div><div class="asc">Nome / CREA</div></div>
+      </div>
 
-  <div class="footer">AgriGest · Sistema de Gestão do Agronegócio · ${new Date().toLocaleString("pt-BR")}</div>
-</body>
-</html>`;
+      <div class="footer">AgriGest · Sistema de Gestão do Agronegócio · ${new Date().toLocaleString("pt-BR")}</div>
+    </body>
+    </html>`;
   };
 
   const imprimirFicha = (ficha) => {
     const win = window.open("", "_blank");
     win.document.write(gerarHTML(ficha));
     win.document.close();
+    win.focus();
     setTimeout(() => win.print(), 500);
   };
 
@@ -2958,20 +3108,24 @@ function FichasAplicacao({ state, setState }) {
     <table><thead><tr><th>Nº</th><th>Data</th><th>Talhão</th><th>Cultura</th><th>Tipo</th><th>Produtos</th><th>Responsável</th></tr></thead>
     <tbody>${items.map(f => `<tr>
       <td style="font-family:monospace;font-weight:700">${f.numero}</td>
-      <td>${f.data}</td><td>${f.talhao||"—"}</td><td>${f.cultura||"—"}</td>
-      <td>${f.tipo||"—"}</td><td>${f.itens?.length||0}</td><td>${f.responsavel||"—"}</td>
+      <td>${f.data}</td>
+      <td>${f.talhao||"—"}</td>
+      <td>${f.cultura||"—"}</td>
+      <td>${f.tipo||"—"}</td>
+      <td>${f.itens?.length||0}</td>
+      <td>${f.responsavel||"—"}</td>
     </tr>`).join("")}</tbody></table>
     <div class="f">AgriGest · ${new Date().toLocaleString("pt-BR")}</div>
     </body></html>`);
     win.document.close();
+    win.focus();
     setTimeout(() => win.print(), 400);
   };
 
-  // ── Componente de Prévia inline ───────────────────────────────────────────
   const PreviewFicha = ({ ficha }) => {
     const faz = state.fazenda || {};
     const talhaoInfo = talhoes.find(t => t.nome === ficha.talhao);
-    const areaTotal  = parseFloat(talhaoInfo?.area) || 0;
+    const areaTotal = parseFloat(talhaoInfo?.area) || 0;
     const sec = (label) => (
       <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.5, color: "#166534", background: "#f0fdf4", borderLeft: "3px solid #16a34a", padding: "4px 10px", margin: "12px 0 8px", borderRadius: "0 4px 4px 0" }}>
         {label}
@@ -2979,7 +3133,6 @@ function FichasAplicacao({ state, setState }) {
     );
     return (
       <div style={{ background: "#fff", color: "#1e293b", fontFamily: "system-ui, sans-serif", fontSize: 12 }}>
-        {/* Cabeçalho */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "3px solid #16a34a", paddingBottom: 12, marginBottom: 14, gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {faz.logo
@@ -2998,7 +3151,6 @@ function FichasAplicacao({ state, setState }) {
           </div>
         </div>
 
-        {/* Info Grid */}
         {sec("Informações Gerais")}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", marginBottom: 10 }}>
           {[
@@ -3017,7 +3169,6 @@ function FichasAplicacao({ state, setState }) {
           ))}
         </div>
 
-        {/* Produtos */}
         {sec("Produtos Aplicados")}
         <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
           <thead>
@@ -3052,7 +3203,6 @@ function FichasAplicacao({ state, setState }) {
           </div>
         )}
 
-        {/* Assinaturas */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, marginTop: 20 }}>
           {[["Aplicador", "Nome / Assinatura"], ["Responsável Técnico", "Nome / CREA ou CRBio"], ["Engenheiro Agrônomo", "Nome / CREA"]].map(([nome, cargo]) => (
             <div key={nome} style={{ textAlign: "center" }}>
@@ -3068,7 +3218,6 @@ function FichasAplicacao({ state, setState }) {
 
   return (
     <div>
-      {/* TOPO */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
         <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>🧪 Fichas de Aplicação</h2>
         <div style={{ display: "flex", gap: 8 }}>
@@ -3083,7 +3232,6 @@ function FichasAplicacao({ state, setState }) {
         </p>
       </Card>
 
-      {/* LISTAGEM */}
       <Card>
         {items.length === 0 ? (
           <EmptyState icon="🧪" text="Nenhuma ficha de aplicação registrada." />
@@ -3100,11 +3248,11 @@ function FichasAplicacao({ state, setState }) {
                 <Td>{f.responsavel || "—"}</Td>
                 <Td>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <Btn size="sm" variant="info"      onClick={() => openView(f)}>👁️ Ver</Btn>
+                    <Btn size="sm" variant="info" onClick={() => openView(f)}>👁️ Ver</Btn>
                     <Btn size="sm" variant="secondary" onClick={() => openEdit(f)}>✏️</Btn>
-                    <Btn size="sm" variant="gold"      onClick={() => imprimirFicha(f)}>🖨️</Btn>
-                    <Btn size="sm" variant="gold"      onClick={() => imprimirFicha(f)}>📄 PDF</Btn>
-                    <Btn size="sm" variant="danger"    onClick={() => del(f.id)}>🗑️</Btn>
+                    <Btn size="sm" variant="gold" onClick={() => imprimirFicha(f)}>🖨️</Btn>
+                    <Btn size="sm" variant="gold" onClick={() => imprimirFicha(f)}>📄 PDF</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(f.id)}>🗑️</Btn>
                   </div>
                 </Td>
               </tr>
@@ -3113,7 +3261,6 @@ function FichasAplicacao({ state, setState }) {
         )}
       </Card>
 
-      {/* ── MODAL: FORMULÁRIO ── */}
       <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Ficha de Aplicação`} width={750}>
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontWeight: 700, color: theme.gold, marginBottom: 14, fontSize: 13 }}>📍 Dados da Aplicação</div>
@@ -3126,10 +3273,10 @@ function FichasAplicacao({ state, setState }) {
               <Select value={form.talhao} onChange={e => {
                 fp("talhao", e.target.value);
                 const talh = talhoes.find(t => t.nome === e.target.value);
-                if (talh?.grao) fp("cultura", talh.grao);
+                if (talh?.culturas?.[0]) fp("cultura", talh.culturas[0].grao);
               }}>
                 <option value="">Selecione o talhão...</option>
-                {talhoes.map(t => <option key={t.id} value={t.nome}>{t.nome}{t.area ? ` (${t.area} ha)` : ""}</option>)}
+                {talhoes.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
               </Select>
             </Field>
             <Field label="Cultura">
@@ -3233,7 +3380,6 @@ function FichasAplicacao({ state, setState }) {
         </div>
       </Modal>
 
-      {/* ── MODAL: PRÉVIA ── */}
       <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title="Prévia da Ficha de Aplicação" width={820}>
         {viewItem && (
           <div>
@@ -3261,7 +3407,6 @@ function FichasAplicacao({ state, setState }) {
         )}
       </Modal>
 
-      {/* ── MODAL: VER FICHA SALVA ── */}
       <Modal open={viewOpen} onClose={() => setViewOpen(false)} title={`Ficha — ${viewItem?.numero || ""}`} width={820}>
         {viewItem && (
           <div>
@@ -3269,8 +3414,8 @@ function FichasAplicacao({ state, setState }) {
               <PreviewFicha ficha={viewItem} />
             </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <Btn variant="info"      onClick={() => imprimirFicha(viewItem)}>🖨️ Imprimir</Btn>
-              <Btn variant="gold"      onClick={() => imprimirFicha(viewItem)}>📄 Salvar PDF</Btn>
+              <Btn variant="info" onClick={() => imprimirFicha(viewItem)}>🖨️ Imprimir</Btn>
+              <Btn variant="gold" onClick={() => imprimirFicha(viewItem)}>📄 Salvar PDF</Btn>
               <Btn variant="secondary" onClick={() => setViewOpen(false)}>Fechar</Btn>
             </div>
           </div>
@@ -3279,7 +3424,6 @@ function FichasAplicacao({ state, setState }) {
     </div>
   );
 }
-
 
 // ─── RELATÓRIO DE CARREGAMENTOS (POR CLIENTE/CONTRATO) ───────────────────────
 function RelatorioCarregamentos({ state }) {
@@ -3321,9 +3465,9 @@ function RelatorioCarregamentos({ state }) {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório de Carregamentos</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}.faz-nome{font-size:17px;font-weight:900}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
     <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div>Relatório de Carregamentos</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
-    <tr><thead><tr><th>Cliente</th><th>Total (kg)</th><th>Sacas (60kg)</th><th>Cargas</th></tr></thead><tbody>
-    ${Object.entries(porCliente).map(([nome, dados]) => `<tr><td><strong>${nome}</strong></td><td>${dados.kg.toLocaleString()} kg</td><td>${Math.round(dados.sc).toLocaleString()} sc</td><td>${dados.cargas.length}</td>`).join("")}
-    </tbody><tfoot><tr class="tot"><td><strong>TOTAIS</strong></td><td><strong>${totalKg.toLocaleString()} kg</strong></td><td><strong>${Math.round(totalSc).toLocaleString()} sc</strong></td><td><strong>${dadosFiltrados.length} cargas</strong></td></tr></tfoot>
+    <table><thead><tr><th>Cliente</th><th>Total (kg)</th><th>Sacas (60kg)</th><th>Cargas</th></tr></thead><tbody>
+    ${Object.entries(porCliente).map(([nome, dados]) => `<tr><td style="font-weight:700">${nome}</td><td style="text-align:right">${dados.kg.toLocaleString()} kg</td><td style="text-align:center">${Math.round(dados.sc).toLocaleString()} sc</td><td style="text-align:center">${dados.cargas.length}</td>`).join("")}
+    </tbody><tfoot><tr class="tot"><td><strong>TOTAIS</strong></td><td style="text-align:right"><strong>${totalKg.toLocaleString()} kg</strong></td><td style="text-align:center"><strong>${Math.round(totalSc).toLocaleString()} sc</strong></td><td style="text-align:center"><strong>${dadosFiltrados.length} cargas</strong></td></tr></tfoot>
     </table>
     <div class="footer">AgriGest · Relatório de Carregamentos</div></body></html>`);
     win.document.close();
@@ -3418,12 +3562,9 @@ function RelatoriosDiarios({ state }) {
   const totalKgDia = romaneiosFiltrados.reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
   const totalSacasDia = totalKgDia / SC_KG;
 
-  // Função para gerar HTML do relatório
   const gerarHTMLRelatorio = () => {
     const faz = state.fazenda || {};
-    const periodoLabel = dataFiltro ? `Data: ${dataFiltro}` : "Todos os dias";
-    
-    let html = `<!DOCTYPE html>
+    return `<!DOCTYPE html>
     <html lang="pt-BR">
     <head>
       <meta charset="UTF-8"/>
@@ -3449,11 +3590,7 @@ function RelatoriosDiarios({ state }) {
         .tot td{font-weight:700;background:#e8f5e9}
         .grand-total{background:#d4edda;font-weight:900;border-top:2px solid #2ecc71}
         .footer{margin-top:28px;font-size:9px;color:#adb5bd;text-align:center;border-top:1px solid #e9ecef;padding-top:12px}
-        @media print{
-          body{padding:0;margin:0}
-          .no-print{display:none}
-          th{background:#ddd;color:#000}
-        }
+        @media print{body{padding:0;margin:0}}
       </style>
     </head>
     <body>
@@ -3486,7 +3623,6 @@ function RelatoriosDiarios({ state }) {
           const info = talhoes.find(t => t.nome === nome);
           const areaTotal = (info?.culturas || []).reduce((a, c) => a + (parseFloat(c.area) || 0), 0);
           const produtividade = areaTotal > 0 ? (sacasTalhao / areaTotal).toFixed(1) : null;
-          
           return `
           <h2>🗺️ ${nome}</h2>
           <table>
@@ -3514,8 +3650,7 @@ function RelatoriosDiarios({ state }) {
               </tr>
             </tfoot>
           </table>
-        `;
-        }).join("")}
+        `}).join("")}
         
         ${talhaoEntries.length > 0 ? `
         <table style="margin-top:20px">
@@ -3537,8 +3672,6 @@ function RelatoriosDiarios({ state }) {
       </div>
     </body>
     </html>`;
-    
-    return html;
   };
 
   const imprimir = () => {
@@ -3588,30 +3721,11 @@ function RelatoriosDiarios({ state }) {
       <Card style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Filtros</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <div>
-            <label style={labelStyle}>📅 Data</label>
-            <input 
-              type="date" 
-              value={dataFiltro} 
-              onChange={e => setDataFiltro(e.target.value)} 
-              style={selectStyle} 
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>🗺️ Talhão</label>
-            <select 
-              value={filtroTalhao} 
-              onChange={e => setFiltroTalhao(e.target.value)} 
-              style={selectStyle}
-            >
-              <option value="">Todos os talhões</option>
-              {talhoesLista.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
+          <div><label style={labelStyle}>📅 Data</label><input type="date" value={dataFiltro} onChange={e => setDataFiltro(e.target.value)} style={selectStyle} /></div>
+          <div><label style={labelStyle}>🗺️ Talhão</label><select value={filtroTalhao} onChange={e => setFiltroTalhao(e.target.value)} style={selectStyle}><option value="">Todos os talhões</option>{talhoesLista.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
         </div>
       </Card>
 
-      {/* Cards de resumo */}
       {talhaoEntries.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
           {[
@@ -3633,14 +3747,8 @@ function RelatoriosDiarios({ state }) {
         </div>
       )}
 
-      {/* Tabela de detalhes por talhão */}
       {talhaoEntries.length === 0 ? (
-        <Card>
-          <EmptyState 
-            icon="📅" 
-            text={dataFiltro ? `Nenhum recebimento registrado em ${dataFiltro}.` : "Selecione uma data para ver o relatório."} 
-          />
-        </Card>
+        <Card><EmptyState icon="📅" text={dataFiltro ? `Nenhum recebimento registrado em ${dataFiltro}.` : "Selecione uma data para ver o relatório."} /></Card>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {talhaoEntries.map(([nome, dados]) => {
@@ -3648,30 +3756,11 @@ function RelatoriosDiarios({ state }) {
             const info = talhoes.find(t => t.nome === nome);
             const areaTotal = (info?.culturas || []).reduce((a, c) => a + (parseFloat(c.area) || 0), 0);
             const produtividade = areaTotal > 0 ? (sacasTalhao / areaTotal).toFixed(1) : null;
-            
             return (
               <Card key={nome} style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ 
-                  padding: "14px 20px", 
-                  background: `${theme.accent}0a`, 
-                  borderBottom: `1px solid ${theme.border}`, 
-                  display: "flex", 
-                  justifyContent: "space-between", 
-                  alignItems: "center", 
-                  flexWrap: "wrap", 
-                  gap: 10 
-                }}>
+                <div style={{ padding: "14px 20px", background: `${theme.accent}0a`, borderBottom: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ 
-                      width: 40, 
-                      height: 40, 
-                      background: `${theme.accent}22`, 
-                      borderRadius: 10, 
-                      display: "flex", 
-                      alignItems: "center", 
-                      justifyContent: "center", 
-                      fontSize: 20 
-                    }}>🗺️</div>
+                    <div style={{ width: 40, height: 40, background: `${theme.accent}22`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🗺️</div>
                     <div>
                       <div style={{ fontWeight: 800, fontSize: 18 }}>{nome}</div>
                       <div style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
@@ -3697,7 +3786,6 @@ function RelatoriosDiarios({ state }) {
                     )}
                   </div>
                 </div>
-                
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
@@ -3735,28 +3823,14 @@ function RelatoriosDiarios({ state }) {
               </Card>
             );
           })}
-          
-          {/* Total Geral */}
           <Card style={{ background: `${theme.accent}0a`, borderColor: `${theme.accent}44` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
               <span style={{ fontWeight: 800, fontSize: 16 }}>▶ TOTAL GERAL DO DIA</span>
               <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1 }}>Talhões</div>
-                  <div style={{ fontWeight: 900, fontSize: 22, color: theme.gold }}>{talhaoEntries.length}</div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1 }}>Cargas</div>
-                  <div style={{ fontWeight: 900, fontSize: 22, color: theme.info }}>{totalCargasDia}</div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1 }}>Sacas</div>
-                  <div style={{ fontWeight: 900, fontSize: 22, color: theme.accent }}>{Math.round(totalSacasDia).toLocaleString()} sc</div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1 }}>Toneladas</div>
-                  <div style={{ fontWeight: 900, fontSize: 22, color: theme.accentLight }}>{(totalKgDia / 1000).toFixed(1)} t</div>
-                </div>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1 }}>Talhões</div><div style={{ fontWeight: 900, fontSize: 22, color: theme.gold }}>{talhaoEntries.length}</div></div>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1 }}>Cargas</div><div style={{ fontWeight: 900, fontSize: 22, color: theme.info }}>{totalCargasDia}</div></div>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1 }}>Sacas</div><div style={{ fontWeight: 900, fontSize: 22, color: theme.accent }}>{Math.round(totalSacasDia).toLocaleString()} sc</div></div>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1 }}>Toneladas</div><div style={{ fontWeight: 900, fontSize: 22, color: theme.accentLight }}>{(totalKgDia / 1000).toFixed(1)} t</div></div>
               </div>
             </div>
           </Card>
@@ -3765,6 +3839,191 @@ function RelatoriosDiarios({ state }) {
     </div>
   );
 }
+
+// ─── RELATÓRIO DE MOTORISTAS ─────────────────────────────────────────────────
+function RelatorioMotoristas({ state }) {
+  const SC_KG = 60;
+  const fazenda = state.fazenda || {};
+  const romaneios = state.romaneiosEntrada || [];
+
+  const [filtroMotorista, setFiltroMotorista] = useState("");
+  const [filtroTransportadora, setFiltroTransportadora] = useState("");
+  const [filtroData, setFiltroData] = useState("");
+  const [periodoInicio, setPeriodoInicio] = useState("");
+  const [periodoFim, setPeriodoFim] = useState("");
+  const [expandido, setExpandido] = useState({});
+
+  const motoristasLista = [...new Set([...(state.motoristas || []).map(m => m.nome), ...romaneios.map(r => r.motorista)].filter(Boolean))].sort();
+  const transportadorasLista = [...new Set([...(state.transportadoras || []).map(t => t.nome), ...romaneios.map(r => r.transportadora)].filter(Boolean))].sort();
+
+  const romaneiosFiltrados = romaneios.filter(r => {
+    const matchMot = filtroMotorista ? r.motorista === filtroMotorista : true;
+    const matchTransp = filtroTransportadora ? r.transportadora === filtroTransportadora : true;
+    let matchData = true;
+    if (filtroData) matchData = r.data === filtroData;
+    else if (periodoInicio && periodoFim) matchData = r.data >= periodoInicio && r.data <= periodoFim;
+    else if (periodoInicio) matchData = r.data >= periodoInicio;
+    else if (periodoFim) matchData = r.data <= periodoFim;
+    return matchMot && matchTransp && matchData;
+  });
+
+  const porMotorista = {};
+  romaneiosFiltrados.forEach(r => {
+    const nome = r.motorista || "Sem nome";
+    if (!porMotorista[nome]) porMotorista[nome] = [];
+    porMotorista[nome].push(r);
+  });
+
+  const dados = Object.entries(porMotorista).map(([nome, viagens]) => {
+    const totalKg = viagens.reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
+    const totalTon = totalKg / 1000;
+    const totalSacos = totalKg / SC_KG;
+    const totalViagens = viagens.length;
+    const mediaTon = totalViagens > 0 ? totalTon / totalViagens : 0;
+    const mediaSacos = totalViagens > 0 ? totalSacos / totalViagens : 0;
+    const transpMotorista = [...new Set(viagens.map(v => v.transportadora).filter(Boolean))];
+    const porDia = {};
+    viagens.forEach(r => { if (!porDia[r.data]) porDia[r.data] = []; porDia[r.data].push(r); });
+    const diasDetalhes = Object.entries(porDia).map(([data, vs]) => {
+      const kgDia = vs.reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
+      return { data, viagensDia: vs.length, tonDia: (kgDia / 1000).toFixed(3), sacosDia: (kgDia / SC_KG).toFixed(1) };
+    }).sort((a, b) => a.data.localeCompare(b.data));
+    return { nome, totalKg, totalTon, totalSacos, totalViagens, mediaTon, mediaSacos, diasDetalhes, transpMotorista };
+  }).sort((a, b) => b.totalKg - a.totalKg);
+
+  const grandTotalKg = dados.reduce((a, d) => a + d.totalKg, 0);
+  const grandTotalTon = grandTotalKg / 1000;
+  const grandTotalSacos = grandTotalKg / SC_KG;
+  const grandTotalViagens = dados.reduce((a, d) => a + d.totalViagens, 0);
+  const temFiltro = filtroMotorista || filtroTransportadora || filtroData || periodoInicio || periodoFim;
+  const limpar = () => { setFiltroMotorista(""); setFiltroTransportadora(""); setFiltroData(""); setPeriodoInicio(""); setPeriodoFim(""); };
+  const toggleExpand = (nome) => setExpandido(e => ({ ...e, [nome]: !e[nome] }));
+
+  const imprimir = () => {
+    const win = window.open("", "_blank");
+    const faz = state.fazenda || {};
+    const periodoLabel = filtroData ? `Data: ${filtroData}` : periodoInicio || periodoFim ? `De ${periodoInicio || "—"} até ${periodoFim || "—"}` : "Todos os períodos";
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+    <title>Relatório de Motoristas</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px;gap:12px}.logo-img{width:56px;height:56px;object-fit:contain}.faz-nome{font-size:17px;font-weight:900}.faz-sub{font-size:10px;color:#555;margin-top:2px}h2{font-size:13px;margin:18px 0 8px;font-weight:800;border-left:4px solid #16a34a;padding-left:9px}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd;font-size:11px}.tot td{font-weight:700;background:#f0fdf4}.grand td{font-weight:900;background:#dcfce7;font-size:13px}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}</style></head><body>
+    <div class="header">
+      <div style="display:flex;align-items:center;gap:14px">
+        ${faz.logo ? `<img src="${faz.logo}" class="logo-img"/>` : '<span style="font-size:36px">🌾</span>'}
+        <div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div class="faz-sub">Produtor: ${faz.produtor || "—"}</div><div class="faz-sub">CPF/CNPJ: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div></div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#444"><strong>Relatório de Recebimento por Motorista</strong><br/>📅 ${periodoLabel}<br/><span style="font-size:9px;color:#999">Gerado: ${new Date().toLocaleString("pt-BR")}</span></div>
+    </div>
+    ${dados.map(d => `
+      <h2>👷 ${d.nome}</h2>
+      <table>
+        <tr><th>Data</th><th>Viagens no Dia</th><th>Toneladas no Dia</th><th>Sacos no Dia</th></tr>
+        ${d.diasDetalhes.map(dd => `<tr><td style="white-space:nowrap">${dd.data}</td><td style="text-align:center">${dd.viagensDia}</td><td style="text-align:right">${dd.tonDia} t</td><td style="text-align:right">${dd.sacosDia} sc</td>`).join("")}
+        <tr class="tot"><td>TOTAL</td><td style="text-align:center">${d.totalViagens} viagens</td><td style="text-align:right">${d.totalTon.toFixed(3)} t</td><td style="text-align:right">${Math.round(d.totalSacos).toLocaleString()} sc</td></tr>
+        <tr class="tot"><td>MÉDIA/VIAGEM</td><td>—</td><td style="text-align:right">${d.mediaTon.toFixed(3)} t</td><td style="text-align:right">${d.mediaSacos.toFixed(1)} sc</td></tr>
+      </table>
+    `).join("")}
+    <tr><tr class="grand"><td>▶ TOTAIS GERAIS</td><td style="text-align:center">${grandTotalViagens} viagens</td><td style="text-align:right">${grandTotalTon.toFixed(3)} t</td><td style="text-align:right">${Math.round(grandTotalSacos).toLocaleString()} sc</td></tr>
+    </table>
+    <div class="footer">AgriGest · Relatório de Motoristas · ${new Date().toLocaleString("pt-BR")}</div>
+    </body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  };
+
+  const selectStyle = { width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, outline: "none" };
+  const inputStyle = { ...selectStyle };
+  const labelStyle = { fontSize: 11, color: theme.muted, marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block" };
+  const statCard = (label, value, sub, color) => (
+    <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 10, padding: "14px 18px", borderLeft: `3px solid ${color}` }}>
+      <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontWeight: 900, fontSize: 26, color }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: theme.muted, marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📊 Relatório de Motoristas</h2>
+        <Btn variant="info" onClick={imprimir}>🖨️ Imprimir / Salvar PDF</Btn>
+      </div>
+      {fazenda.nome && (
+        <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ width: 52, height: 52, background: theme.bg, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+            {fazenda.logo ? <img src={fazenda.logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span style={{ fontSize: 26 }}>🌾</span>}
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 17 }}>{fazenda.nome}</div>
+            <div style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>Produtor: {fazenda.produtor} · {fazenda.cidade}/{fazenda.estado}</div>
+          </div>
+        </div>
+      )}
+      <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
+        <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Filtros</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div><label style={labelStyle}>👷 Motorista</label><select value={filtroMotorista} onChange={e => setFiltroMotorista(e.target.value)} style={selectStyle}><option value="">Todos os motoristas</option>{motoristasLista.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+          <div><label style={labelStyle}>🚛 Transportadora</label><select value={filtroTransportadora} onChange={e => setFiltroTransportadora(e.target.value)} style={selectStyle}><option value="">Todas as transportadoras</option>{transportadorasLista.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          <div><label style={labelStyle}>📅 Data Exata</label><input type="date" value={filtroData} onChange={e => { setFiltroData(e.target.value); setPeriodoInicio(""); setPeriodoFim(""); }} style={inputStyle} /></div>
+          <div><label style={labelStyle}>📅 Período — Início</label><input type="date" value={periodoInicio} onChange={e => { setPeriodoInicio(e.target.value); setFiltroData(""); }} style={inputStyle} /></div>
+          <div><label style={labelStyle}>📅 Período — Fim</label><input type="date" value={periodoFim} onChange={e => { setPeriodoFim(e.target.value); setFiltroData(""); }} style={inputStyle} /></div>
+        </div>
+        {temFiltro && (<div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}><button onClick={limpar} style={{ background: "transparent", border: `1px solid ${theme.border}`, color: theme.muted, padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>✕ Limpar filtros</button></div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
+        {statCard("Total de Viagens", grandTotalViagens, `${dados.length} motorista(s)`, theme.info)}
+        {statCard("Total Toneladas", grandTotalTon.toFixed(3) + " t", `${grandTotalKg.toLocaleString()} kg`, theme.accent)}
+        {statCard("Total de Sacos", Math.round(grandTotalSacos).toLocaleString() + " sc", "1 sc = 60 kg", theme.gold)}
+        {statCard("Romaneios", romaneiosFiltrados.length, "registros no período", theme.info)}
+      </div>
+      {dados.length === 0 ? (
+        <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 20 }}>
+          <EmptyState icon="📭" text="Nenhum dado encontrado para os filtros selecionados." />
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {dados.map(d => (
+            <div key={d.nome} style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${theme.border}`, background: `${theme.accent}0a` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 40, height: 40, background: `${theme.accent}22`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>👷</div>
+                  <div><div style={{ fontWeight: 700, fontSize: 16 }}>{d.nome}</div><div style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>{d.totalViagens} viagens · {d.diasDetalhes.length} dia(s){d.transpMotorista.length > 0 && <span style={{ marginLeft: 10, color: theme.gold }}>🚛 {d.transpMotorista.join(", ")}</span>}</div></div>
+                </div>
+                <button onClick={() => toggleExpand(d.nome)} style={{ background: "transparent", border: `1px solid ${theme.border}`, color: theme.muted, padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>{expandido[d.nome] ? "▲ Recolher" : "▼ Ver detalhes"}</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)" }}>
+                {[
+                  { label: "Total Viagens", value: d.totalViagens, unit: "", color: theme.info },
+                  { label: "Total Toneladas", value: d.totalTon.toFixed(3), unit: " t", color: theme.accent },
+                  { label: "Total Sacos", value: Math.round(d.totalSacos).toLocaleString(), unit: " sc", color: theme.gold },
+                  { label: "Média t/Viagem", value: d.mediaTon.toFixed(3), unit: " t", color: theme.accentLight },
+                  { label: "Média sc/Viagem", value: d.mediaSacos.toFixed(1), unit: " sc", color: theme.warning },
+                ].map((item, i) => (
+                  <div key={i} style={{ padding: "14px 16px", borderRight: i < 4 ? `1px solid ${theme.border}` : "none", borderTop: `1px solid ${theme.border}` }}>
+                    <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{item.label}</div>
+                    <div style={{ fontWeight: 900, fontSize: 22, color: item.color }}>{item.value}<span style={{ fontSize: 13, fontWeight: 400 }}>{item.unit}</span></div>
+                  </div>
+                ))}
+              </div>
+              {expandido[d.nome] && (
+                <div style={{ borderTop: `1px solid ${theme.border}` }}>
+                  <div style={{ padding: "10px 20px", fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Detalhes por dia</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead><tr style={{ background: theme.surface }}>{["Data", "Viagens no Dia", "Toneladas no Dia", "Sacos no Dia"].map(h => <th key={h} style={{ textAlign: "left", padding: "9px 20px", fontSize: 11, color: theme.muted, borderBottom: `1px solid ${theme.border}` }}>{h}</th>)}</tr></thead>
+                    <tbody>{d.diasDetalhes.map(dd => (<tr key={dd.data} style={{ borderBottom: `1px solid ${theme.border}18` }}><td style={{ padding: "10px 20px", fontSize: 13 }}>{dd.data}</td><td style={{ padding: "10px 20px", fontSize: 13 }}><span style={{ background: `${theme.info}22`, color: theme.info, border: `1px solid ${theme.info}44`, padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{dd.viagensDia} viagem(ns)</span></td><td style={{ padding: "10px 20px", fontSize: 13, fontWeight: 600, color: theme.accent }}>{dd.tonDia} t</td><td style={{ padding: "10px 20px", fontSize: 13, fontWeight: 600, color: theme.gold }}>{dd.sacosDia} sc</td></tr>))}</tbody>
+                    <tfoot><tr style={{ background: `${theme.accent}0f`, borderTop: `1px solid ${theme.border}` }}><td style={{ padding: "10px 20px", fontSize: 12, fontWeight: 700, color: theme.muted }}>TOTAL</td><td style={{ padding: "10px 20px", fontSize: 13, fontWeight: 700, color: theme.info }}>{d.totalViagens} viagens</td><td style={{ padding: "10px 20px", fontSize: 13, fontWeight: 700, color: theme.accent }}>{d.totalTon.toFixed(3)} t</td><td style={{ padding: "10px 20px", fontSize: 13, fontWeight: 700, color: theme.gold }}>{Math.round(d.totalSacos).toLocaleString()} sc</td></tr></tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── VENDA DE MILHO EM BAGS (ROMANEIO DE VENDA) ─────────────────────────────
 function VendaMilhoBags({ state, setState }) {
   const [open, setOpen] = useState(false);
@@ -3776,13 +4035,11 @@ function VendaMilhoBags({ state, setState }) {
   const [previewData, setPreviewData] = useState(null);
   const items = state.vendasMilho || [];
   
-  // Dados auxiliares
   const clientes = state.clientes || [];
   const caminhoes = state.caminhoes || [];
   const motoristas = state.motoristas || [];
   const transportadoras = state.transportadoras || [];
   
-  // Configuração PIX da fazenda
   const [configPix, setConfigPix] = useState(state.configPixVenda || {
     chave: "",
     tipo: "CPF",
@@ -3794,392 +4051,103 @@ function VendaMilhoBags({ state, setState }) {
   const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
   
   const openNew = () => { 
-    setForm({ 
-      data: new Date().toISOString().split("T")[0],
-      status: "Pendente",
-      formaPagamento: "PIX"
-    }); 
-    setEditing(null); 
-    setOpen(true); 
+    setForm({ data: new Date().toISOString().split("T")[0], status: "Pendente", formaPagamento: "PIX" }); 
+    setEditing(null); setOpen(true); 
   };
-  
-  const openEdit = (venda) => { 
-    setForm({ ...venda }); 
-    setEditing(venda.id); 
-    setOpen(true); 
-  };
-  
-  const openView = (venda) => {
-    setViewItem(venda);
-    setViewOpen(true);
-  };
+  const openEdit = (venda) => { setForm({ ...venda }); setEditing(venda.id); setOpen(true); };
+  const openView = (venda) => { setViewItem(venda); setViewOpen(true); };
+  const del = (id) => { if (window.confirm("Excluir esta venda? Não reverterá a baixa no estoque.")) setState(s => ({ ...s, vendasMilho: s.vendasMilho.filter(x => x.id !== id) })); };
 
-  const del = (id) => {
-    if (window.confirm("Excluir esta venda? Isso não irá reverter a baixa no estoque.")) {
-      setState(s => ({ ...s, vendasMilho: s.vendasMilho.filter(x => x.id !== id) }));
-    }
-  };
-
-  // Calcular valores baseado nas sacas
   const calcularPorSacas = () => {
     const qtdSacas = parseFloat(form.quantidadeSacas) || 0;
     const precoSaca = parseFloat(form.precoSaca) || 0;
-    const valorTotal = qtdSacas * precoSaca;
-    const pesoTotalKg = qtdSacas * 60; // 1 saca = 60kg
-    return { valorTotal, pesoTotalKg, qtdSacas, precoSaca };
+    return { valorTotal: qtdSacas * precoSaca, pesoTotalKg: qtdSacas * 60, qtdSacas, precoSaca };
   };
-
-  // Calcular valores baseado na pesagem
   const calcularPorPesagem = () => {
     const pesoBruto = parseFloat(form.pesoBruto) || 0;
     const pesoTara = parseFloat(form.pesoTara) || 0;
     const pesoLiquido = Math.max(0, pesoBruto - pesoTara);
     const qtdSacasCalc = pesoLiquido / 60;
     const precoSaca = parseFloat(form.precoSaca) || 0;
-    const valorTotal = qtdSacasCalc * precoSaca;
-    return { pesoLiquido, qtdSacasCalc, valorTotal, precoSaca, pesoBruto, pesoTara };
+    return { pesoLiquido, qtdSacasCalc, valorTotal: qtdSacasCalc * precoSaca, precoSaca, pesoBruto, pesoTara };
   };
-
-  // Determinar qual método de cálculo está sendo usado
-  const isUsandoPesagem = () => {
-    return (form.pesoBruto && form.pesoBruto > 0) || (form.pesoTara && form.pesoTara > 0);
-  };
-
-  // Obter valores atuais
+  const isUsandoPesagem = () => (form.pesoBruto && form.pesoBruto > 0) || (form.pesoTara && form.pesoTara > 0);
   const getValoresAtuais = () => {
     if (isUsandoPesagem()) {
       const { pesoLiquido, qtdSacasCalc, valorTotal, precoSaca, pesoBruto, pesoTara } = calcularPorPesagem();
-      return { 
-        quantidadeSacas: qtdSacasCalc, 
-        valorTotal, 
-        pesoTotalKg: pesoLiquido,
-        precoSaca,
-        pesoBruto,
-        pesoTara,
-        pesoLiquido
-      };
+      return { quantidadeSacas: qtdSacasCalc, valorTotal, pesoTotalKg: pesoLiquido, precoSaca, pesoBruto, pesoTara, pesoLiquido };
     } else {
       const { qtdSacas, valorTotal, pesoTotalKg, precoSaca } = calcularPorSacas();
-      return { 
-        quantidadeSacas: qtdSacas, 
-        valorTotal, 
-        pesoTotalKg,
-        precoSaca,
-        pesoBruto: 0,
-        pesoTara: 0,
-        pesoLiquido: pesoTotalKg
-      };
+      return { quantidadeSacas: qtdSacas, valorTotal, pesoTotalKg, precoSaca, pesoBruto: 0, pesoTara: 0, pesoLiquido: pesoTotalKg };
     }
   };
-
-  // Verificar estoque de milho
   const getEstoqueMilho = () => {
     const entradas = state.romaneiosEntrada?.filter(r => r.grao === "Milho") || [];
     const saidas = state.romaneiosSaida?.filter(r => r.grao === "Milho") || [];
     const vendas = state.vendasMilho || [];
-    
     const totalEntrada = entradas.reduce((sum, r) => sum + (parseFloat(r.pesoFinal) || 0), 0);
     const totalSaida = saidas.reduce((sum, r) => sum + (parseFloat(r.pesoFinal) || 0), 0);
     const totalVendas = vendas.reduce((sum, v) => sum + (v.pesoTotalKg || 0), 0);
-    
     const saldoKg = totalEntrada - totalSaida - totalVendas;
-    const saldoSacas = saldoKg / 60;
-    
-    return { saldoKg, saldoSacas: Math.max(0, saldoSacas) };
+    return { saldoKg, saldoSacas: Math.max(0, saldoKg / 60) };
   };
 
   const valores = getValoresAtuais();
   const { saldoSacas } = getEstoqueMilho();
   const { quantidadeSacas, valorTotal, pesoTotalKg, precoSaca, pesoBruto, pesoTara, pesoLiquido } = valores;
 
-  // Abrir pré-visualização antes de salvar
   const handleVisualizarAntesSalvar = () => {
-    if (!form.cliente) {
-      alert("Selecione o cliente!");
-      return;
-    }
-    if (!form.transportadora && !form.motorista && !form.placa) {
-      alert("Preencha pelo menos transportadora, motorista ou placa!");
-      return;
-    }
-    
+    if (!form.cliente) { alert("Selecione o cliente!"); return; }
+    if (!form.transportadora && !form.motorista && !form.placa) { alert("Preencha pelo menos transportadora, motorista ou placa!"); return; }
     const qtdAtual = quantidadeSacas;
-    if (qtdAtual <= 0) {
-      alert("Informe a quantidade de sacas ou realize a pesagem!");
-      return;
-    }
-    if (qtdAtual > saldoSacas) {
-      alert(`Estoque insuficiente! Disponível: ${Math.floor(saldoSacas)} sacas`);
-      return;
-    }
-    
-    const vendaPreview = {
-      ...form,
-      numero: editing ? form.numero : `VENDA-${padNum((items.length + 1))}`,
-      quantidadeSacas: qtdAtual,
-      valorTotal: valorTotal,
-      pesoTotalKg: pesoTotalKg,
-      precoSaca: precoSaca,
-      pesoBruto: pesoBruto,
-      pesoTara: pesoTara,
-      pesoLiquido: pesoLiquido,
-      dataCriacao: new Date().toISOString(),
-      id: "preview_" + Date.now()
-    };
+    if (qtdAtual <= 0) { alert("Informe a quantidade de sacas ou realize a pesagem!"); return; }
+    if (qtdAtual > saldoSacas) { alert(`Estoque insuficiente! Disponível: ${Math.floor(saldoSacas)} sacas`); return; }
+    const vendaPreview = { ...form, numero: editing ? form.numero : `VENDA-${padNum((items.length + 1))}`, quantidadeSacas: qtdAtual, valorTotal, pesoTotalKg, precoSaca, pesoBruto, pesoTara, pesoLiquido, dataCriacao: new Date().toISOString(), id: "preview_" + Date.now() };
     setPreviewData(vendaPreview);
     setPreviewOpen(true);
   };
 
-  // Confirmar e salvar após pré-visualização
   const confirmarSalvar = () => {
-    const venda = {
-      ...previewData,
-      id: editing || uid(),
-      status: form.status || "Confirmada"
-    };
-    delete venda.id;
-    
-    const vendaFinal = { ...venda, id: editing || uid() };
-    
-    setState(s => ({ 
-      ...s, 
-      vendasMilho: editing ? s.vendasMilho.map(x => x.id === editing ? vendaFinal : x) : [...(s.vendasMilho || []), vendaFinal],
-      configPixVenda: configPix
-    }));
-    
-    setPreviewOpen(false);
-    setOpen(false);
-    setForm({});
-    setPreviewData(null);
+    const vendaFinal = { ...previewData, id: editing || uid(), status: form.status || "Confirmada" };
+    setState(s => ({ ...s, vendasMilho: editing ? s.vendasMilho.map(x => x.id === editing ? vendaFinal : x) : [...(s.vendasMilho || []), vendaFinal], configPixVenda: configPix }));
+    setPreviewOpen(false); setOpen(false); setForm({}); setPreviewData(null);
   };
 
-  // Função para gerar HTML do romaneio de venda
   const gerarHTMLRomaneio = (venda) => {
     const faz = state.fazenda || {};
     const chavePix = configPix.chave;
     const tipoChave = configPix.tipo === "CPF" ? "CPF" : configPix.tipo === "CNPJ" ? "CNPJ" : configPix.tipo === "Email" ? "E-mail" : "Telefone";
     const isPreview = venda.id?.toString().startsWith("preview");
-    
     return `<!DOCTYPE html>
     <html lang="pt-BR">
-    <head>
-      <meta charset="UTF-8"/>
-      <title>Romaneio de Venda - ${venda.numero}</title>
-      <style>
-        @page { size: A4 portrait; margin: 1.2cm 1.4cm; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1e293b; background: #fff; padding: 20px; }
-        .container { max-width: 1100px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #d4a843; padding-bottom: 12px; margin-bottom: 16px; gap: 12px; }
-        .cab-l { display: flex; align-items: center; gap: 12px; }
-        .logo { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; }
-        .logo-ph { width: 52px; height: 52px; background: #fef3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 26px; border: 1px solid #fcd34d; }
-        .faz-nome { font-size: 15px; font-weight: 900; color: #0f172a; }
-        .faz-sub { font-size: 9px; color: #475569; margin-top: 2px; line-height: 1.5; }
-        .cab-r { text-align: right; }
-        .badge { background: #d4a843; color: #0f172a; font-size: 8px; font-weight: 800; letter-spacing: 1.5px; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
-        .badge-preview { background: #f59e0b; }
-        .num { font-size: 24px; font-weight: 900; font-family: monospace; color: #0f172a; margin-top: 5px; }
-        .dt { font-size: 9px; color: #64748b; margin-top: 2px; }
-        .sec { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #92400e; background: #fef3c7; border-left: 4px solid #d4a843; padding: 4px 10px; margin: 14px 0 8px; border-radius: 0 4px 4px 0; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
-        .ii { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-size: 10px; }
-        .ii:nth-child(even) { border-right: none; }
-        .il { font-weight: 700; color: #475569; font-size: 9px; }
-        .iv { color: #0f172a; font-weight: 500; }
-        .iv.g { color: #d4a843; font-weight: 700; }
-        .valor-destaque { font-size: 18px; font-weight: 900; color: #d4a843; }
-        .pix-box { background: #f0f9ff; border: 2px solid #d4a843; border-radius: 12px; padding: 16px; margin: 16px 0; text-align: center; }
-        .pix-title { font-size: 14px; font-weight: 800; color: #d4a843; margin-bottom: 10px; }
-        .pix-chave { font-family: monospace; font-size: 16px; font-weight: 700; background: #fff; padding: 8px 16px; border-radius: 8px; display: inline-block; letter-spacing: 1px; }
-        .qrcode-placeholder { width: 120px; height: 120px; background: #fff; border: 1px solid #ddd; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 10px auto; font-size: 40px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        th { background: #1e293b; color: #fff; padding: 6px 10px; font-size: 8.5px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; text-align: left; }
-        td { padding: 6px 10px; border: 1px solid #e2e8f0; font-size: 10px; }
-        tr:nth-child(even) td { background: #f8fafc; }
-        .total-row { background: #fef3c7; font-weight: 700; }
-        .pesagem-box { display: flex; align-items: center; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin: 8px 0; background: #f8fafc; }
-        .peso-item { flex: 1; text-align: center; padding: 8px 5px; border-right: 1px solid #e2e8f0; }
-        .peso-item:last-child { border-right: none; }
-        .peso-item.destaque { background: #fef3c7; }
-        .peso-sep { font-size: 14px; font-weight: 900; color: #94a3b8; padding: 0 6px; flex-shrink: 0; }
-        .peso-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 4px; }
-        .peso-val { font-size: 14px; font-weight: 900; color: #1e293b; }
-        .peso-val.green { color: #16a34a; }
-        .assinaturas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 22px; }
-        .ass { text-align: center; }
-        .asl { border-top: 1.5px solid #0f172a; padding-top: 5px; margin-bottom: 3px; }
-        .asn { font-size: 9px; font-weight: 700; color: #334155; }
-        .footer { margin-top: 16px; font-size: 7.5px; color: #94a3b8; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 6px; }
-        @media print { body { padding: 0; } }
-      </style>
+    <head><meta charset="UTF-8"/><title>Romaneio de Venda - ${venda.numero}</title>
+    <style>@page{size:A4 portrait;margin:1.2cm 1.4cm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#1e293b;background:#fff;padding:20px}.container{max-width:1100px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #d4a843;padding-bottom:12px;margin-bottom:16px;gap:12px}.cab-l{display:flex;align-items:center;gap:12px}.logo{width:52px;height:52px;object-fit:contain;border-radius:8px}.logo-ph{width:52px;height:52px;background:#fef3c7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:26px;border:1px solid #fcd34d}.faz-nome{font-size:15px;font-weight:900;color:#0f172a}.faz-sub{font-size:9px;color:#475569;margin-top:2px;line-height:1.5}.cab-r{text-align:right}.badge{background:#d4a843;color:#0f172a;font-size:8px;font-weight:800;letter-spacing:1.5px;padding:4px 12px;border-radius:20px;text-transform:uppercase}.badge-preview{background:#f59e0b}.num{font-size:24px;font-weight:900;font-family:monospace;color:#0f172a;margin-top:5px}.dt{font-size:9px;color:#64748b;margin-top:2px}.sec{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#92400e;background:#fef3c7;border-left:4px solid #d4a843;padding:4px 10px;margin:14px 0 8px;border-radius:0 4px 4px 0}.info-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:8px}.ii{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;font-size:10px}.ii:nth-child(even){border-right:none}.il{font-weight:700;color:#475569;font-size:9px}.iv{color:#0f172a;font-weight:500}.iv.g{color:#d4a843;font-weight:700}.pix-box{background:#f0f9ff;border:2px solid #d4a843;border-radius:12px;padding:16px;margin:16px 0;text-align:center}.pix-title{font-size:14px;font-weight:800;color:#d4a843;margin-bottom:10px}.pix-chave{font-family:monospace;font-size:16px;font-weight:700;background:#fff;padding:8px 16px;border-radius:8px;display:inline-block;letter-spacing:1px}.qrcode-placeholder{width:120px;height:120px;background:#fff;border:1px solid #ddd;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:10px auto;font-size:40px}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{background:#1e293b;color:#fff;padding:6px 10px;font-size:8.5px;text-transform:uppercase;letter-spacing:1px;font-weight:700;text-align:left}td{padding:6px 10px;border:1px solid #e2e8f0;font-size:10px}tr:nth-child(even) td{background:#f8fafc}.pesagem-box{display:flex;align-items:center;border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:8px 0;background:#f8fafc}.peso-item{flex:1;text-align:center;padding:8px 5px;border-right:1px solid #e2e8f0}.peso-item:last-child{border-right:none}.peso-item.destaque{background:#fef3c7}.peso-sep{font-size:14px;font-weight:900;color:#94a3b8;padding:0 6px;flex-shrink:0}.peso-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:4px}.peso-val{font-size:14px;font-weight:900;color:#1e293b}.peso-val.green{color:#16a34a}.assinaturas{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:22px}.ass{text-align:center}.asl{border-top:1.5px solid #0f172a;padding-top:5px;margin-bottom:3px}.asn{font-size:9px;font-weight:700;color:#334155}.footer{margin-top:16px;font-size:7.5px;color:#94a3b8;text-align:center;border-top:1px solid #f1f5f9;padding-top:6px}@media print{body{padding:0}}</style>
     </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="cab-l">
-            ${faz.logo ? `<img src="${faz.logo}" class="logo"/>` : '<div class="logo-ph">🌾</div>'}
-            <div>
-              <div class="faz-nome">${faz.nome || "FAZENDA"}</div>
-              <div class="faz-sub">Produtor: <strong>${faz.produtor || "—"}</strong></div>
-              <div class="faz-sub">CNPJ/CPF: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div>
-              <div class="faz-sub">${faz.endereco || ""} ${faz.numero || ""}, ${faz.cidade || ""}/${faz.estado || ""}</div>
-            </div>
-          </div>
-          <div class="cab-r">
-            <span class="badge ${isPreview ? 'badge-preview' : ''}">${isPreview ? "PRÉ-VISUALIZAÇÃO" : "ROMANEIO DE VENDA"}</span>
-            <div class="num">${venda.numero}</div>
-            <div class="dt">Emitido em ${new Date().toLocaleString("pt-BR")}</div>
-          </div>
-        </div>
-
-        <div class="sec">📋 INFORMAÇÕES DA VENDA</div>
-        <div class="info-grid">
-          <div class="ii"><span class="il">📅 Data da Venda</span><span class="iv">${venda.data || "—"}</span></div>
-          <div class="ii"><span class="il">👤 Cliente</span><span class="iv g">${venda.cliente || "—"}</span></div>
-          <div class="ii"><span class="il">🚛 Transportadora</span><span class="iv">${venda.transportadora || "—"}</span></div>
-          <div class="ii"><span class="il">🚜 Motorista</span><span class="iv">${venda.motorista || "—"}</span></div>
-          <div class="ii"><span class="il">🚛 Placa do Caminhão</span><span class="iv">${venda.placa || "—"}</span></div>
-          <div class="ii"><span class="il">💳 Forma de Pagamento</span><span class="iv">${venda.formaPagamento || "PIX"}</span></div>
-        </div>
-
-        <div class="sec">⚖️ PESAGEM</div>
-        <div class="pesagem-box">
-          <div class="peso-item"><div class="peso-lbl">PESO BRUTO</div><div class="peso-val">${(venda.pesoBruto || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div>
-          <div class="peso-sep">−</div>
-          <div class="peso-item"><div class="peso-lbl">TARA</div><div class="peso-val">${(venda.pesoTara || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div>
-          <div class="peso-sep">=</div>
-          <div class="peso-item destaque"><div class="peso-lbl">PESO LÍQUIDO</div><div class="peso-val green">${(venda.pesoLiquido || venda.pesoTotalKg || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div>
-        </div>
-
-        <div class="sec">🌾 PRODUTO</div>
-        <table>
-          <thead><tr><th>Produto</th><th>Quantidade (sacas)</th><th>Peso Total (kg)</th><th>Valor Unitário</th><th>Valor Total</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><strong>🌽 Milho em Bag</strong></td>
-              <td style="text-align:center">${(venda.quantidadeSacas || 0).toLocaleString()} sc</td>
-              <td style="text-align:center">${(venda.pesoTotalKg || 0).toLocaleString()} kg</td>
-              <td style="text-align:center">R$ ${(venda.precoSaca || 0).toFixed(2)}/sc</td>
-              <td style="text-align:center; font-weight:700; color:#d4a843">R$ ${(venda.valorTotal || 0).toLocaleString("pt-BR", {minimumFractionDigits:2})}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="sec">💰 INFORMAÇÕES DE PAGAMENTO</div>
-        <div class="pix-box">
-          <div class="pix-title">💳 PAGAMENTO VIA PIX</div>
-          <div class="qrcode-placeholder">📱 QR Code</div>
-          <div><strong>Chave PIX (${tipoChave}):</strong></div>
-          <div class="pix-chave">${chavePix || "____________________"}</div>
-          <div style="margin-top: 12px; font-size: 10px; color: #475569">
-            <strong>Nome do Titular:</strong> ${configPix.nomeTitular || "—"}<br/>
-            <strong>Cidade:</strong> ${configPix.cidade || "—"}
-          </div>
-          <div style="margin-top: 8px; font-size: 9px; color: #92400e; background: #fef3c7; padding: 6px; border-radius: 6px">
-            ⚠️ ${configPix.instrucoes || "Após o pagamento, envie o comprovante para o WhatsApp da fazenda."}
-          </div>
-        </div>
-
-        ${venda.observacoes ? `<div class="obs" style="background:#fefce8;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:4px;padding:6px 10px;font-size:9px;color:#78350f;margin:8px 0"><strong>📝 Observações:</strong> ${venda.observacoes}</div>` : ""}
-
-        <div class="assinaturas">
-          <div class="ass"><div class="asl"></div><div class="asn">Comprador</div><div class="asc">Nome / Assinatura</div></div>
-          <div class="ass"><div class="asl"></div><div class="asn">Vendedor</div><div class="asc">Fazenda / Representante</div></div>
-          <div class="ass"><div class="asl"></div><div class="asn">Motorista</div><div class="asc">Nome / Assinatura</div></div>
-        </div>
-
-        <div class="footer">
-          AgriGest - Sistema de Gestão do Agronegócio<br/>
-          ${isPreview ? "* Este documento é uma pré-visualização. Confirme os dados antes de salvar." : "Este documento é um comprovante de venda. Após o pagamento, o produto será liberado para retirada."}
-        </div>
-      </div>
-    </body>
-    </html>`;
+    <body><div class="container"><div class="header"><div class="cab-l">${faz.logo ? `<img src="${faz.logo}" class="logo"/>` : '<div class="logo-ph">🌾</div>'}<div><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div class="faz-sub">Produtor: <strong>${faz.produtor || "—"}</strong></div><div class="faz-sub">CNPJ/CPF: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div><div class="faz-sub">${faz.endereco || ""} ${faz.numero || ""}, ${faz.cidade || ""}/${faz.estado || ""}</div></div></div><div class="cab-r"><span class="badge ${isPreview ? 'badge-preview' : ''}">${isPreview ? "PRÉ-VISUALIZAÇÃO" : "ROMANEIO DE VENDA"}</span><div class="num">${venda.numero}</div><div class="dt">Emitido em ${new Date().toLocaleString("pt-BR")}</div></div></div>
+    <div class="sec">📋 INFORMAÇÕES DA VENDA</div><div class="info-grid"><div class="ii"><span class="il">📅 Data da Venda</span><span class="iv">${venda.data || "—"}</span></div><div class="ii"><span class="il">👤 Cliente</span><span class="iv g">${venda.cliente || "—"}</span></div><div class="ii"><span class="il">🚛 Transportadora</span><span class="iv">${venda.transportadora || "—"}</span></div><div class="ii"><span class="il">🚜 Motorista</span><span class="iv">${venda.motorista || "—"}</span></div><div class="ii"><span class="il">🚛 Placa do Caminhão</span><span class="iv">${venda.placa || "—"}</span></div><div class="ii"><span class="il">💳 Forma de Pagamento</span><span class="iv">${venda.formaPagamento || "PIX"}</span></div></div>
+    <div class="sec">⚖️ PESAGEM</div><div class="pesagem-box"><div class="peso-item"><div class="peso-lbl">PESO BRUTO</div><div class="peso-val">${(venda.pesoBruto || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div><div class="peso-sep">−</div><div class="peso-item"><div class="peso-lbl">TARA</div><div class="peso-val">${(venda.pesoTara || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div><div class="peso-sep">=</div><div class="peso-item destaque"><div class="peso-lbl">PESO LÍQUIDO</div><div class="peso-val green">${(venda.pesoLiquido || venda.pesoTotalKg || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div></div>
+    <div class="sec">🌾 PRODUTO</div><table><thead><tr><th>Produto</th><th>Quantidade (sacas)</th><th>Peso Total (kg)</th><th>Valor Unitário</th><th>Valor Total</th></tr></thead><tbody><tr><td style="font-weight:700">🌽 Milho em Bag</td><td style="text-align:center">${(venda.quantidadeSacas || 0).toLocaleString()} sc</td><td style="text-align:center">${(venda.pesoTotalKg || 0).toLocaleString()} kg</td><td style="text-align:center">R$ ${(venda.precoSaca || 0).toFixed(2)}/sc</td><td style="text-align:center;font-weight:700;color:#d4a843">R$ ${(venda.valorTotal || 0).toLocaleString("pt-BR", {minimumFractionDigits:2})}</td></tr></tbody></table>
+    <div class="sec">💰 INFORMAÇÕES DE PAGAMENTO</div><div class="pix-box"><div class="pix-title">💳 PAGAMENTO VIA PIX</div><div class="qrcode-placeholder">📱 QR Code</div><div><strong>Chave PIX (${tipoChave}):</strong></div><div class="pix-chave">${chavePix || "____________________"}</div><div style="margin-top:12px;font-size:10px;color:#475569"><strong>Nome do Titular:</strong> ${configPix.nomeTitular || "—"}<br/><strong>Cidade:</strong> ${configPix.cidade || "—"}</div><div style="margin-top:8px;font-size:9px;color:#92400e;background:#fef3c7;padding:6px;border-radius:6px">⚠️ ${configPix.instrucoes || "Após o pagamento, envie o comprovante para o WhatsApp da fazenda."}</div></div>
+    ${venda.observacoes ? `<div class="obs" style="background:#fefce8;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:4px;padding:6px 10px;font-size:9px;color:#78350f;margin:8px 0"><strong>📝 Observações:</strong> ${venda.observacoes}</div>` : ""}
+    <div class="assinaturas"><div class="ass"><div class="asl"></div><div class="asn">Comprador</div><div class="asc">Nome / Assinatura</div></div><div class="ass"><div class="asl"></div><div class="asn">Vendedor</div><div class="asc">Fazenda / Representante</div></div><div class="ass"><div class="asl"></div><div class="asn">Motorista</div><div class="asc">Nome / Assinatura</div></div></div>
+    <div class="footer">AgriGest - Sistema de Gestão do Agronegócio<br/>${isPreview ? "* Este documento é uma pré-visualização. Confirme os dados antes de salvar." : "Este documento é um comprovante de venda. Após o pagamento, o produto será liberado para retirada."}</div>
+    </div></body></html>`;
   };
 
-  // Funções de impressão
-  const imprimirRomaneio = (venda) => {
-    const win = window.open("", "_blank");
-    win.document.write(gerarHTMLRomaneio(venda));
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 500);
-  };
-
-  const salvarPDF = (venda) => {
-    const win = window.open("", "_blank");
-    win.document.write(gerarHTMLRomaneio(venda));
-    win.document.close();
-    win.focus();
-    setTimeout(() => {
-      win.print();
-      setTimeout(() => win.close(), 1000);
-    }, 500);
-  };
-
+  const imprimirRomaneio = (venda) => { const win = window.open("", "_blank"); win.document.write(gerarHTMLRomaneio(venda)); win.document.close(); win.focus(); setTimeout(() => win.print(), 500); };
+  const salvarPDF = (venda) => { const win = window.open("", "_blank"); win.document.write(gerarHTMLRomaneio(venda)); win.document.close(); win.focus(); setTimeout(() => { win.print(); setTimeout(() => win.close(), 1000); }, 500); };
   const imprimirLista = () => {
-    if (items.length === 0) {
-      alert("Não há vendas registradas.");
-      return;
-    }
+    if (items.length === 0) { alert("Não há vendas registradas."); return; }
     const faz = state.fazenda || {};
     const win = window.open("", "_blank");
-    win.document.write(`<!DOCTYPE html>
-    <html lang="pt-BR">
-    <head><meta charset="UTF-8"/><title>Lista de Vendas de Milho</title>
-    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;font-size:12px}
-    .header{text-align:center;border-bottom:2px solid #d4a843;padding-bottom:12px;margin-bottom:20px}
-    .faz-nome{font-size:20px;font-weight:900}
-    table{width:100%;border-collapse:collapse;margin-top:16px}
-    th{background:#d4a843;color:#0f172a;padding:10px;text-align:left}
-    td{padding:8px 10px;border:1px solid #dee2e6}
-    .footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}
-    </style></head>
-    <body>
-      <div class="header">
-        <div class="faz-nome">${faz.nome || "FAZENDA"}</div>
-        <div>Relatório de Vendas de Milho em Bags</div>
-        <div>Gerado em: ${new Date().toLocaleString("pt-BR")}</div>
-      </div>
-      <table><thead><tr><th>Nº Venda</th><th>Data</th><th>Cliente</th><th>Sacas</th><th>Peso (kg)</th><th>Valor Total</th><th>Status</th></tr></thead>
-      <tbody>${items.map(v => `<tr>
-        <td style="font-family:monospace">${v.numero}</td>
-        <td>${v.data}</td>
-        <td>${v.cliente}</td>
-        <td>${v.quantidadeSacas} sc</td>
-        <td>${(v.pesoTotalKg || 0).toLocaleString()} kg</td>
-        <td>R$ ${(v.valorTotal || 0).toFixed(2)}</td>
-        <td>${v.status || "Confirmada"}</td>
-      80`).join("")}</tbody>
-    </table>
-      <div class="footer">AgriGest · Relatório de Vendas</div>
-    </body></html>`);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 500);
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Lista de Vendas de Milho</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;font-size:12px}.header{text-align:center;border-bottom:2px solid #d4a843;padding-bottom:12px;margin-bottom:20px}.faz-nome{font-size:20px;font-weight:900}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#d4a843;color:#0f172a;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head><body><div class="header"><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div>Relatório de Vendas de Milho em Bags</div><div>Gerado em: ${new Date().toLocaleString("pt-BR")}</div></div><tr><thead><tr><th>Nº Venda</th><th>Data</th><th>Cliente</th><th>Sacas</th><th>Peso (kg)</th><th>Valor Total</th><th>Status</th></tr></thead><tbody>${items.map(v => `<tr><td style="font-family:monospace">${v.numero}</td><td>${v.data}</td><td>${v.cliente}</td><td>${v.quantidadeSacas} sc</td><td>${(v.pesoTotalKg || 0).toLocaleString()} kg</td><td>R$ ${(v.valorTotal || 0).toFixed(2)}</td><td>${v.status || "Confirmada"}</td>`).join("")}</tbody></table><div class="footer">AgriGest · Relatório de Vendas</div></body></html>`);
+    win.document.close(); win.focus(); setTimeout(() => win.print(), 500);
   };
 
-  // Configurar PIX
   const [pixModalOpen, setPixModalOpen] = useState(false);
-  
-  const salvarConfigPix = () => {
-    setState(s => ({ ...s, configPixVenda: configPix }));
-    setPixModalOpen(false);
-    alert("Configuração PIX salva com sucesso!");
-  };
-
-  // Limpar campos de pesagem
-  const limparPesagem = () => {
-    fp("pesoBruto", "");
-    fp("pesoTara", "");
-  };
-
-  // Limpar campos de sacas
-  const limparSacas = () => {
-    fp("quantidadeSacas", "");
-  };
-
+  const salvarConfigPix = () => { setState(s => ({ ...s, configPixVenda: configPix })); setPixModalOpen(false); alert("Configuração PIX salva com sucesso!"); };
+  const limparPesagem = () => { fp("pesoBruto", ""); fp("pesoTara", ""); };
+  const limparSacas = () => { fp("quantidadeSacas", ""); };
   const selectStyle = { width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, outline: "none" };
   const labelStyle = { fontSize: 11, color: theme.muted, marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block" };
 
@@ -4187,313 +4155,53 @@ function VendaMilhoBags({ state, setState }) {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
         <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>🌽 Venda de Milho em Bags</h2>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Btn variant="info" onClick={() => setPixModalOpen(true)}>⚙️ Configurar PIX</Btn>
-          {items.length > 0 && <Btn variant="info" onClick={imprimirLista}>🖨️ Imprimir Lista</Btn>}
-          <Btn onClick={openNew}>+ Nova Venda</Btn>
-        </div>
+        <div style={{ display: "flex", gap: 8 }}><Btn variant="info" onClick={() => setPixModalOpen(true)}>⚙️ Configurar PIX</Btn>{items.length > 0 && <Btn variant="info" onClick={imprimirLista}>🖨️ Imprimir Lista</Btn>}<Btn onClick={openNew}>+ Nova Venda</Btn></div>
       </div>
-
-      {/* Card de Estoque */}
       <Card style={{ marginBottom: 20, background: `${theme.accent}0a`, borderColor: `${theme.accent}44` }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-          <div>
-            <span style={{ fontSize: 20 }}>📦</span>
-            <span style={{ fontWeight: 700, marginLeft: 8 }}>Estoque Disponível de Milho:</span>
-          </div>
-          <div>
-            <Badge color="gold" style={{ fontSize: 16, padding: "8px 16px" }}>
-              {Math.floor(saldoSacas).toLocaleString()} sacas ({Math.floor(saldoSacas * 60).toLocaleString()} kg)
-            </Badge>
-          </div>
-        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}><div><span style={{ fontSize: 20 }}>📦</span><span style={{ fontWeight: 700, marginLeft: 8 }}>Estoque Disponível de Milho:</span></div><div><Badge color="gold" style={{ fontSize: 16, padding: "8px 16px" }}>{Math.floor(saldoSacas).toLocaleString()} sacas ({Math.floor(saldoSacas * 60).toLocaleString()} kg)</Badge></div></div>
       </Card>
+      <Card>{items.length === 0 ? <EmptyState icon="🌽" text="Nenhuma venda de milho registrada." /> : <Table headers={["Nº Venda", "Data", "Cliente", "Sacas", "Peso (kg)", "Valor Total", "Status", "Ações"]} rows={items.map(v => (<tr key={v.id}><Td><span style={{ fontFamily: "monospace", color: theme.gold, fontWeight: 700 }}>{v.numero}</span></Td><Td>{v.data}</Td><Td><strong>{v.cliente}</strong></Td><Td>{v.quantidadeSacas} sc</Td><Td>{(v.pesoTotalKg || 0).toLocaleString()} kg</Td><Td><strong style={{ color: theme.gold }}>R$ {(v.valorTotal || 0).toLocaleString("pt-BR", {minimumFractionDigits:2})}</strong></Td><Td><Badge color={v.status === "Confirmada" ? "green" : "gold"}>{v.status || "Confirmada"}</Badge></Td><Td><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><Btn size="sm" variant="info" onClick={() => openView(v)}>👁️ Ver</Btn><Btn size="sm" variant="secondary" onClick={() => openEdit(v)}>✏️</Btn><Btn size="sm" variant="gold" onClick={() => imprimirRomaneio(v)}>🖨️</Btn><Btn size="sm" variant="gold" onClick={() => salvarPDF(v)}>📄 PDF</Btn><Btn size="sm" variant="danger" onClick={() => del(v.id)}>🗑️</Btn></div></Td></tr>))} />}</Card>
 
-      {/* Listagem de Vendas */}
-      <Card>
-        {items.length === 0 ? (
-          <EmptyState icon="🌽" text="Nenhuma venda de milho registrada." />
-        ) : (
-          <Table
-            headers={["Nº Venda", "Data", "Cliente", "Sacas", "Peso (kg)", "Valor Total", "Status", "Ações"]}
-            rows={items.map(v => (
-              <tr key={v.id}>
-                <Td><span style={{ fontFamily: "monospace", color: theme.gold, fontWeight: 700 }}>{v.numero}</span></Td>
-                <Td>{v.data}</Td>
-                <Td><strong>{v.cliente}</strong></Td>
-                <Td>{v.quantidadeSacas} sc</Td>
-                <Td>{(v.pesoTotalKg || 0).toLocaleString()} kg</Td>
-                <Td><strong style={{ color: theme.gold }}>R$ {(v.valorTotal || 0).toLocaleString("pt-BR", {minimumFractionDigits:2})}</strong></Td>
-                <Td><Badge color={v.status === "Confirmada" ? "green" : "gold"}>{v.status || "Confirmada"}</Badge></Td>
-                <Td>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <Btn size="sm" variant="info" onClick={() => openView(v)}>👁️ Ver</Btn>
-                    <Btn size="sm" variant="secondary" onClick={() => openEdit(v)}>✏️</Btn>
-                    <Btn size="sm" variant="gold" onClick={() => imprimirRomaneio(v)}>🖨️</Btn>
-                    <Btn size="sm" variant="gold" onClick={() => salvarPDF(v)}>📄 PDF</Btn>
-                    <Btn size="sm" variant="danger" onClick={() => del(v.id)}>🗑️</Btn>
-                  </div>
-                </Td>
-              </tr>
-            ))}
-          />
-        )}
-      </Card>
-
-      {/* MODAL: Nova Venda */}
       <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Venda de Milho`} width={750}>
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, color: theme.gold, marginBottom: 14, fontSize: 13 }}>📋 Dados da Venda</div>
-          <Row cols={2}>
-            <Field label="Data da Venda"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field>
-            <Field label="Cliente">
-              <Select value={form.cliente} onChange={e => fp("cliente", e.target.value)}>
-                <option value="">Selecione...</option>
-                {clientes.map(c => <option key={c.id}>{c.nome}</option>)}
-              </Select>
-            </Field>
-          </Row>
-          <Row cols={2}>
-            <Field label="Transportadora">
-              <Select value={form.transportadora} onChange={e => fp("transportadora", e.target.value)}>
-                <option value="">Selecione...</option>
-                {transportadoras.map(t => <option key={t.id}>{t.nome}</option>)}
-              </Select>
-            </Field>
-            <Field label="Motorista">
-              <Select value={form.motorista} onChange={e => fp("motorista", e.target.value)}>
-                <option value="">Selecione...</option>
-                {motoristas.map(m => <option key={m.id}>{m.nome}</option>)}
-              </Select>
-            </Field>
-          </Row>
-          <Row cols={2}>
-            <Field label="Placa do Caminhão">
-              <Select value={form.placa} onChange={e => fp("placa", e.target.value)}>
-                <option value="">Selecione...</option>
-                {caminhoes.map(c => <option key={c.id}>{c.placa}-{c.uf}</option>)}
-              </Select>
-            </Field>
-            <Field label="Forma de Pagamento">
-              <Select value={form.formaPagamento} onChange={e => fp("formaPagamento", e.target.value)}>
-                <option value="PIX">💳 PIX</option>
-                <option value="Boleto">📄 Boleto Bancário</option>
-                <option value="Transferência">🏦 Transferência Bancária</option>
-                <option value="Dinheiro">💰 Dinheiro</option>
-              </Select>
-            </Field>
-          </Row>
+        <div style={{ marginBottom: 20 }}><div style={{ fontWeight: 700, color: theme.gold, marginBottom: 14, fontSize: 13 }}>📋 Dados da Venda</div>
+          <Row cols={2}><Field label="Data da Venda"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field><Field label="Cliente"><Select value={form.cliente} onChange={e => fp("cliente", e.target.value)}><option value="">Selecione...</option>{clientes.map(c => <option key={c.id}>{c.nome}</option>)}</Select></Field></Row>
+          <Row cols={2}><Field label="Transportadora"><Select value={form.transportadora} onChange={e => fp("transportadora", e.target.value)}><option value="">Selecione...</option>{transportadoras.map(t => <option key={t.id}>{t.nome}</option>)}</Select></Field><Field label="Motorista"><Select value={form.motorista} onChange={e => fp("motorista", e.target.value)}><option value="">Selecione...</option>{motoristas.map(m => <option key={m.id}>{m.nome}</option>)}</Select></Field></Row>
+          <Row cols={2}><Field label="Placa do Caminhão"><Select value={form.placa} onChange={e => fp("placa", e.target.value)}><option value="">Selecione...</option>{caminhoes.map(c => <option key={c.id}>{c.placa}-{c.uf}</option>)}</Select></Field><Field label="Forma de Pagamento"><Select value={form.formaPagamento} onChange={e => fp("formaPagamento", e.target.value)}><option value="PIX">💳 PIX</option><option value="Boleto">📄 Boleto Bancário</option><option value="Transferência">🏦 Transferência Bancária</option><option value="Dinheiro">💰 Dinheiro</option></Select></Field></Row>
         </div>
-
-        {/* Seção de Pesagem */}
-        <div style={{ marginBottom: 20, borderTop: `1px solid ${theme.border}`, paddingTop: 16 }}>
-          <div style={{ fontWeight: 700, color: theme.accent, marginBottom: 14, fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>⚖️ Pesagem (opcional - preencha ou use quantidade em sacas)</span>
-            <Btn size="sm" variant="secondary" onClick={limparPesagem}>Limpar Pesagem</Btn>
-          </div>
-          <Row cols={3}>
-            <Field label="Peso Bruto (kg)">
-              <Input 
-                type="number" 
-                step="1" 
-                value={form.pesoBruto} 
-                onChange={e => {
-                  fp("pesoBruto", e.target.value);
-                  if (e.target.value && form.pesoTara) {
-                    const liquido = parseFloat(e.target.value) - parseFloat(form.pesoTara || 0);
-                    if (liquido > 0) {
-                      const sacasCalc = liquido / 60;
-                      fp("quantidadeSacas", Math.round(sacasCalc * 10) / 10);
-                    }
-                  }
-                }} 
-                placeholder="0" 
-              />
-            </Field>
-            <Field label="Tara (kg)">
-              <Input 
-                type="number" 
-                step="1" 
-                value={form.pesoTara} 
-                onChange={e => {
-                  fp("pesoTara", e.target.value);
-                  if (form.pesoBruto && e.target.value) {
-                    const liquido = parseFloat(form.pesoBruto) - parseFloat(e.target.value);
-                    if (liquido > 0) {
-                      const sacasCalc = liquido / 60;
-                      fp("quantidadeSacas", Math.round(sacasCalc * 10) / 10);
-                    }
-                  }
-                }} 
-                placeholder="0" 
-              />
-            </Field>
-            <Field label="Peso Líquido (kg)">
-              <Input 
-                value={pesoLiquido > 0 ? pesoLiquido.toLocaleString() + " kg" : "—"} 
-                readOnly 
-                highlight={pesoLiquido > 0 ? theme.accent : theme.muted}
-              />
-            </Field>
-          </Row>
+        <div style={{ marginBottom: 20, borderTop: `1px solid ${theme.border}`, paddingTop: 16 }}><div style={{ fontWeight: 700, color: theme.accent, marginBottom: 14, fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>⚖️ Pesagem (opcional - preencha ou use quantidade em sacas)</span><Btn size="sm" variant="secondary" onClick={limparPesagem}>Limpar Pesagem</Btn></div>
+          <Row cols={3}><Field label="Peso Bruto (kg)"><Input type="number" step="1" value={form.pesoBruto} onChange={e => { fp("pesoBruto", e.target.value); if (e.target.value && form.pesoTara) { const liquido = parseFloat(e.target.value) - parseFloat(form.pesoTara || 0); if (liquido > 0) fp("quantidadeSacas", Math.round(liquido / 60 * 10) / 10); } }} placeholder="0" /></Field><Field label="Tara (kg)"><Input type="number" step="1" value={form.pesoTara} onChange={e => { fp("pesoTara", e.target.value); if (form.pesoBruto && e.target.value) { const liquido = parseFloat(form.pesoBruto) - parseFloat(e.target.value); if (liquido > 0) fp("quantidadeSacas", Math.round(liquido / 60 * 10) / 10); } }} placeholder="0" /></Field><Field label="Peso Líquido (kg)"><Input value={pesoLiquido > 0 ? pesoLiquido.toLocaleString() + " kg" : "—"} readOnly highlight={pesoLiquido > 0 ? theme.accent : theme.muted} /></Field></Row>
         </div>
-
-        {/* Seção do Produto */}
-        <div style={{ marginBottom: 20, borderTop: `1px solid ${theme.border}`, paddingTop: 16 }}>
-          <div style={{ fontWeight: 700, color: theme.accent, marginBottom: 14, fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>🌾 Quantidade e Valor</span>
-            <Btn size="sm" variant="secondary" onClick={limparSacas}>Limpar Quantidade</Btn>
-          </div>
-          <Row cols={3}>
-            <Field label="Quantidade (sacas de 60kg)">
-              <Input 
-                type="number" 
-                step="1" 
-                value={form.quantidadeSacas} 
-                onChange={e => {
-                  fp("quantidadeSacas", e.target.value);
-                  const qtd = parseFloat(e.target.value) || 0;
-                  if (qtd > saldoSacas) {
-                    alert(`Estoque insuficiente! Disponível: ${Math.floor(saldoSacas)} sacas`);
-                  }
-                }} 
-                placeholder="0" 
-              />
-            </Field>
-            <Field label="Preço por Saca (R$)">
-              <Input type="number" step="0.01" value={form.precoSaca} onChange={e => fp("precoSaca", e.target.value)} placeholder="0.00" />
-            </Field>
-            <Field label="Valor Total">
-              <Input value={`R$ ${valorTotal.toFixed(2)}`} readOnly highlight={theme.gold} />
-            </Field>
-          </Row>
-          <div style={{ marginTop: 8, padding: 8, background: `${theme.accent}0a`, borderRadius: 6 }}>
-            <span style={{ fontSize: 11, color: theme.muted }}>📦 Estoque disponível: </span>
-            <strong style={{ color: quantidadeSacas <= saldoSacas ? theme.accent : theme.danger }}>
-              {Math.floor(saldoSacas)} sacas
-            </strong>
-            {quantidadeSacas > 0 && (
-              <span style={{ fontSize: 11, marginLeft: 16 }}>
-                📊 Peso total: <strong>{pesoTotalKg.toLocaleString()} kg</strong>
-              </span>
-            )}
-          </div>
+        <div style={{ marginBottom: 20, borderTop: `1px solid ${theme.border}`, paddingTop: 16 }}><div style={{ fontWeight: 700, color: theme.accent, marginBottom: 14, fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>🌾 Quantidade e Valor</span><Btn size="sm" variant="secondary" onClick={limparSacas}>Limpar Quantidade</Btn></div>
+          <Row cols={3}><Field label="Quantidade (sacas de 60kg)"><Input type="number" step="1" value={form.quantidadeSacas} onChange={e => { fp("quantidadeSacas", e.target.value); const qtd = parseFloat(e.target.value) || 0; if (qtd > saldoSacas) alert(`Estoque insuficiente! Disponível: ${Math.floor(saldoSacas)} sacas`); }} placeholder="0" /></Field><Field label="Preço por Saca (R$)"><Input type="number" step="0.01" value={form.precoSaca} onChange={e => fp("precoSaca", e.target.value)} placeholder="0.00" /></Field><Field label="Valor Total"><Input value={`R$ ${valorTotal.toFixed(2)}`} readOnly highlight={theme.gold} /></Field></Row>
+          <div style={{ marginTop: 8, padding: 8, background: `${theme.accent}0a`, borderRadius: 6 }}><span style={{ fontSize: 11, color: theme.muted }}>📦 Estoque disponível: </span><strong style={{ color: quantidadeSacas <= saldoSacas ? theme.accent : theme.danger }}>{Math.floor(saldoSacas)} sacas</strong>{quantidadeSacas > 0 && <span style={{ fontSize: 11, marginLeft: 16 }}>📊 Peso total: <strong>{pesoTotalKg.toLocaleString()} kg</strong></span>}</div>
         </div>
-
-        <Field label="Observações">
-          <textarea value={form.observacoes || ""} onChange={e => fp("observacoes", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} placeholder="Observações sobre a venda, entrega, etc..." />
-        </Field>
-
-        <div style={{ marginTop: 16, padding: 12, background: `${theme.warning}0a`, borderRadius: 8, border: `1px solid ${theme.warning}44` }}>
-          <div style={{ fontSize: 12, color: theme.warning, display: "flex", alignItems: "center", gap: 8 }}>
-            <span>⚠️</span>
-            <span>Ao salvar esta venda, a quantidade será <strong>baixada automaticamente do estoque</strong> de milho.</span>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
-          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
-          <Btn variant="info" onClick={handleVisualizarAntesSalvar}>👁️ Visualizar e Continuar</Btn>
-        </div>
+        <Field label="Observações"><textarea value={form.observacoes || ""} onChange={e => fp("observacoes", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} placeholder="Observações sobre a venda, entrega, etc..." /></Field>
+        <div style={{ marginTop: 16, padding: 12, background: `${theme.warning}0a`, borderRadius: 8, border: `1px solid ${theme.warning}44` }}><div style={{ fontSize: 12, color: theme.warning, display: "flex", alignItems: "center", gap: 8 }}><span>⚠️</span><span>Ao salvar esta venda, a quantidade será <strong>baixada automaticamente do estoque</strong> de milho.</span></div></div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}><Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn><Btn variant="info" onClick={handleVisualizarAntesSalvar}>👁️ Visualizar e Continuar</Btn></div>
       </Modal>
 
-      {/* MODAL: PRÉ-VISUALIZAÇÃO ANTES DE SALVAR */}
       <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title="Pré-visualização do Romaneio de Venda" width={820}>
-        {previewData && (
-          <div>
-            <div style={{ background: `${theme.accent}0f`, border: `1px solid ${theme.accent}44`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: theme.accentLight }}>✅ Revise os dados antes de salvar</div>
-                <div style={{ fontSize: 12, color: theme.muted, marginTop: 3 }}>Você pode imprimir ou salvar como PDF antes de confirmar.</div>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Btn variant="info" onClick={() => imprimirRomaneio(previewData)}>🖨️ Imprimir</Btn>
-                <Btn variant="gold" onClick={() => salvarPDF(previewData)}>📄 Salvar PDF</Btn>
-              </div>
-            </div>
-            <div style={{ border: `1px solid ${theme.border}`, borderRadius: 10, padding: 20, background: "#fff", maxHeight: "60vh", overflowY: "auto" }}>
-              <div dangerouslySetInnerHTML={{ __html: gerarHTMLRomaneio(previewData) }} />
-            </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16, paddingTop: 14, borderTop: `1px solid ${theme.border}` }}>
-              <Btn variant="secondary" onClick={() => setPreviewOpen(false)}>← Voltar e Editar</Btn>
-              <Btn variant="info" onClick={() => imprimirRomaneio(previewData)}>🖨️ Imprimir</Btn>
-              <Btn variant="gold" onClick={() => salvarPDF(previewData)}>📄 Salvar PDF</Btn>
-              <Btn onClick={confirmarSalvar}>✅ Confirmar e Salvar</Btn>
-            </div>
-          </div>
-        )}
+        {previewData && (<div><div style={{ background: `${theme.accent}0f`, border: `1px solid ${theme.accent}44`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}><div><div style={{ fontWeight: 700, fontSize: 14, color: theme.accentLight }}>✅ Revise os dados antes de salvar</div><div style={{ fontSize: 12, color: theme.muted, marginTop: 3 }}>Você pode imprimir ou salvar como PDF antes de confirmar.</div></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><Btn variant="info" onClick={() => imprimirRomaneio(previewData)}>🖨️ Imprimir</Btn><Btn variant="gold" onClick={() => salvarPDF(previewData)}>📄 Salvar PDF</Btn></div></div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 10, padding: 20, background: "#fff", maxHeight: "60vh", overflowY: "auto" }}><div dangerouslySetInnerHTML={{ __html: gerarHTMLRomaneio(previewData) }} /></div><div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16, paddingTop: 14, borderTop: `1px solid ${theme.border}` }}><Btn variant="secondary" onClick={() => setPreviewOpen(false)}>← Voltar e Editar</Btn><Btn variant="info" onClick={() => imprimirRomaneio(previewData)}>🖨️ Imprimir</Btn><Btn variant="gold" onClick={() => salvarPDF(previewData)}>📄 Salvar PDF</Btn><Btn onClick={confirmarSalvar}>✅ Confirmar e Salvar</Btn></div></div>)}
       </Modal>
 
-      {/* MODAL: Visualizar Venda Salva */}
       <Modal open={viewOpen} onClose={() => setViewOpen(false)} title={`Romaneio de Venda - ${viewItem?.numero || ""}`} width={820}>
-        {viewItem && (
-          <div>
-            <div style={{ border: `1px solid ${theme.border}`, borderRadius: 10, padding: 20, background: "#fff", maxHeight: "65vh", overflowY: "auto" }}>
-              <div dangerouslySetInnerHTML={{ __html: gerarHTMLRomaneio(viewItem) }} />
-            </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
-              <Btn variant="info" onClick={() => imprimirRomaneio(viewItem)}>🖨️ Imprimir</Btn>
-              <Btn variant="gold" onClick={() => salvarPDF(viewItem)}>📄 Salvar PDF</Btn>
-              <Btn variant="secondary" onClick={() => setViewOpen(false)}>Fechar</Btn>
-            </div>
-          </div>
-        )}
+        {viewItem && (<div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 10, padding: 20, background: "#fff", maxHeight: "65vh", overflowY: "auto" }}><div dangerouslySetInnerHTML={{ __html: gerarHTMLRomaneio(viewItem) }} /></div><div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}><Btn variant="info" onClick={() => imprimirRomaneio(viewItem)}>🖨️ Imprimir</Btn><Btn variant="gold" onClick={() => salvarPDF(viewItem)}>📄 Salvar PDF</Btn><Btn variant="secondary" onClick={() => setViewOpen(false)}>Fechar</Btn></div></div>)}
       </Modal>
 
-      {/* MODAL: Configuração PIX */}
       <Modal open={pixModalOpen} onClose={() => setPixModalOpen(false)} title="Configuração da Chave PIX" width={500}>
-        <div style={{ marginBottom: 20 }}>
-          <p style={{ color: theme.muted, fontSize: 13, marginBottom: 16 }}>
-            Configure a chave PIX que será exibida nos romaneios de venda para pagamento.
-          </p>
-          <Field label="Tipo da Chave PIX">
-            <Select value={configPix.tipo} onChange={e => setConfigPix(p => ({ ...p, tipo: e.target.value }))}>
-              <option value="CPF">CPF</option>
-              <option value="CNPJ">CNPJ</option>
-              <option value="Email">E-mail</option>
-              <option value="Telefone">Telefone (WhatsApp)</option>
-              <option value="Aleatorio">Chave Aleatória</option>
-            </Select>
-          </Field>
-          <Field label="Chave PIX">
-            <Input 
-              value={configPix.chave} 
-              onChange={e => setConfigPix(p => ({ ...p, chave: e.target.value }))} 
-              placeholder="Digite a chave PIX" 
-            />
-          </Field>
-          <Field label="Nome do Titular">
-            <Input 
-              value={configPix.nomeTitular} 
-              onChange={e => setConfigPix(p => ({ ...p, nomeTitular: e.target.value }))} 
-              placeholder="Nome completo do titular da conta" 
-            />
-          </Field>
-          <Field label="Cidade">
-            <Input 
-              value={configPix.cidade} 
-              onChange={e => setConfigPix(p => ({ ...p, cidade: e.target.value }))} 
-              placeholder="Cidade do titular" 
-            />
-          </Field>
-          <Field label="Instruções adicionais">
-            <textarea 
-              value={configPix.instrucoes} 
-              onChange={e => setConfigPix(p => ({ ...p, instrucoes: e.target.value }))} 
-              rows={2}
-              style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }}
-              placeholder="Ex: Após o pagamento, envie o comprovante para o WhatsApp (XX) XXXXX-XXXX"
-            />
-          </Field>
+        <div style={{ marginBottom: 20 }}><p style={{ color: theme.muted, fontSize: 13, marginBottom: 16 }}>Configure a chave PIX que será exibida nos romaneios de venda para pagamento.</p>
+          <Field label="Tipo da Chave PIX"><Select value={configPix.tipo} onChange={e => setConfigPix(p => ({ ...p, tipo: e.target.value }))}><option value="CPF">CPF</option><option value="CNPJ">CNPJ</option><option value="Email">E-mail</option><option value="Telefone">Telefone (WhatsApp)</option><option value="Aleatorio">Chave Aleatória</option></Select></Field>
+          <Field label="Chave PIX"><Input value={configPix.chave} onChange={e => setConfigPix(p => ({ ...p, chave: e.target.value }))} placeholder="Digite a chave PIX" /></Field>
+          <Field label="Nome do Titular"><Input value={configPix.nomeTitular} onChange={e => setConfigPix(p => ({ ...p, nomeTitular: e.target.value }))} placeholder="Nome completo do titular da conta" /></Field>
+          <Field label="Cidade"><Input value={configPix.cidade} onChange={e => setConfigPix(p => ({ ...p, cidade: e.target.value }))} placeholder="Cidade do titular" /></Field>
+          <Field label="Instruções adicionais"><textarea value={configPix.instrucoes} onChange={e => setConfigPix(p => ({ ...p, instrucoes: e.target.value }))} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} placeholder="Ex: Após o pagamento, envie o comprovante para o WhatsApp (XX) XXXXX-XXXX" /></Field>
         </div>
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <Btn variant="secondary" onClick={() => setPixModalOpen(false)}>Cancelar</Btn>
-          <Btn onClick={salvarConfigPix}>💾 Salvar Configuração</Btn>
-        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}><Btn variant="secondary" onClick={() => setPixModalOpen(false)}>Cancelar</Btn><Btn onClick={salvarConfigPix}>💾 Salvar Configuração</Btn></div>
       </Modal>
     </div>
   );
 }
+
 // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -4502,91 +4210,55 @@ export default function App() {
   const [state, setState] = useState(initState());
   const [toast, setToast] = useState("");
 
+  // Persiste os dados gerais (exceto usuários, que têm chave própria)
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    try {
+      const { usuarios, ...dadosSemUsuarios } = state;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dadosSemUsuarios));
+    } catch (e) {}
   }, [state]);
 
-  const setStateAndSave = (updater) => {
-    setState(updater);
-    setToast("✓ Dados salvos!");
-    setTimeout(() => setToast(""), 2000);
-  };
+  // Persiste usuários na chave dedicada sempre que mudam
+  useEffect(() => {
+    if (state.usuarios && state.usuarios.length > 0) {
+      saveUsuarios(state.usuarios);
+    }
+  }, [state.usuarios]);
 
+  const setStateAndSave = (updater) => { setState(updater); setToast("✓ Dados salvos!"); setTimeout(() => setToast(""), 2000); };
   const clearData = () => {
-    if (window.confirm("Apagar TODOS os dados? Esta ação não pode ser desfeita.")) {
+    if (window.confirm("Apagar TODOS os dados? Esta ação não pode ser desfeita.\n\nAtenção: os usuários cadastrados serão mantidos. Para apagar usuários, acesse a tela de Usuários.")) {
       localStorage.removeItem(STORAGE_KEY);
       setState(initState());
       setUsuarioLogado(null);
       setLoggedIn(false);
     }
   };
-
   const handleLogin = (user) => { setUsuarioLogado(user); setLoggedIn(true); };
   const handleLogout = () => { setUsuarioLogado(null); setLoggedIn(false); };
-
-  const usuariosAtivos = (state.usuarios && state.usuarios.length > 0)
-    ? state.usuarios
-    : [{ id: "1", nome: "Administrador", login: "admin", senha: "agro2024", role: "admin" }];
-
+  const usuariosAtivos = loadUsuarios();
   if (!loggedIn) return <Login onLogin={handleLogin} usuarios={usuariosAtivos} />;
 
   const crudPages = {
-    clientes: { title: "Cliente", icon: "👥", stateKey: "clientes", fields: [
-      { key: "nome", label: "Nome / Razão Social", table: true }, { key: "cpfCnpj", label: "CPF / CNPJ", table: true },
-      { key: "contato", label: "Telefone", table: true }, { key: "email", label: "E-mail", table: true },
-      { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true },
-    ]},
-    transportadoras: { title: "Transportadora", icon: "🚛", stateKey: "transportadoras", fields: [
-      { key: "nome", label: "Razão Social", table: true }, { key: "cnpj", label: "CNPJ", table: true },
-      { key: "contato", label: "Contato", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true },
-    ]},
-    fornecedores: { title: "Fornecedor", icon: "🏭", stateKey: "fornecedores", fields: [
-      { key: "nome", label: "Nome", table: true }, { key: "cnpj", label: "CNPJ", table: true },
-      { key: "segmento", label: "Segmento", table: true }, { key: "contato", label: "Contato", table: true },
-    ]},
-    caminhoes: { title: "Caminhão", icon: "🚜", stateKey: "caminhoes", fields: [
-      { key: "placa", label: "Placa", table: true }, { key: "uf", label: "UF", table: true },
-      { key: "arquivo", label: "Documento (Opcional)", type: "file", optional: true },
-    ]},
-    motoristas: { title: "Motorista", icon: "👷", stateKey: "motoristas", fields: [
-      { key: "nome", label: "Nome Completo", table: true }, { key: "cnh", label: "CNH", table: true },
-      { key: "arquivo", label: "Arquivo CNH (Opcional)", type: "file", optional: true },
-    ]},
-    insumos: { title: "Insumo", icon: "🧪", stateKey: "insumos", fields: [
-      { key: "nome", label: "Nome", table: true },
-      { key: "unidade", label: "Unidade", type: "select", options: ["kg","L","un","sc","t"], table: true },
-      { key: "categoria", label: "Categoria", type: "select", options: ["Fertilizante","Defensivo","Semente","Combustível","Outros"], table: true },
-      { key: "fornecedor", label: "Fornecedor", table: true },
-    ]},
-    recebimentoInsumos: { title: "Recebimento de Insumo", icon: "📥", stateKey: "recebimentoInsumos", fields: [
-      { key: "produto", label: "Produto", table: true }, { key: "nf", label: "Nº NF", table: true },
-      { key: "recebidoPor", label: "Recebido Por", table: true }, { key: "data", label: "Data", type: "date", table: true },
-      { key: "fotoNF", label: "Foto da NF (Opcional)", type: "file", optional: true },
-      { key: "fotoProduto", label: "Foto do Produto (Opcional)", type: "file", optional: true },
-    ]},
+    clientes: { title: "Cliente", icon: "👥", stateKey: "clientes", fields: [{ key: "nome", label: "Nome / Razão Social", table: true }, { key: "cpfCnpj", label: "CPF / CNPJ", table: true }, { key: "contato", label: "Telefone", table: true }, { key: "email", label: "E-mail", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
+    transportadoras: { title: "Transportadora", icon: "🚛", stateKey: "transportadoras", fields: [{ key: "nome", label: "Razão Social", table: true }, { key: "cnpj", label: "CNPJ", table: true }, { key: "contato", label: "Contato", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
+    fornecedores: { title: "Fornecedor", icon: "🏭", stateKey: "fornecedores", fields: [{ key: "nome", label: "Nome", table: true }, { key: "cnpj", label: "CNPJ", table: true }, { key: "segmento", label: "Segmento", table: true }, { key: "contato", label: "Contato", table: true }] },
+    caminhoes: { title: "Caminhão", icon: "🚜", stateKey: "caminhoes", fields: [{ key: "placa", label: "Placa", table: true }, { key: "uf", label: "UF", table: true }, { key: "arquivo", label: "Documento (Opcional)", type: "file", optional: true }] },
+    motoristas: { title: "Motorista", icon: "👷", stateKey: "motoristas", fields: [{ key: "nome", label: "Nome Completo", table: true }, { key: "cnh", label: "CNH", table: true }, { key: "arquivo", label: "Arquivo CNH (Opcional)", type: "file", optional: true }] },
+    insumos: { title: "Insumo", icon: "🧪", stateKey: "insumos", fields: [{ key: "nome", label: "Nome", table: true }, { key: "unidade", label: "Unidade", type: "select", options: ["kg","L","un","sc","t"], table: true }, { key: "categoria", label: "Categoria", type: "select", options: ["Fertilizante","Defensivo","Semente","Combustível","Outros"], table: true }, { key: "fornecedor", label: "Fornecedor", table: true }] },
+    recebimentoInsumos: { title: "Recebimento de Insumo", icon: "📥", stateKey: "recebimentoInsumos", fields: [{ key: "produto", label: "Produto", table: true }, { key: "nf", label: "Nº NF", table: true }, { key: "recebidoPor", label: "Recebido Por", table: true }, { key: "data", label: "Data", type: "date", table: true }, { key: "fotoNF", label: "Foto da NF (Opcional)", type: "file", optional: true }, { key: "fotoProduto", label: "Foto do Produto (Opcional)", type: "file", optional: true }] },
   };
 
   const ss = setStateAndSave;
-  // Verifica se o usuário tem acesso ao módulo ativo
   const temAcesso = (pageId) => {
     if (usuarioLogado?.role === "admin") return true;
     const modulos = usuarioLogado?.modulos || [];
-    // Admin pages are already filtered in nav
     if (["usuarios", "lixeira"].includes(pageId)) return false;
     return modulos.includes(pageId);
   };
 
   const page = () => {
-    if (!temAcesso(active)) {
-      return (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: theme.muted }}>
-          <div style={{ fontSize: 54, marginBottom: 16 }}>🔒</div>
-          <h2 style={{ color: theme.text, fontWeight: 700, fontSize: 22, marginBottom: 8 }}>Acesso Restrito</h2>
-          <p style={{ fontSize: 14 }}>Você não tem permissão para acessar este módulo.</p>
-          <p style={{ fontSize: 12, marginTop: 8 }}>Entre em contato com o administrador para solicitar acesso.</p>
-        </div>
-      );
-    }
+    if (!temAcesso(active)) return <div style={{ textAlign: "center", padding: "60px 20px", color: theme.muted }}><div style={{ fontSize: 54, marginBottom: 16 }}>🔒</div><h2 style={{ color: theme.text, fontWeight: 700, fontSize: 22, marginBottom: 8 }}>Acesso Restrito</h2><p style={{ fontSize: 14 }}>Você não tem permissão para acessar este módulo.</p></div>;
     if (crudPages[active]) return <CrudPage key={active} {...crudPages[active]} state={state} setState={ss} />;
     switch (active) {
       case "dashboard": return <Dashboard state={state} setActive={setActive} />;

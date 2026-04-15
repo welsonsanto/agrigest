@@ -29,47 +29,29 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 
 // ─── MÓDULOS DE ACESSO ───────────────────────────────────────────────────────
 const modulosDisponiveis = [
-  { grupo: "🌾 GRÃOS", modulos: [
+  { grupo: "📊 DASHBOARD", modulos: [
     { id: "dashboard", label: "Dashboard" },
-    { id: "fazenda", label: "Fazenda" },
-    { id: "graos", label: "Grãos em Produção" },
-    { id: "talhoes", label: "Talhões" },
-    { id: "produtividade", label: "Produtividade" },
-    { id: "classificacao", label: "Classificação" },
-    { id: "contratos", label: "Contratos" },
-    { id: "romaneiosEntrada", label: "Recebimento de Grãos" },
-    { id: "romaneiosSaida", label: "Expedição de Grãos" },
-    { id: "expedicao", label: "Agendamentos" },
-    { id: "relatorioMotoristas", label: "Rel. Motoristas" },
-    { id: "relatoriosDiarios", label: "Rel. Diário de Colheita" },
-    { id: "relatorioCarregamentos", label: "Rel. Carregamentos" },
-    { id: "vendaMilho", label: "Venda de Milho" },
+  ]},
+  { grupo: "🌾 GRÃOS", modulos: [
+    { id: "graosDept", label: "Grãos" },
+  ]},
+  { grupo: "📑 RELATÓRIOS", modulos: [
+    { id: "relatoriosDept", label: "Relatórios" },
   ]},
   { grupo: "🧪 INSUMOS", modulos: [
-    { id: "insumos", label: "Cadastro de Insumos" },
-    { id: "estoque", label: "Estoque Insumos" },
-    { id: "recebimentoInsumos", label: "Recebimento de Insumos" },
-    { id: "fichasAplicacao", label: "Fichas de Aplicação" },
+    { id: "insumosDept", label: "Insumos" },
   ]},
-  { grupo: "⛽ COMBUSTÍVEL", modulos: [
-    { id: "maquinas", label: "Máquinas" },
-    { id: "abastecimento", label: "Abastecimento" },
-    { id: "relatorioCombustivel", label: "Rel. Consumo" },
+  { grupo: "🚜 MÁQUINAS E EQUIPAMENTOS", modulos: [
+    { id: "maquinasEquipamentos", label: "Máquinas e Equipamentos" },
   ]},
   { grupo: "🔧 ALMOXARIFADO", modulos: [
-    { id: "pecas", label: "Peças" },
-    { id: "movimentacaoPecas", label: "Movimentação" },
-    { id: "estoquePecas", label: "Estoque Peças" },
+    { id: "almoxarifado", label: "Almoxarifado" },
   ]},
   { grupo: "💰 FINANÇAS", modulos: [
     { id: "financas", label: "Departamento Financeiro" },
   ]},
   { grupo: "📋 CADASTROS", modulos: [
-    { id: "clientes", label: "Clientes" },
-    { id: "transportadoras", label: "Transportadoras" },
-    { id: "fornecedores", label: "Fornecedores" },
-    { id: "caminhoes", label: "Caminhões" },
-    { id: "motoristas", label: "Motoristas" },
+    { id: "cadastros", label: "Cadastros" },
   ]},
 ];
 
@@ -477,47 +459,39 @@ function FazendaSelector({ fazendas, onSelect, onNovaFazenda }) {
 const navGroups = (isAdmin, userModulos) => {
   const allGroups = [
     {
-      title: "🌾 GRÃOS", icon: "🌾",
+      title: "📊 DASHBOARD", icon: "📊",
       items: [
         { id: "dashboard", label: "Dashboard", icon: "📊" },
-        { id: "fazenda", label: "Fazenda", icon: "🏡" },
-        { id: "graos", label: "Grãos em Produção", icon: "🌾" },
-        { id: "talhoes", label: "Talhões", icon: "🗺️" },
-        { id: "produtividade", label: "Produtividade", icon: "📈" },
-        { id: "classificacao", label: "Classificação", icon: "⚙️" },
-        { id: "contratos", label: "Contratos", icon: "📋" },
-        { id: "romaneiosEntrada", label: "Recebimento de Grãos", icon: "📥" },
-        { id: "romaneiosSaida", label: "Expedição de Grãos", icon: "📤" },
-        { id: "expedicao", label: "Agendamentos", icon: "🚚" },
-        { id: "relatorioMotoristas", label: "Rel. Motoristas", icon: "📊" },
-        { id: "relatoriosDiarios", label: "Rel. Diário de Colheita", icon: "📅" },
-        { id: "relatorioCarregamentos", label: "Rel. Carregamentos", icon: "📦" },
-        { id: "vendaMilho", label: "Venda de Milho", icon: "🌽" },
+      ]
+    },
+    {
+      title: "🌾 GRÃOS", icon: "🌾",
+      items: [
+        { id: "graosDept", label: "Grãos", icon: "🌾" },
+      ]
+    },
+    {
+      title: "📑 RELATÓRIOS", icon: "📑",
+      items: [
+        { id: "relatoriosDept", label: "Relatórios", icon: "📑" },
       ]
     },
     {
       title: "🧪 INSUMOS", icon: "🧪",
       items: [
-        { id: "insumos", label: "Cadastro de Insumos", icon: "🧪" },
-        { id: "estoque", label: "Estoque Insumos", icon: "📦" },
-        { id: "recebimentoInsumos", label: "Recebimento de Insumos", icon: "📥" },
-        { id: "fichasAplicacao", label: "Fichas de Aplicação", icon: "📋" },
+        { id: "insumosDept", label: "Insumos", icon: "🧪" },
       ]
     },
     {
-      title: "⛽ COMBUSTÍVEL", icon: "⛽",
+      title: "🚜 MÁQUINAS E EQUIP.", icon: "🚜",
       items: [
-        { id: "maquinas", label: "Máquinas", icon: "🚜" },
-        { id: "abastecimento", label: "Abastecimento", icon: "⛽" },
-        { id: "relatorioCombustivel", label: "Rel. Consumo", icon: "📈" },
+        { id: "maquinasEquipamentos", label: "Máquinas e Equipamentos", icon: "🚜" },
       ]
     },
     {
       title: "🔧 ALMOXARIFADO", icon: "🔧",
       items: [
-        { id: "pecas", label: "Peças", icon: "🔧" },
-        { id: "movimentacaoPecas", label: "Movimentação", icon: "📦" },
-        { id: "estoquePecas", label: "Estoque Peças", icon: "📊" },
+        { id: "almoxarifado", label: "Almoxarifado", icon: "🔧" },
       ]
     },
     {
@@ -529,11 +503,7 @@ const navGroups = (isAdmin, userModulos) => {
     {
       title: "📋 CADASTROS", icon: "📋",
       items: [
-        { id: "clientes", label: "Clientes", icon: "👥" },
-        { id: "transportadoras", label: "Transportadoras", icon: "🚛" },
-        { id: "fornecedores", label: "Fornecedores", icon: "🏭" },
-        { id: "caminhoes", label: "Caminhões", icon: "🚜" },
-        { id: "motoristas", label: "Motoristas", icon: "👷" },
+        { id: "cadastros", label: "Cadastros", icon: "📋" },
       ]
     },
     ...(isAdmin ? [{
@@ -2579,52 +2549,112 @@ function RelatorioCombustivel({ state }) {
   );
 }
 
-// ─── PEÇAS (ALMOXARIFADO) ────────────────────────────────────────────────────
+// ─── PEÇAS (ALMOXARIFADO) — MELHORADO ────────────────────────────────────────
 function Pecas({ state, setState }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
   const [editing, setEditing] = useState(null);
+  const [busca, setBusca] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
   const items = state.pecas || [];
 
   const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const openNew = () => { setForm({ unidade: "un", estoqueMinimo: 0 }); setEditing(null); setOpen(true); };
+  const openNew = () => { setForm({ unidade: "un", estoqueMinimo: 0, codigo: `PEC-${padNum((items.length || 0) + 1)}` }); setEditing(null); setOpen(true); };
   const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
-  const del = id => setState(s => ({ ...s, pecas: s.pecas.filter(x => x.id !== id) }));
+  const del = id => { if (window.confirm("Excluir esta peça?")) setState(s => ({ ...s, pecas: s.pecas.filter(x => x.id !== id) })); };
   const save = () => {
     const item = { ...form, id: editing || uid() };
     setState(s => ({ ...s, pecas: editing ? s.pecas.map(x => x.id === editing ? item : x) : [...(s.pecas || []), item] }));
     setOpen(false);
   };
 
-  const gerarCodigoBarras = (codigo) => {
-    if (!codigo) return "";
-    return `*${codigo}*`;
-  };
+  const categorias = [...new Set(items.map(p => p.categoria).filter(Boolean))];
+  const filtrados = items.filter(p => {
+    const txt = `${p.codigo} ${p.descricao} ${p.nome} ${p.categoria} ${p.localizacao}`.toLowerCase();
+    if (busca && !txt.includes(busca.toLowerCase())) return false;
+    if (filtroCategoria && p.categoria !== filtroCategoria) return false;
+    const qtd = parseFloat(p.quantidade) || 0, min = parseFloat(p.estoqueMinimo) || 0;
+    if (filtroStatus === "baixo") return min > 0 && qtd <= min && qtd > 0;
+    if (filtroStatus === "zerado") return qtd === 0;
+    if (filtroStatus === "normal") return qtd > min || min === 0;
+    return true;
+  });
+
+  const totalItens = items.length;
+  const totalUnidades = items.reduce((s, p) => s + (parseFloat(p.quantidade) || 0), 0);
+  const pecasBaixo = items.filter(p => { const q = parseFloat(p.quantidade) || 0, m = parseFloat(p.estoqueMinimo) || 0; return m > 0 && q <= m; });
+  const valorTotal = items.reduce((s, p) => s + ((parseFloat(p.quantidade) || 0) * (parseFloat(p.precoUnitario) || 0)), 0);
 
   return (
     <div>
       <SectionTitle action={<Btn onClick={openNew}>+ Nova Peça</Btn>}>🔧 Peças e Componentes</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 20 }}>
+        {[
+          { label: "Cadastradas", value: totalItens, color: theme.info, icon: "🔧" },
+          { label: "Em Estoque", value: totalUnidades.toFixed(0), color: theme.accent, icon: "📦" },
+          { label: "Estoque Baixo", value: pecasBaixo.length, color: theme.warning, icon: "⚠️" },
+          { label: "Valor Estoque", value: `R$ ${valorTotal.toFixed(2)}`, color: theme.gold, icon: "💰" },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ color: theme.muted, fontSize: 9, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>{s.label}</div>
+                <div style={{ fontWeight: 900, fontSize: 20, color: s.color }}>{s.value}</div>
+              </div>
+              <span style={{ fontSize: 20 }}>{s.icon}</span>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12, alignItems: "end" }}>
+          <div>
+            <label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>🔍 Buscar</label>
+            <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Código, descrição, localização..." />
+          </div>
+          <div>
+            <label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>Categoria</label>
+            <Select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)}>
+              <option value="">Todas</option>
+              {categorias.map(c => <option key={c}>{c}</option>)}
+            </Select>
+          </div>
+          <div>
+            <label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>Status</label>
+            <Select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="normal">✅ Normal</option>
+              <option value="baixo">⚠️ Baixo</option>
+              <option value="zerado">🚫 Zerado</option>
+            </Select>
+          </div>
+        </div>
+      </Card>
+
       <Card>
-        {items.length === 0 ? (
-          <EmptyState icon="🔧" text="Nenhuma peça cadastrada." />
+        {filtrados.length === 0 ? (
+          <EmptyState icon="🔧" text={busca || filtroCategoria || filtroStatus ? "Nenhuma peça encontrada." : "Nenhuma peça cadastrada."} />
         ) : (
           <Table
-            headers={["Código", "Descrição", "Categoria", "Localização", "Quantidade", "Est. Mínimo", "Unidade", "Ações"]}
-            rows={items.map(p => {
-              const qtd = parseFloat(p.quantidade) || 0;
-              const min = parseFloat(p.estoqueMinimo) || 0;
-              const status = qtd <= min ? (qtd === 0 ? "red" : "gold") : "green";
+            headers={["Código", "Descrição", "Categoria", "Local", "Qtd", "Mín.", "Preço Un.", "Status", "Ações"]}
+            rows={filtrados.map(p => {
+              const qtd = parseFloat(p.quantidade) || 0, min = parseFloat(p.estoqueMinimo) || 0;
+              const status = qtd === 0 ? "Zerado" : (min > 0 && qtd <= min ? "Baixo" : "OK");
+              const cor = status === "OK" ? "green" : (status === "Baixo" ? "gold" : "red");
               return (
-                <tr key={p.id}>
+                <tr key={p.id} style={status !== "OK" ? { background: status === "Zerado" ? `${theme.danger}08` : `${theme.warning}08` } : {}}>
                   <Td><span style={{ fontFamily: "monospace", fontWeight: 700 }}>{p.codigo || "—"}</span></Td>
-                  <Td><strong>{p.descricao || p.nome}</strong></Td>
+                  <Td><strong>{p.descricao || p.nome}</strong>{p.aplicacao ? <><br/><span style={{ fontSize: 10, color: theme.muted }}>📌 {p.aplicacao}</span></> : null}</Td>
                   <Td>{p.categoria || "—"}</Td>
                   <Td>{p.localizacao || "—"}</Td>
-                  <Td><Badge color={status}>{qtd.toLocaleString()} {p.unidade}</Badge></Td>
+                  <Td><Badge color={cor}>{qtd.toLocaleString()} {p.unidade}</Badge></Td>
                   <Td>{min > 0 ? `${min} ${p.unidade}` : "—"}</Td>
-                  <Td>{p.unidade}</Td>
+                  <Td>{parseFloat(p.precoUnitario) > 0 ? `R$ ${parseFloat(p.precoUnitario).toFixed(2)}` : "—"}</Td>
+                  <Td><Badge color={cor}>{status}</Badge></Td>
                   <Td>
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 4 }}>
                       <Btn size="sm" variant="secondary" onClick={() => openEdit(p)}>✏️</Btn>
                       <Btn size="sm" variant="danger" onClick={() => del(p.id)}>🗑️</Btn>
                     </div>
@@ -2634,44 +2664,45 @@ function Pecas({ state, setState }) {
             })}
           />
         )}
+        {filtrados.length > 0 && <div style={{ color: theme.muted, fontSize: 11, marginTop: 8, textAlign: "right" }}>{filtrados.length} de {items.length} peças</div>}
       </Card>
 
       <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Peça`} width={650}>
         <Row>
-          <Field label="Código da Peça"><Input value={form.codigo} onChange={e => fp("codigo", e.target.value)} placeholder="Ex: FIL-001" /></Field>
-          <Field label="Descrição / Nome"><Input value={form.descricao || form.nome} onChange={e => fp("descricao", e.target.value)} placeholder="Ex: Filtro de Óleo" required /></Field>
+          <Field label="Código"><Input value={form.codigo} onChange={e => fp("codigo", e.target.value)} placeholder="PEC-00001" /></Field>
+          <Field label="Descrição"><Input value={form.descricao || form.nome} onChange={e => fp("descricao", e.target.value)} placeholder="Ex: Filtro de Óleo" required /></Field>
         </Row>
         <Row>
           <Field label="Categoria">
             <Select value={form.categoria} onChange={e => fp("categoria", e.target.value)}>
-              {["Filtro", "Correia", "Motor", "Transmissão", "Hidráulica", "Elétrica", "Pneu", "Ferramenta", "Outros"].map(c => <option key={c}>{c}</option>)}
+              <option value="">Selecione...</option>
+              {["Filtro", "Correia", "Rolamento", "Motor", "Transmissão", "Hidráulica", "Elétrica", "Pneu", "Lubrificante", "Ferramenta", "Parafuso/Porca", "Vedação", "Mangueira", "Outros"].map(c => <option key={c}>{c}</option>)}
             </Select>
           </Field>
           <Field label="Unidade">
             <Select value={form.unidade} onChange={e => fp("unidade", e.target.value)}>
-              {["un", "kg", "L", "m", "par", "jogo"].map(u => <option key={u}>{u}</option>)}
+              {["un", "kg", "L", "m", "par", "jogo", "cx", "pct"].map(u => <option key={u}>{u}</option>)}
             </Select>
           </Field>
         </Row>
         <Row>
-          <Field label="Quantidade Inicial"><Input type="number" step="0.01" value={form.quantidade} onChange={e => fp("quantidade", e.target.value)} placeholder="0" /></Field>
+          <Field label="Quantidade"><Input type="number" step="0.01" value={form.quantidade} onChange={e => fp("quantidade", e.target.value)} placeholder="0" /></Field>
           <Field label="Estoque Mínimo"><Input type="number" step="0.01" value={form.estoqueMinimo} onChange={e => fp("estoqueMinimo", e.target.value)} placeholder="0" /></Field>
         </Row>
         <Row>
-          <Field label="Localização (Prateleira/Estante)"><Input value={form.localizacao} onChange={e => fp("localizacao", e.target.value)} placeholder="Ex: A-12" /></Field>
+          <Field label="Preço Unitário (R$)"><Input type="number" step="0.01" value={form.precoUnitario} onChange={e => fp("precoUnitario", e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Localização"><Input value={form.localizacao} onChange={e => fp("localizacao", e.target.value)} placeholder="Ex: A-12 / Galpão 2" /></Field>
+        </Row>
+        <Row>
           <Field label="Fornecedor"><Input value={form.fornecedor} onChange={e => fp("fornecedor", e.target.value)} placeholder="Opcional" /></Field>
+          <Field label="Aplicação / Máquina"><Input value={form.aplicacao} onChange={e => fp("aplicacao", e.target.value)} placeholder="Ex: Trator JD 5075E" /></Field>
         </Row>
         <Field label="Observações">
           <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
         </Field>
-        {form.codigo && (
-          <div style={{ marginTop: 8, padding: 8, background: theme.surface, borderRadius: 6, textAlign: "center", fontFamily: "monospace", fontSize: 16 }}>
-            🏷️ Código de Barras: {gerarCodigoBarras(form.codigo)}
-          </div>
-        )}
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
           <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
-          <Btn onClick={save}>💾 Salvar Peça</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
         </div>
       </Modal>
     </div>
@@ -2683,99 +2714,117 @@ function MovimentacaoPecas({ state, setState }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
   const [editing, setEditing] = useState(null);
+  const [busca, setBusca] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
+  const [periodoInicio, setPeriodoInicio] = useState("");
+  const [periodoFim, setPeriodoFim] = useState("");
   const items = state.movimentacaoPecas || [];
   const pecas = state.pecas || [];
 
   const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const openNew = () => { setForm({ tipo: "Saída", data: new Date().toISOString().split("T")[0] }); setEditing(null); setOpen(true); };
+  const openNew = (tipo) => { setForm({ tipo: tipo || "Saída", data: new Date().toISOString().split("T")[0] }); setEditing(null); setOpen(true); };
   const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
-  const del = id => setState(s => ({ ...s, movimentacaoPecas: s.movimentacaoPecas.filter(x => x.id !== id) }));
+  const del = id => { if (window.confirm("Excluir?")) setState(s => ({ ...s, movimentacaoPecas: s.movimentacaoPecas.filter(x => x.id !== id) })); };
 
   const save = () => {
     const peca = pecas.find(p => p.id === form.pecaId);
-    if (peca) {
-      const qtdMov = parseFloat(form.quantidade) || 0;
-      const qtdAtual = parseFloat(peca.quantidade) || 0;
-      if (form.tipo === "Saída" && qtdMov > qtdAtual) {
-        alert(`Estoque insuficiente! Disponível: ${qtdAtual} ${peca.unidade}`);
-        return;
-      }
-      const novaQtd = form.tipo === "Saída" ? qtdAtual - qtdMov : qtdAtual + qtdMov;
-      setState(s => ({
-        ...s,
-        pecas: s.pecas.map(p => p.id === form.pecaId ? { ...p, quantidade: novaQtd } : p),
-        movimentacaoPecas: editing
-          ? s.movimentacaoPecas.map(x => x.id === editing ? { ...form, id: editing } : x)
-          : [...s.movimentacaoPecas, { ...form, id: uid() }]
-      }));
+    if (!peca) { alert("Selecione uma peça!"); return; }
+    if (!form.quantidade || parseFloat(form.quantidade) <= 0) { alert("Informe a quantidade!"); return; }
+    const qtdMov = parseFloat(form.quantidade) || 0;
+    const qtdAtual = parseFloat(peca.quantidade) || 0;
+    if (form.tipo === "Saída" && qtdMov > qtdAtual) {
+      alert(`Estoque insuficiente! Disponível: ${qtdAtual} ${peca.unidade}`);
+      return;
     }
-    setOpen(false);
-    setForm({});
+    const novaQtd = form.tipo === "Saída" ? qtdAtual - qtdMov : qtdAtual + qtdMov;
+    setState(s => ({
+      ...s,
+      pecas: s.pecas.map(p => p.id === form.pecaId ? { ...p, quantidade: novaQtd } : p),
+      movimentacaoPecas: editing
+        ? s.movimentacaoPecas.map(x => x.id === editing ? { ...form, id: editing } : x)
+        : [...s.movimentacaoPecas, { ...form, id: uid() }]
+    }));
+    setOpen(false); setForm({});
   };
 
-  const totalEntradas = items.filter(m => m.tipo === "Entrada").reduce((sum, m) => sum + (parseFloat(m.quantidade) || 0), 0);
-  const totalSaidas = items.filter(m => m.tipo === "Saída").reduce((sum, m) => sum + (parseFloat(m.quantidade) || 0), 0);
+  const filtrados = items.filter(m => {
+    const peca = pecas.find(p => p.id === m.pecaId);
+    const txt = `${peca?.codigo || ""} ${peca?.descricao || ""} ${m.responsavel || ""} ${m.destino || ""}`.toLowerCase();
+    if (busca && !txt.includes(busca.toLowerCase())) return false;
+    if (filtroTipo && m.tipo !== filtroTipo) return false;
+    if (periodoInicio && m.data < periodoInicio) return false;
+    if (periodoFim && m.data > periodoFim) return false;
+    return true;
+  });
+
+  const totalEntradas = filtrados.filter(m => m.tipo === "Entrada").reduce((sum, m) => sum + (parseFloat(m.quantidade) || 0), 0);
+  const totalSaidas = filtrados.filter(m => m.tipo === "Saída").reduce((sum, m) => sum + (parseFloat(m.quantidade) || 0), 0);
 
   const imprimir = () => {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Movimentação de Peças</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
-    <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div>Relatório de Movimentação de Peças</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
-    <table><thead><tr><th>Data</th><th>Peça</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Destino/Origem</th><th>Motivo</th></tr></thead><tbody>
-    ${items.map(m => {
-      const peca = pecas.find(p => p.id === m.pecaId);
-      return `<tr><td style="white-space:nowrap">${m.data}</td><td style="white-space:nowrap">${peca?.descricao || peca?.nome || m.pecaId}</td><td style="text-align:center">${m.tipo === "Entrada" ? "📥 Entrada" : "📤 Saída"}</td><td style="text-align:center"><strong>${m.quantidade}</strong></td><td style="white-space:nowrap">${m.responsavel || "—"}</td><td style="white-space:nowrap">${m.destino || m.origem || "—"}</td><td style="white-space:nowrap">${m.motivo || "—"}</td>`;
-    }).join("")}
-    </tbody><tfoot><tr class="tot"><td colspan="3"><strong>RESUMO</strong></td><td style="text-align:center"><strong>Entradas: ${totalEntradas}</strong></td><td style="text-align:center"><strong>Saídas: ${totalSaidas}</strong></td><td style="text-align:center"><strong>Saldo: ${(totalEntradas - totalSaidas).toFixed(0)}</strong></td><td style="text-align:center"><strong>${items.length} mov.</strong></td></tr></tfoot>
-    </table>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
+    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px"><div><div style="font-size:17px;font-weight:900">${faz.nome || "Fazenda"}</div><div>Movimentação de Peças</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
+    <table><thead><tr><th>Data</th><th>Peça</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Destino</th><th>Motivo</th></tr></thead><tbody>
+    ${filtrados.map(m => { const peca = pecas.find(p => p.id === m.pecaId); return `<tr><td>${formatDate(m.data)}</td><td>${peca?.descricao || "—"}</td><td>${m.tipo}</td><td style="text-align:center"><strong>${m.quantidade}</strong></td><td>${m.responsavel || "—"}</td><td>${m.destino || "—"}</td><td>${m.motivo || "—"}</td></tr>`; }).join("")}
+    </tbody><tfoot><tr class="tot"><td colspan="2"><strong>TOTAIS</strong></td><td></td><td style="text-align:center">E:${totalEntradas} S:${totalSaidas}</td><td colspan="3">Saldo: ${(totalEntradas - totalSaidas).toFixed(0)} | ${filtrados.length} mov.</td></tr></tfoot></table>
     <div class="footer">AgriGest · Movimentação de Peças</div></body></html>`);
-    win.document.close();
-    setTimeout(() => win.print(), 400);
+    win.document.close(); setTimeout(() => win.print(), 400);
   };
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
         <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📦 Movimentação de Peças</h2>
         <div style={{ display: "flex", gap: 8 }}>
-          {items.length > 0 && <Btn variant="info" onClick={imprimir}>🖨️ Relatório</Btn>}
-          <Btn onClick={openNew}>+ Nova Movimentação</Btn>
+          {filtrados.length > 0 && <Btn variant="info" onClick={imprimir}>🖨️ Relatório</Btn>}
+          <Btn variant="success" onClick={() => openNew("Entrada")}>📥 Entrada</Btn>
+          <Btn variant="danger" onClick={() => openNew("Saída")}>📤 Saída</Btn>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
         {[
-          { label: "Total Entradas", value: totalEntradas.toFixed(0), color: theme.accent, icon: "📥" },
-          { label: "Total Saídas", value: totalSaidas.toFixed(0), color: theme.danger, icon: "📤" },
-          { label: "Saldo em Estoque", value: (totalEntradas - totalSaidas).toFixed(0), color: theme.gold, icon: "📊" },
+          { label: "Entradas", value: totalEntradas.toFixed(0), color: theme.accent, icon: "📥" },
+          { label: "Saídas", value: totalSaidas.toFixed(0), color: theme.danger, icon: "📤" },
+          { label: "Saldo", value: (totalEntradas - totalSaidas).toFixed(0), color: theme.gold, icon: "📊" },
         ].map((s, i) => (
           <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
             <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontWeight: 900, fontSize: 32, color: s.color }}>{s.value}</div>
+            <div style={{ fontWeight: 900, fontSize: 28, color: s.color }}>{s.value}</div>
           </Card>
         ))}
       </div>
 
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12, alignItems: "end" }}>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>🔍 Buscar</label><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Peça, responsável..." /></div>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Tipo</label><Select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}><option value="">Todos</option><option value="Entrada">📥 Entrada</option><option value="Saída">📤 Saída</option></Select></div>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>De</label><Input type="date" value={periodoInicio} onChange={e => setPeriodoInicio(e.target.value)} /></div>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Até</label><Input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} /></div>
+        </div>
+      </Card>
+
       <Card>
-        {items.length === 0 ? (
-          <EmptyState icon="📦" text="Nenhuma movimentação registrada." />
+        {filtrados.length === 0 ? (
+          <EmptyState icon="📦" text="Nenhuma movimentação encontrada." />
         ) : (
           <Table
-            headers={["Data", "Peça", "Tipo", "Quantidade", "Responsável", "Destino/Origem", "Motivo", "Ações"]}
-            rows={items.map(m => {
+            headers={["Data", "Peça", "Tipo", "Qtd", "Responsável", "Destino", "Motivo", "Ações"]}
+            rows={filtrados.map(m => {
               const peca = pecas.find(p => p.id === m.pecaId);
               return (
                 <tr key={m.id}>
-                  <Td>{m.data}</Td>
-                  <Td><strong>{peca?.descricao || peca?.nome || m.pecaId}</strong></Td>
-                  <Td><Badge color={m.tipo === "Entrada" ? "green" : "red"}>{m.tipo}</Badge></Td>
+                  <Td>{formatDate(m.data)}</Td>
+                  <Td><strong>{peca?.descricao || peca?.nome || "—"}</strong><br/><span style={{ fontSize: 10, color: theme.muted }}>{peca?.codigo || ""}</span></Td>
+                  <Td><Badge color={m.tipo === "Entrada" ? "green" : "red"}>{m.tipo === "Entrada" ? "📥" : "📤"} {m.tipo}</Badge></Td>
                   <Td><strong style={{ color: m.tipo === "Entrada" ? theme.accent : theme.danger }}>{m.quantidade}</strong></Td>
                   <Td>{m.responsavel || "—"}</Td>
                   <Td>{m.destino || m.origem || "—"}</Td>
                   <Td>{m.motivo || "—"}</Td>
                   <Td>
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 4 }}>
                       <Btn size="sm" variant="secondary" onClick={() => openEdit(m)}>✏️</Btn>
                       <Btn size="sm" variant="danger" onClick={() => del(m.id)}>🗑️</Btn>
                     </div>
@@ -2787,42 +2836,43 @@ function MovimentacaoPecas({ state, setState }) {
         )}
       </Card>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Movimentação`} width={600}>
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Movimentação — ${form.tipo || "Saída"}`} width={600}>
         <Row>
           <Field label="Data"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field>
           <Field label="Peça">
             <Select value={form.pecaId} onChange={e => fp("pecaId", e.target.value)}>
               <option value="">Selecione...</option>
-              {pecas.map(p => {
-                const qtd = parseFloat(p.quantidade) || 0;
-                return <option key={p.id} value={p.id}>{p.codigo} - {p.descricao || p.nome} (Estoque: {qtd} {p.unidade})</option>;
-              })}
+              {pecas.map(p => <option key={p.id} value={p.id}>{p.codigo} - {p.descricao || p.nome} (Est: {parseFloat(p.quantidade) || 0} {p.unidade})</option>)}
             </Select>
           </Field>
         </Row>
         <Row>
-          <Field label="Tipo de Movimentação">
+          <Field label="Tipo">
             <Select value={form.tipo} onChange={e => fp("tipo", e.target.value)}>
-              <option value="Entrada">📥 Entrada (Compra/Devolução)</option>
-              <option value="Saída">📤 Saída (Retirada/Manutenção)</option>
+              <option value="Entrada">📥 Entrada</option>
+              <option value="Saída">📤 Saída</option>
             </Select>
           </Field>
           <Field label="Quantidade"><Input type="number" step="0.01" value={form.quantidade} onChange={e => fp("quantidade", e.target.value)} placeholder="0" /></Field>
         </Row>
         <Row>
           <Field label="Responsável"><Input value={form.responsavel} onChange={e => fp("responsavel", e.target.value)} placeholder="Quem retirou/recebeu" /></Field>
-          <Field label="Destino / Origem"><Input value={form.destino || form.origem} onChange={e => fp("destino", e.target.value)} placeholder="Ex: Trator 5670 / Fornecedor X" /></Field>
+          <Field label="Destino / Origem"><Input value={form.destino || form.origem} onChange={e => fp("destino", e.target.value)} placeholder="Ex: Trator 5670" /></Field>
         </Row>
-        <Field label="Motivo">
-          <Select value={form.motivo} onChange={e => fp("motivo", e.target.value)}>
-            <option value="">Selecione...</option>
-            <option>Manutenção preventiva</option>
-            <option>Manutenção corretiva</option>
-            <option>Compra/Reposição</option>
-            <option>Devolução</option>
-            <option>Perda/Danificada</option>
-          </Select>
-        </Field>
+        <Row>
+          <Field label="Motivo">
+            <Select value={form.motivo} onChange={e => fp("motivo", e.target.value)}>
+              <option value="">Selecione...</option>
+              <option>Manutenção preventiva</option>
+              <option>Manutenção corretiva</option>
+              <option>Compra/Reposição</option>
+              <option>Devolução</option>
+              <option>Transferência</option>
+              <option>Perda/Danificada</option>
+            </Select>
+          </Field>
+          <Field label="Nº NF / Requisição"><Input value={form.nfRequisicao} onChange={e => fp("nfRequisicao", e.target.value)} placeholder="Opcional" /></Field>
+        </Row>
         <Field label="Observações">
           <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
         </Field>
@@ -2835,65 +2885,86 @@ function MovimentacaoPecas({ state, setState }) {
   );
 }
 
-// ─── ESTOQUE DE PEÇAS (CONSULTA) ─────────────────────────────────────────────
+// ─── ESTOQUE DE PEÇAS (CONSULTA MELHORADA) ───────────────────────────────────
 function EstoquePecas({ state }) {
   const pecas = state.pecas || [];
   const movimentacoes = state.movimentacaoPecas || [];
+  const [busca, setBusca] = useState("");
 
-  const saldoPorPeca = {};
-  movimentacoes.forEach(m => {
-    if (!saldoPorPeca[m.pecaId]) saldoPorPeca[m.pecaId] = 0;
-    const qtd = parseFloat(m.quantidade) || 0;
-    if (m.tipo === "Entrada") saldoPorPeca[m.pecaId] += qtd;
-    else saldoPorPeca[m.pecaId] -= qtd;
+  const pecasComSaldo = pecas.map(p => {
+    const qtd = parseFloat(p.quantidade) || 0, min = parseFloat(p.estoqueMinimo) || 0, preco = parseFloat(p.precoUnitario) || 0;
+    const movsP = movimentacoes.filter(m => m.pecaId === p.id);
+    const ultMov = movsP.sort((a, b) => (b.data || "").localeCompare(a.data || ""))[0];
+    return { ...p, saldoCalculado: qtd, estoqueMinimo: min, precoUnitario: preco, ultimaMovimentacao: ultMov };
   });
 
-  const pecasComSaldo = pecas.map(p => ({
-    ...p,
-    saldoCalculado: saldoPorPeca[p.id] || parseFloat(p.quantidade) || 0,
-    estoqueMinimo: parseFloat(p.estoqueMinimo) || 0
-  }));
+  const filtrados = pecasComSaldo.filter(p => {
+    if (!busca) return true;
+    return `${p.codigo} ${p.descricao} ${p.nome} ${p.categoria} ${p.localizacao}`.toLowerCase().includes(busca.toLowerCase());
+  });
 
-  const pecasBaixo = pecasComSaldo.filter(p => p.saldoCalculado <= p.estoqueMinimo && p.estoqueMinimo > 0);
-  const totalPecas = pecasComSaldo.reduce((sum, p) => sum + p.saldoCalculado, 0);
+  const pecasBaixo = filtrados.filter(p => p.estoqueMinimo > 0 && p.saldoCalculado <= p.estoqueMinimo);
+  const totalPecas = filtrados.reduce((s, p) => s + p.saldoCalculado, 0);
+  const valorTotal = filtrados.reduce((s, p) => s + (p.saldoCalculado * p.precoUnitario), 0);
+
+  const imprimir = () => {
+    const win = window.open("", "_blank");
+    const faz = state.fazenda || {};
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Estoque de Peças</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:11px;color:#111}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#f3f4f6;padding:6px 8px;text-align:left;border:1px solid #ddd;font-size:10px}td{padding:6px 8px;border:1px solid #ddd}.low{background:#fef3c7}.zero{background:#fee2e2}.footer{margin-top:20px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
+    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:12px"><div><div style="font-size:17px;font-weight:900">${faz.nome || "Fazenda"}</div><div>Estoque do Almoxarifado</div></div><div style="text-align:right">${new Date().toLocaleString("pt-BR")}<br/>${filtrados.length} itens | R$ ${valorTotal.toFixed(2)}</div></div>
+    <table><thead><tr><th>Código</th><th>Descrição</th><th>Cat.</th><th>Local</th><th>Qtd</th><th>Mín.</th><th>Preço</th><th>Valor</th><th>Status</th></tr></thead><tbody>
+    ${filtrados.map(p => { const st = p.saldoCalculado === 0 ? "ZERADO" : (p.estoqueMinimo > 0 && p.saldoCalculado <= p.estoqueMinimo ? "BAIXO" : "OK"); return `<tr class="${st === "ZERADO" ? "zero" : st === "BAIXO" ? "low" : ""}"><td style="font-family:monospace;font-weight:700">${p.codigo || "—"}</td><td><strong>${p.descricao || p.nome || "—"}</strong></td><td>${p.categoria || "—"}</td><td>${p.localizacao || "—"}</td><td style="text-align:center"><strong>${p.saldoCalculado}</strong> ${p.unidade}</td><td style="text-align:center">${p.estoqueMinimo || "—"}</td><td style="text-align:right">R$ ${p.precoUnitario.toFixed(2)}</td><td style="text-align:right"><strong>R$ ${(p.saldoCalculado * p.precoUnitario).toFixed(2)}</strong></td><td style="text-align:center;font-weight:700;color:${st === "OK" ? "#16a34a" : st === "BAIXO" ? "#d97706" : "#dc2626"}">${st}</td></tr>`; }).join("")}
+    </tbody></table>
+    ${pecasBaixo.length > 0 ? `<div style="margin-top:14px;padding:10px;border:2px solid #d97706;border-radius:6px"><strong>⚠️ ${pecasBaixo.length} ITENS CRÍTICOS</strong><br/>${pecasBaixo.map(p => `• ${p.codigo} — ${p.descricao || p.nome}: ${p.saldoCalculado}/${p.estoqueMinimo} ${p.unidade}`).join("<br/>")}</div>` : ""}
+    <div class="footer">AgriGest · Estoque Almoxarifado</div></body></html>`);
+    win.document.close(); setTimeout(() => win.print(), 400);
+  };
 
   return (
     <div>
-      <SectionTitle>📊 Consulta de Estoque - Peças</SectionTitle>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📊 Consulta de Estoque</h2>
+        <Btn variant="info" onClick={imprimir}>🖨️ Imprimir Estoque</Btn>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
         {[
-          { label: "Total de Peças", value: pecas.length, color: theme.info, icon: "🔧" },
-          { label: "Itens em Estoque", value: totalPecas.toFixed(0), color: theme.accent, icon: "📦" },
-          { label: "Peças com Estoque Baixo", value: pecasBaixo.length, color: theme.warning, icon: "⚠️" },
+          { label: "Itens", value: filtrados.length, color: theme.info, icon: "🔧" },
+          { label: "Em Estoque", value: totalPecas.toFixed(0), color: theme.accent, icon: "📦" },
+          { label: "Valor Total", value: `R$ ${valorTotal.toFixed(2)}`, color: theme.gold, icon: "💰" },
+          { label: "Críticos", value: pecasBaixo.length, color: pecasBaixo.length > 0 ? theme.danger : theme.accent, icon: pecasBaixo.length > 0 ? "🚨" : "✅" },
         ].map((s, i) => (
-          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontWeight: 900, fontSize: 32, color: s.color }}>{s.value}</div>
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 9, color: theme.muted, textTransform: "uppercase", marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 20, color: s.color }}>{s.value}</div>
           </Card>
         ))}
       </div>
 
+      <Card style={{ marginBottom: 16 }}>
+        <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="🔍 Buscar por código, descrição, categoria ou localização..." />
+      </Card>
+
       <Card>
-        {pecasComSaldo.length === 0 ? (
-          <EmptyState icon="🔧" text="Nenhuma peça cadastrada." />
-        ) : (
+        {filtrados.length === 0 ? <EmptyState icon="🔧" text="Nenhuma peça encontrada." /> : (
           <Table
-            headers={["Código", "Descrição", "Categoria", "Localização", "Saldo Atual", "Est. Mínimo", "Status", "Última Movimentação"]}
-            rows={pecasComSaldo.map(p => {
-              const status = p.saldoCalculado <= p.estoqueMinimo ? (p.saldoCalculado === 0 ? "Zerado" : "Baixo") : "Normal";
-              const corStatus = status === "Normal" ? "green" : (status === "Baixo" ? "gold" : "red");
-              const ultMov = movimentacoes.filter(m => m.pecaId === p.id).sort((a, b) => b.data.localeCompare(a.data))[0];
+            headers={["Código", "Descrição", "Cat.", "Local", "Qtd", "Mín.", "Preço", "Valor", "Status", "Últ. Mov."]}
+            rows={filtrados.map(p => {
+              const st = p.saldoCalculado === 0 ? "Zerado" : (p.estoqueMinimo > 0 && p.saldoCalculado <= p.estoqueMinimo ? "Baixo" : "OK");
+              const cor = st === "OK" ? "green" : (st === "Baixo" ? "gold" : "red");
               return (
-                <tr key={p.id}>
+                <tr key={p.id} style={st !== "OK" ? { background: st === "Zerado" ? `${theme.danger}08` : `${theme.warning}08` } : {}}>
                   <Td><span style={{ fontFamily: "monospace", fontWeight: 700 }}>{p.codigo || "—"}</span></Td>
-                  <Td><strong>{p.descricao || p.nome}</strong></Td>
+                  <Td><strong>{p.descricao || p.nome}</strong>{p.aplicacao ? <><br/><span style={{ fontSize: 10, color: theme.muted }}>📌 {p.aplicacao}</span></> : null}</Td>
                   <Td>{p.categoria || "—"}</Td>
                   <Td>{p.localizacao || "—"}</Td>
-                  <Td><strong style={{ color: theme.accent }}>{p.saldoCalculado.toLocaleString()} {p.unidade}</strong></Td>
+                  <Td><strong style={{ color: cor === "green" ? theme.accent : (cor === "gold" ? theme.warning : theme.danger) }}>{p.saldoCalculado.toLocaleString()} {p.unidade}</strong></Td>
                   <Td>{p.estoqueMinimo > 0 ? `${p.estoqueMinimo} ${p.unidade}` : "—"}</Td>
-                  <Td><Badge color={corStatus}>{status}</Badge></Td>
-                  <Td>{ultMov ? `${ultMov.data} (${ultMov.tipo})` : "—"}</Td>
+                  <Td>{p.precoUnitario > 0 ? `R$ ${p.precoUnitario.toFixed(2)}` : "—"}</Td>
+                  <Td>{p.precoUnitario > 0 ? <strong style={{ color: theme.gold }}>R$ {(p.saldoCalculado * p.precoUnitario).toFixed(2)}</strong> : "—"}</Td>
+                  <Td><Badge color={cor}>{st}</Badge></Td>
+                  <Td style={{ fontSize: 11 }}>{p.ultimaMovimentacao ? `${formatDate(p.ultimaMovimentacao.data)} (${p.ultimaMovimentacao.tipo})` : "—"}</Td>
                 </tr>
               );
             })}
@@ -2902,15 +2973,127 @@ function EstoquePecas({ state }) {
       </Card>
 
       {pecasBaixo.length > 0 && (
-        <Card style={{ marginTop: 20, borderColor: `${theme.warning}44`, background: `${theme.warning}0a` }}>
-          <div style={{ fontWeight: 700, color: theme.warning, marginBottom: 12 }}>⚠️ PEÇAS COM ESTOQUE BAIXO</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <Card style={{ marginTop: 20, borderColor: `${theme.danger}44`, background: `${theme.danger}0a` }}>
+          <div style={{ fontWeight: 700, color: theme.danger, marginBottom: 12 }}>🚨 ALERTA — {pecasBaixo.length} ITENS CRÍTICOS</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 8 }}>
             {pecasBaixo.map(p => (
-              <Badge key={p.id} color="red">{p.codigo} - {p.descricao || p.nome}: {p.saldoCalculado}/{p.estoqueMinimo} {p.unidade}</Badge>
+              <div key={p.id} style={{ padding: 10, background: `${theme.danger}10`, borderRadius: 8, border: `1px solid ${theme.danger}22`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{p.codigo} — {p.descricao || p.nome}</div>
+                  <div style={{ fontSize: 11, color: theme.muted }}>{p.categoria} | {p.localizacao || "S/local"}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 900, color: theme.danger, fontSize: 16 }}>{p.saldoCalculado} {p.unidade}</div>
+                  <div style={{ fontSize: 10, color: theme.muted }}>Mín: {p.estoqueMinimo}</div>
+                </div>
+              </div>
             ))}
           </div>
         </Card>
       )}
+    </div>
+  );
+}
+
+// ─── REQUISIÇÕES DE COMPRA (ALMOXARIFADO) ────────────────────────────────────
+function RequisicoesCompra({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.requisicoesCompra || [];
+  const pecas = state.pecas || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => { setForm({ data: new Date().toISOString().split("T")[0], status: "Pendente", prioridade: "Normal", numero: `REQ-${padNum((items.length || 0) + 1)}` }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const del = id => { if (window.confirm("Excluir?")) setState(s => ({ ...s, requisicoesCompra: (s.requisicoesCompra || []).filter(x => x.id !== id) })); };
+  const save = () => {
+    const item = { ...form, id: editing || uid() };
+    setState(s => ({ ...s, requisicoesCompra: editing ? (s.requisicoesCompra || []).map(x => x.id === editing ? item : x) : [...(s.requisicoesCompra || []), item] }));
+    setOpen(false);
+  };
+
+  const gerarAutomatica = () => {
+    const pecasBaixo = pecas.filter(p => { const q = parseFloat(p.quantidade) || 0, m = parseFloat(p.estoqueMinimo) || 0; return m > 0 && q <= m; });
+    if (pecasBaixo.length === 0) { alert("Nenhuma peça com estoque baixo!"); return; }
+    const desc = pecasBaixo.map(p => `• ${p.codigo} — ${p.descricao || p.nome}: Atual ${parseFloat(p.quantidade) || 0} / Mín ${p.estoqueMinimo} ${p.unidade}`).join("\n");
+    setForm({ data: new Date().toISOString().split("T")[0], status: "Pendente", prioridade: "Urgente", numero: `REQ-${padNum((items.length || 0) + 1)}`, descricao: `REPOSIÇÃO AUTO (${pecasBaixo.length} itens):\n${desc}`, solicitante: "Sistema" });
+    setEditing(null); setOpen(true);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📝 Requisições de Compra</h2>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn variant="gold" onClick={gerarAutomatica}>⚡ Gerar Automática</Btn>
+          <Btn onClick={openNew}>+ Nova Requisição</Btn>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Pendentes", value: items.filter(r => r.status === "Pendente").length, color: theme.warning, icon: "⏳" },
+          { label: "Aprovadas", value: items.filter(r => r.status === "Aprovada").length, color: theme.accent, icon: "✅" },
+          { label: "Total", value: items.length, color: theme.info, icon: "📝" },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 24, color: s.color }}>{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        {items.length === 0 ? <EmptyState icon="📝" text="Nenhuma requisição." /> : (
+          <Table
+            headers={["Nº", "Data", "Descrição", "Solicitante", "Prioridade", "Status", "Ações"]}
+            rows={items.map(r => (
+              <tr key={r.id}>
+                <Td><span style={{ fontFamily: "monospace", fontWeight: 700 }}>{r.numero || "—"}</span></Td>
+                <Td>{formatDate(r.data)}</Td>
+                <Td style={{ maxWidth: 300 }}><div style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>{(r.descricao || "—").substring(0, 100)}{(r.descricao || "").length > 100 ? "..." : ""}</div></Td>
+                <Td>{r.solicitante || "—"}</Td>
+                <Td><Badge color={r.prioridade === "Urgente" ? "red" : r.prioridade === "Alta" ? "gold" : "blue"}>{r.prioridade || "Normal"}</Badge></Td>
+                <Td><Badge color={r.status === "Aprovada" ? "green" : r.status === "Concluída" ? "blue" : r.status === "Cancelada" ? "red" : "gold"}>{r.status || "Pendente"}</Badge></Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(r)}>✏️</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(r.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Requisição`} width={600}>
+        <Row>
+          <Field label="Número"><Input value={form.numero} onChange={e => fp("numero", e.target.value)} placeholder="REQ-00001" /></Field>
+          <Field label="Data"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field>
+        </Row>
+        <Row>
+          <Field label="Solicitante"><Input value={form.solicitante} onChange={e => fp("solicitante", e.target.value)} placeholder="Quem solicitou" /></Field>
+          <Field label="Prioridade">
+            <Select value={form.prioridade} onChange={e => fp("prioridade", e.target.value)}>
+              {["Baixa", "Normal", "Alta", "Urgente"].map(p => <option key={p}>{p}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Field label="Status">
+          <Select value={form.status} onChange={e => fp("status", e.target.value)}>
+            {["Pendente", "Aprovada", "Em Compra", "Concluída", "Cancelada"].map(s => <option key={s}>{s}</option>)}
+          </Select>
+        </Field>
+        <Field label="Descrição / Itens">
+          <textarea value={form.descricao || ""} onChange={e => fp("descricao", e.target.value)} rows={5} placeholder="Descreva as peças, quantidades e urgência..." style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+        </Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -4859,6 +5042,151 @@ function RelatorioFinanceiro({ state }) {
   );
 }
 
+// ─── GRÃOS (DEPARTAMENTO COM ABAS) ──────────────────────────────────────────
+function GraosDept({ state, setState }) {
+  const [aba, setAba] = useState("graos");
+
+  const abas = [
+    { id: "graos", label: "🌾 Grãos em Produção", icon: "🌾" },
+    { id: "talhoes", label: "🗺️ Talhões", icon: "🗺️" },
+    { id: "classificacao", label: "⚙️ Classificação", icon: "⚙️" },
+    { id: "contratos", label: "📋 Contratos", icon: "📋" },
+    { id: "romaneiosEntrada", label: "📥 Recebimento", icon: "📥" },
+    { id: "romaneiosSaida", label: "📤 Expedição", icon: "📤" },
+    { id: "expedicao", label: "🚚 Agendamentos", icon: "🚚" },
+    { id: "vendaMilho", label: "🌽 Venda de Milho", icon: "🌽" },
+  ];
+
+  const renderContent = () => {
+    switch (aba) {
+      case "graos": return <Graos state={state} />;
+      case "talhoes": return <Talhoes state={state} setState={setState} />;
+      case "classificacao": return <Classificacao state={state} setState={setState} />;
+      case "contratos": return <Contratos state={state} setState={setState} />;
+      case "romaneiosEntrada": return <RomaneiosEntrada state={state} setState={setState} />;
+      case "romaneiosSaida": return <RomaneiosSaida state={state} setState={setState} />;
+      case "expedicao": return <Expedicao state={state} setState={setState} />;
+      case "vendaMilho": return <VendaMilhoBags state={state} setState={setState} />;
+      default: return <Graos state={state} />;
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
+        {abas.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)} style={{
+            padding: "8px 20px", borderRadius: 8, cursor: "pointer",
+            background: aba === a.id ? `${theme.accent}22` : "transparent",
+            border: aba === a.id ? `1px solid ${theme.accent}44` : `1px solid ${theme.border}`,
+            color: aba === a.id ? theme.accentLight : theme.muted,
+            fontFamily: "inherit", fontSize: 13, fontWeight: aba === a.id ? 600 : 400,
+            transition: "all .2s", display: "flex", alignItems: "center", gap: 6
+          }}>
+            <span>{a.icon}</span> {a.label}
+          </button>
+        ))}
+      </div>
+      {renderContent()}
+    </div>
+  );
+}
+
+// ─── RELATÓRIOS (DEPARTAMENTO COM ABAS) ─────────────────────────────────────
+function RelatoriosDept({ state, setState }) {
+  const [aba, setAba] = useState("produtividade");
+
+  const abas = [
+    { id: "produtividade", label: "📈 Produtividade", icon: "📈" },
+    { id: "relatorioMotoristas", label: "📊 Rel. Motoristas", icon: "📊" },
+    { id: "relatoriosDiarios", label: "📅 Rel. Diário de Colheita", icon: "📅" },
+    { id: "relatorioCarregamentos", label: "📦 Rel. Carregamentos", icon: "📦" },
+  ];
+
+  const renderContent = () => {
+    switch (aba) {
+      case "produtividade": return <Produtividade state={state} />;
+      case "relatorioMotoristas": return <RelatorioMotoristas state={state} />;
+      case "relatoriosDiarios": return <RelatoriosDiarios state={state} />;
+      case "relatorioCarregamentos": return <RelatorioCarregamentos state={state} />;
+      default: return <Produtividade state={state} />;
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
+        {abas.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)} style={{
+            padding: "8px 20px", borderRadius: 8, cursor: "pointer",
+            background: aba === a.id ? `${theme.accent}22` : "transparent",
+            border: aba === a.id ? `1px solid ${theme.accent}44` : `1px solid ${theme.border}`,
+            color: aba === a.id ? theme.accentLight : theme.muted,
+            fontFamily: "inherit", fontSize: 13, fontWeight: aba === a.id ? 600 : 400,
+            transition: "all .2s", display: "flex", alignItems: "center", gap: 6
+          }}>
+            <span>{a.icon}</span> {a.label}
+          </button>
+        ))}
+      </div>
+      {renderContent()}
+    </div>
+  );
+}
+
+// ─── INSUMOS (DEPARTAMENTO COM ABAS) ────────────────────────────────────────
+function InsumosDept({ state, setState }) {
+  const [aba, setAba] = useState("insumos");
+
+  const abas = [
+    { id: "insumos", label: "🧪 Cadastro de Insumos", icon: "🧪" },
+    { id: "estoque", label: "📦 Estoque Insumos", icon: "📦" },
+    { id: "recebimentoInsumos", label: "📥 Recebimento", icon: "📥" },
+    { id: "fichasAplicacao", label: "📋 Fichas de Aplicação", icon: "📋" },
+  ];
+
+  const crudPages = {
+    insumos: { title: "🧪 Cadastro de Insumos", stateKey: "insumos", fields: [
+      { key: "nome", label: "Nome do Insumo" }, { key: "tipo", label: "Tipo", type: "select", options: ["Fertilizante","Herbicida","Inseticida","Fungicida","Adjuvante","Semente","Outro"] },
+      { key: "unidade", label: "Unidade", type: "select", options: ["Litro","Kg","Saco","Unidade"] }, { key: "precoUnitario", label: "Preço Unitário (R$)", type: "number" }
+    ]},
+    recebimentoInsumos: { title: "📥 Recebimento de Insumos", stateKey: "recebimentoInsumos", fields: [
+      { key: "data", label: "Data", type: "date" }, { key: "insumo", label: "Insumo" },
+      { key: "quantidade", label: "Quantidade", type: "number" }, { key: "fornecedor", label: "Fornecedor" }, { key: "notaFiscal", label: "Nota Fiscal" }
+    ]},
+  };
+
+  const renderContent = () => {
+    switch (aba) {
+      case "insumos": return <CrudPage {...crudPages.insumos} state={state} setState={setState} />;
+      case "estoque": return <Estoque state={state} setState={setState} />;
+      case "recebimentoInsumos": return <CrudPage {...crudPages.recebimentoInsumos} state={state} setState={setState} />;
+      case "fichasAplicacao": return <FichasAplicacao state={state} setState={setState} />;
+      default: return <CrudPage {...crudPages.insumos} state={state} setState={setState} />;
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
+        {abas.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)} style={{
+            padding: "8px 20px", borderRadius: 8, cursor: "pointer",
+            background: aba === a.id ? `${theme.accent}22` : "transparent",
+            border: aba === a.id ? `1px solid ${theme.accent}44` : `1px solid ${theme.border}`,
+            color: aba === a.id ? theme.accentLight : theme.muted,
+            fontFamily: "inherit", fontSize: 13, fontWeight: aba === a.id ? 600 : 400,
+            transition: "all .2s", display: "flex", alignItems: "center", gap: 6
+          }}>
+            <span>{a.icon}</span> {a.label}
+          </button>
+        ))}
+      </div>
+      {renderContent()}
+    </div>
+  );
+}
+
 function Financas({ state, setState }) {
   const [aba, setAba] = useState("contasPagar");
 
@@ -4879,6 +5207,522 @@ function Financas({ state, setState }) {
       case "dre": return <RelatorioFinanceiro state={state} />;
       default: return <ContasPagar state={state} setState={ss} />;
     }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
+        {abas.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)} style={{
+            padding: "8px 20px", borderRadius: 8, cursor: "pointer",
+            background: aba === a.id ? `${theme.accent}22` : "transparent",
+            border: aba === a.id ? `1px solid ${theme.accent}44` : `1px solid ${theme.border}`,
+            color: aba === a.id ? theme.accentLight : theme.muted,
+            fontFamily: "inherit", fontSize: 13, fontWeight: aba === a.id ? 600 : 400,
+            transition: "all .2s", display: "flex", alignItems: "center", gap: 6
+          }}>
+            <span>{a.icon}</span> {a.label}
+          </button>
+        ))}
+      </div>
+      {renderContent()}
+    </div>
+  );
+}
+
+// ─── TROCAS DE ÓLEO ──────────────────────────────────────────────────────────
+function TrocasOleo({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.trocasOleo || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => { setForm({ data: new Date().toISOString().split("T")[0], tipoOleo: "Motor" }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const del = id => setState(s => ({ ...s, trocasOleo: (s.trocasOleo || []).filter(x => x.id !== id) }));
+  const save = () => {
+    const item = { ...form, id: editing || uid() };
+    setState(s => ({ ...s, trocasOleo: editing ? (s.trocasOleo || []).map(x => x.id === editing ? item : x) : [...(s.trocasOleo || []), item] }));
+    setOpen(false);
+  };
+
+  return (
+    <div>
+      <SectionTitle action={<Btn onClick={openNew}>+ Nova Troca de Óleo</Btn>}>🛢️ Trocas de Óleo</SectionTitle>
+      <Card>
+        {items.length === 0 ? (
+          <EmptyState icon="🛢️" text="Nenhuma troca de óleo registrada." />
+        ) : (
+          <Table
+            headers={["Data", "Máquina", "Tipo de Óleo", "Litros", "Marca/Produto", "Horímetro", "Próxima Troca", "Responsável", "Ações"]}
+            rows={items.map(m => (
+              <tr key={m.id}>
+                <Td>{formatDate(m.data)}</Td>
+                <Td><strong>{m.maquina || "—"}</strong></Td>
+                <Td>{m.tipoOleo || "—"}</Td>
+                <Td><strong style={{ color: theme.accent }}>{m.litros || "—"} L</strong></Td>
+                <Td>{m.marcaProduto || "—"}</Td>
+                <Td>{m.horimetro || "—"}</Td>
+                <Td>{m.proximaTroca ? formatDate(m.proximaTroca) : "—"}</Td>
+                <Td>{m.responsavel || "—"}</Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(m)}>✏️</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(m.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Troca de Óleo`} width={600}>
+        <Row>
+          <Field label="Data"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field>
+          <Field label="Máquina">
+            <Select value={form.maquina} onChange={e => fp("maquina", e.target.value)}>
+              <option value="">Selecione...</option>
+              {(state.maquinas || []).map(m => <option key={m.id}>{m.nome} ({m.tipo})</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Tipo de Óleo">
+            <Select value={form.tipoOleo} onChange={e => fp("tipoOleo", e.target.value)}>
+              {["Motor", "Hidráulico", "Transmissão", "Diferencial", "Outros"].map(t => <option key={t}>{t}</option>)}
+            </Select>
+          </Field>
+          <Field label="Litros"><Input type="number" step="0.1" value={form.litros} onChange={e => fp("litros", e.target.value)} placeholder="0.00" /></Field>
+        </Row>
+        <Row>
+          <Field label="Marca/Produto"><Input value={form.marcaProduto} onChange={e => fp("marcaProduto", e.target.value)} placeholder="Ex: Lubrax Top Turbo" /></Field>
+          <Field label="Horímetro Atual"><Input value={form.horimetro} onChange={e => fp("horimetro", e.target.value)} placeholder="Ex: 5200 h" /></Field>
+        </Row>
+        <Row>
+          <Field label="Próxima Troca (Data)"><Input type="date" value={form.proximaTroca} onChange={e => fp("proximaTroca", e.target.value)} /></Field>
+          <Field label="Responsável"><Input value={form.responsavel} onChange={e => fp("responsavel", e.target.value)} placeholder="Nome do mecânico" /></Field>
+        </Row>
+        <Field label="Observações">
+          <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+        </Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── FILTROS ─────────────────────────────────────────────────────────────────
+function Filtros({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.filtros || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => { setForm({ data: new Date().toISOString().split("T")[0], tipoFiltro: "Óleo" }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const del = id => setState(s => ({ ...s, filtros: (s.filtros || []).filter(x => x.id !== id) }));
+  const save = () => {
+    const item = { ...form, id: editing || uid() };
+    setState(s => ({ ...s, filtros: editing ? (s.filtros || []).map(x => x.id === editing ? item : x) : [...(s.filtros || []), item] }));
+    setOpen(false);
+  };
+
+  return (
+    <div>
+      <SectionTitle action={<Btn onClick={openNew}>+ Novo Filtro</Btn>}>🔄 Troca de Filtros</SectionTitle>
+      <Card>
+        {items.length === 0 ? (
+          <EmptyState icon="🔄" text="Nenhuma troca de filtro registrada." />
+        ) : (
+          <Table
+            headers={["Data", "Máquina", "Tipo Filtro", "Marca/Código", "Horímetro", "Próxima Troca", "Responsável", "Ações"]}
+            rows={items.map(m => (
+              <tr key={m.id}>
+                <Td>{formatDate(m.data)}</Td>
+                <Td><strong>{m.maquina || "—"}</strong></Td>
+                <Td><Badge color={m.tipoFiltro === "Óleo" ? "gold" : m.tipoFiltro === "Ar" ? "blue" : m.tipoFiltro === "Combustível" ? "green" : "default"}>{m.tipoFiltro || "—"}</Badge></Td>
+                <Td>{m.marcaCodigo || "—"}</Td>
+                <Td>{m.horimetro || "—"}</Td>
+                <Td>{m.proximaTroca ? formatDate(m.proximaTroca) : "—"}</Td>
+                <Td>{m.responsavel || "—"}</Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(m)}>✏️</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(m.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Troca de Filtro`} width={600}>
+        <Row>
+          <Field label="Data"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field>
+          <Field label="Máquina">
+            <Select value={form.maquina} onChange={e => fp("maquina", e.target.value)}>
+              <option value="">Selecione...</option>
+              {(state.maquinas || []).map(m => <option key={m.id}>{m.nome} ({m.tipo})</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Tipo de Filtro">
+            <Select value={form.tipoFiltro} onChange={e => fp("tipoFiltro", e.target.value)}>
+              {["Óleo", "Ar", "Combustível", "Hidráulico", "Ar Condicionado", "Separador de Água", "Outros"].map(t => <option key={t}>{t}</option>)}
+            </Select>
+          </Field>
+          <Field label="Marca / Código"><Input value={form.marcaCodigo} onChange={e => fp("marcaCodigo", e.target.value)} placeholder="Ex: Mann W719/30" /></Field>
+        </Row>
+        <Row>
+          <Field label="Horímetro Atual"><Input value={form.horimetro} onChange={e => fp("horimetro", e.target.value)} placeholder="Ex: 5200 h" /></Field>
+          <Field label="Próxima Troca (Data)"><Input type="date" value={form.proximaTroca} onChange={e => fp("proximaTroca", e.target.value)} /></Field>
+        </Row>
+        <Field label="Responsável"><Input value={form.responsavel} onChange={e => fp("responsavel", e.target.value)} placeholder="Nome do mecânico" /></Field>
+        <Field label="Observações">
+          <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+        </Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── MANUTENÇÕES ─────────────────────────────────────────────────────────────
+function Manutencoes({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.manutencoes || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => { setForm({ data: new Date().toISOString().split("T")[0], tipo: "Preventiva", status: "Pendente" }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const del = id => setState(s => ({ ...s, manutencoes: (s.manutencoes || []).filter(x => x.id !== id) }));
+  const save = () => {
+    const item = { ...form, id: editing || uid() };
+    setState(s => ({ ...s, manutencoes: editing ? (s.manutencoes || []).map(x => x.id === editing ? item : x) : [...(s.manutencoes || []), item] }));
+    setOpen(false);
+  };
+
+  const totalPendentes = items.filter(m => m.status === "Pendente").length;
+  const totalAndamento = items.filter(m => m.status === "Em Andamento").length;
+  const totalConcluidas = items.filter(m => m.status === "Concluída").length;
+
+  return (
+    <div>
+      <SectionTitle action={<Btn onClick={openNew}>+ Nova Manutenção</Btn>}>🔧 Manutenções</SectionTitle>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Pendentes", value: totalPendentes, color: theme.warning, icon: "⏳" },
+          { label: "Em Andamento", value: totalAndamento, color: theme.info, icon: "🔧" },
+          { label: "Concluídas", value: totalConcluidas, color: theme.accent, icon: "✅" },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ color: theme.muted, fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{s.label}</div>
+                <div style={{ fontWeight: 900, fontSize: 24, color: s.color }}>{s.value}</div>
+              </div>
+              <span style={{ fontSize: 28 }}>{s.icon}</span>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        {items.length === 0 ? (
+          <EmptyState icon="🔧" text="Nenhuma manutenção registrada." />
+        ) : (
+          <Table
+            headers={["Data", "Máquina", "Tipo", "Descrição", "Custo (R$)", "Status", "Responsável", "Ações"]}
+            rows={items.map(m => (
+              <tr key={m.id}>
+                <Td>{formatDate(m.data)}</Td>
+                <Td><strong>{m.maquina || "—"}</strong></Td>
+                <Td><Badge color={m.tipo === "Preventiva" ? "blue" : m.tipo === "Corretiva" ? "red" : "gold"}>{m.tipo || "—"}</Badge></Td>
+                <Td>{m.descricao || "—"}</Td>
+                <Td><strong style={{ color: theme.gold }}>R$ {parseFloat(m.custo || 0).toFixed(2)}</strong></Td>
+                <Td><Badge color={m.status === "Concluída" ? "green" : m.status === "Em Andamento" ? "blue" : "gold"}>{m.status || "Pendente"}</Badge></Td>
+                <Td>{m.responsavel || "—"}</Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(m)}>✏️</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(m.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Manutenção`} width={650}>
+        <Row>
+          <Field label="Data"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field>
+          <Field label="Máquina">
+            <Select value={form.maquina} onChange={e => fp("maquina", e.target.value)}>
+              <option value="">Selecione...</option>
+              {(state.maquinas || []).map(m => <option key={m.id}>{m.nome} ({m.tipo})</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Tipo de Manutenção">
+            <Select value={form.tipo} onChange={e => fp("tipo", e.target.value)}>
+              {["Preventiva", "Corretiva", "Preditiva"].map(t => <option key={t}>{t}</option>)}
+            </Select>
+          </Field>
+          <Field label="Status">
+            <Select value={form.status} onChange={e => fp("status", e.target.value)}>
+              {["Pendente", "Em Andamento", "Concluída", "Cancelada"].map(s => <option key={s}>{s}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Field label="Descrição do Serviço"><Input value={form.descricao} onChange={e => fp("descricao", e.target.value)} placeholder="Ex: Troca de correia, revisão geral..." /></Field>
+        <Row>
+          <Field label="Custo (R$)"><Input type="number" step="0.01" value={form.custo} onChange={e => fp("custo", e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Responsável/Oficina"><Input value={form.responsavel} onChange={e => fp("responsavel", e.target.value)} placeholder="Nome do mecânico ou oficina" /></Field>
+        </Row>
+        <Row>
+          <Field label="Horímetro Atual"><Input value={form.horimetro} onChange={e => fp("horimetro", e.target.value)} placeholder="Ex: 5200 h" /></Field>
+          <Field label="Previsão de Conclusão"><Input type="date" value={form.previsaoConclusao} onChange={e => fp("previsaoConclusao", e.target.value)} /></Field>
+        </Row>
+        <Field label="Peças Utilizadas"><Input value={form.pecasUtilizadas} onChange={e => fp("pecasUtilizadas", e.target.value)} placeholder="Ex: Correia dentada, filtro de óleo" /></Field>
+        <Field label="Observações">
+          <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+        </Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── IMPLEMENTOS ─────────────────────────────────────────────────────────────
+function Implementos({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.implementos || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => { setForm({ status: "Disponível", tipo: "Grade" }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const del = id => setState(s => ({ ...s, implementos: (s.implementos || []).filter(x => x.id !== id) }));
+  const save = () => {
+    const item = { ...form, id: editing || uid() };
+    setState(s => ({ ...s, implementos: editing ? (s.implementos || []).map(x => x.id === editing ? item : x) : [...(s.implementos || []), item] }));
+    setOpen(false);
+  };
+
+  return (
+    <div>
+      <SectionTitle action={<Btn onClick={openNew}>+ Novo Implemento</Btn>}>🔩 Implementos</SectionTitle>
+      <Card>
+        {items.length === 0 ? (
+          <EmptyState icon="🔩" text="Nenhum implemento cadastrado." />
+        ) : (
+          <Table
+            headers={["Identificação", "Tipo", "Marca/Modelo", "Largura", "Ano", "Patrimônio", "Status", "Ações"]}
+            rows={items.map(m => (
+              <tr key={m.id}>
+                <Td><strong>{m.nome || "—"}</strong></Td>
+                <Td>{m.tipo || "—"}</Td>
+                <Td>{m.marcaModelo || "—"}</Td>
+                <Td>{m.largura ? `${m.largura} m` : "—"}</Td>
+                <Td>{m.ano || "—"}</Td>
+                <Td>{m.patrimonio || "—"}</Td>
+                <Td><Badge color={m.status === "Disponível" ? "green" : m.status === "Em Uso" ? "blue" : "red"}>{m.status || "Disponível"}</Badge></Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(m)}>✏️</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(m.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Novo"} Implemento`} width={600}>
+        <Row>
+          <Field label="Identificação/Nome"><Input value={form.nome} onChange={e => fp("nome", e.target.value)} placeholder="Ex: Grade Aradora 16 discos" /></Field>
+          <Field label="Tipo">
+            <Select value={form.tipo} onChange={e => fp("tipo", e.target.value)}>
+              {["Grade", "Plantadeira", "Pulverizador", "Colhedora", "Roçadeira", "Subsolador", "Carreta", "Distribuidor", "Plaina", "Outros"].map(t => <option key={t}>{t}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Marca/Modelo"><Input value={form.marcaModelo} onChange={e => fp("marcaModelo", e.target.value)} placeholder="Ex: Baldan CRSG" /></Field>
+          <Field label="Largura de Trabalho (m)"><Input type="number" step="0.1" value={form.largura} onChange={e => fp("largura", e.target.value)} placeholder="0.0" /></Field>
+        </Row>
+        <Row>
+          <Field label="Ano de Fabricação"><Input type="number" value={form.ano} onChange={e => fp("ano", e.target.value)} placeholder="2020" /></Field>
+          <Field label="Patrimônio"><Input value={form.patrimonio} onChange={e => fp("patrimonio", e.target.value)} placeholder="Código patrimônio" /></Field>
+        </Row>
+        <Row>
+          <Field label="Status">
+            <Select value={form.status} onChange={e => fp("status", e.target.value)}>
+              {["Disponível", "Em Uso", "Manutenção", "Inativo"].map(s => <option key={s}>{s}</option>)}
+            </Select>
+          </Field>
+          <Field label="Máquina Acoplada">
+            <Select value={form.maquinaAcoplada} onChange={e => fp("maquinaAcoplada", e.target.value)}>
+              <option value="">Nenhuma</option>
+              {(state.maquinas || []).map(m => <option key={m.id}>{m.nome} ({m.tipo})</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Field label="Observações">
+          <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+        </Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── MÁQUINAS E EQUIPAMENTOS (DEPARTAMENTO) ──────────────────────────────────
+function MaquinasEquipamentos({ state, setState }) {
+  const [aba, setAba] = useState("maquinas");
+
+  const abas = [
+    { id: "maquinas", label: "🚜 Máquinas", icon: "🚜" },
+    { id: "implementos", label: "🔩 Implementos", icon: "🔩" },
+    { id: "abastecimento", label: "⛽ Abastecimento", icon: "⛽" },
+    { id: "trocasOleo", label: "🛢️ Trocas de Óleo", icon: "🛢️" },
+    { id: "filtros", label: "🔄 Filtros", icon: "🔄" },
+    { id: "manutencoes", label: "🔧 Manutenções", icon: "🔧" },
+    { id: "relatorioCombustivel", label: "📈 Rel. Consumo", icon: "📈" },
+  ];
+
+  const renderContent = () => {
+    switch (aba) {
+      case "maquinas": return <Maquinas state={state} setState={setState} />;
+      case "implementos": return <Implementos state={state} setState={setState} />;
+      case "abastecimento": return <Abastecimento state={state} setState={setState} />;
+      case "trocasOleo": return <TrocasOleo state={state} setState={setState} />;
+      case "filtros": return <Filtros state={state} setState={setState} />;
+      case "manutencoes": return <Manutencoes state={state} setState={setState} />;
+      case "relatorioCombustivel": return <RelatorioCombustivel state={state} />;
+      default: return <Maquinas state={state} setState={setState} />;
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
+        {abas.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)} style={{
+            padding: "8px 20px", borderRadius: 8, cursor: "pointer",
+            background: aba === a.id ? `${theme.accent}22` : "transparent",
+            border: aba === a.id ? `1px solid ${theme.accent}44` : `1px solid ${theme.border}`,
+            color: aba === a.id ? theme.accentLight : theme.muted,
+            fontFamily: "inherit", fontSize: 13, fontWeight: aba === a.id ? 600 : 400,
+            transition: "all .2s", display: "flex", alignItems: "center", gap: 6
+          }}>
+            <span>{a.icon}</span> {a.label}
+          </button>
+        ))}
+      </div>
+      {renderContent()}
+    </div>
+  );
+}
+
+// ─── ALMOXARIFADO (DEPARTAMENTO) ─────────────────────────────────────────────
+function AlmoxarifadoDept({ state, setState }) {
+  const [aba, setAba] = useState("pecas");
+
+  const pecasBaixo = (state.pecas || []).filter(p => { const q = parseFloat(p.quantidade) || 0, m = parseFloat(p.estoqueMinimo) || 0; return m > 0 && q <= m; });
+
+  const abas = [
+    { id: "pecas", label: "🔧 Peças", icon: "🔧" },
+    { id: "movimentacaoPecas", label: "📦 Movimentação", icon: "📦" },
+    { id: "estoquePecas", label: "📊 Estoque", icon: "📊" },
+    { id: "requisicoes", label: "📝 Requisições", icon: "📝" },
+  ];
+
+  const renderContent = () => {
+    switch (aba) {
+      case "pecas": return <Pecas state={state} setState={setState} />;
+      case "movimentacaoPecas": return <MovimentacaoPecas state={state} setState={setState} />;
+      case "estoquePecas": return <EstoquePecas state={state} />;
+      case "requisicoes": return <RequisicoesCompra state={state} setState={setState} />;
+      default: return <Pecas state={state} setState={setState} />;
+    }
+  };
+
+  return (
+    <div>
+      {pecasBaixo.length > 0 && (
+        <div style={{ background: `${theme.warning}15`, border: `1px solid ${theme.warning}33`, borderRadius: 8, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 20 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontWeight: 700, color: theme.warning }}>{pecasBaixo.length} peça(s) com estoque baixo/zerado</span>
+            <span style={{ color: theme.muted, fontSize: 12, marginLeft: 8 }}>— Verifique a aba Estoque ou gere uma Requisição automática</span>
+          </div>
+          <Btn size="sm" variant="gold" onClick={() => setAba("requisicoes")}>📝 Requisições</Btn>
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
+        {abas.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)} style={{
+            padding: "8px 20px", borderRadius: 8, cursor: "pointer",
+            background: aba === a.id ? `${theme.accent}22` : "transparent",
+            border: aba === a.id ? `1px solid ${theme.accent}44` : `1px solid ${theme.border}`,
+            color: aba === a.id ? theme.accentLight : theme.muted,
+            fontFamily: "inherit", fontSize: 13, fontWeight: aba === a.id ? 600 : 400,
+            transition: "all .2s", display: "flex", alignItems: "center", gap: 6
+          }}>
+            <span>{a.icon}</span> {a.label}
+          </button>
+        ))}
+      </div>
+      {renderContent()}
+    </div>
+  );
+}
+
+// ─── CADASTROS (DEPARTAMENTO) ────────────────────────────────────────────────
+function CadastrosDept({ state, setState }) {
+  const [aba, setAba] = useState("clientes");
+
+  const crudPages = {
+    clientes: { title: "Cliente", icon: "👥", stateKey: "clientes", fields: [{ key: "nome", label: "Nome / Razão Social", table: true }, { key: "cpfCnpj", label: "CPF / CNPJ", table: true }, { key: "contato", label: "Telefone", table: true }, { key: "email", label: "E-mail", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
+    transportadoras: { title: "Transportadora", icon: "🚛", stateKey: "transportadoras", fields: [{ key: "nome", label: "Razão Social", table: true }, { key: "cnpj", label: "CNPJ", table: true }, { key: "contato", label: "Contato", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
+    fornecedores: { title: "Fornecedor", icon: "🏭", stateKey: "fornecedores", fields: [{ key: "nome", label: "Nome", table: true }, { key: "cnpj", label: "CNPJ", table: true }, { key: "segmento", label: "Segmento", table: true }, { key: "contato", label: "Contato", table: true }] },
+    caminhoes: { title: "Caminhão", icon: "🚜", stateKey: "caminhoes", fields: [{ key: "placa", label: "Placa", table: true }, { key: "uf", label: "UF", table: true }, { key: "arquivo", label: "Documento (Opcional)", type: "file", optional: true }] },
+    motoristas: { title: "Motorista", icon: "👷", stateKey: "motoristas", fields: [{ key: "nome", label: "Nome Completo", table: true }, { key: "cnh", label: "CNH", table: true }, { key: "arquivo", label: "Arquivo CNH (Opcional)", type: "file", optional: true }] },
+  };
+
+  const abas = [
+    { id: "fazenda", label: "🏡 Fazenda", icon: "🏡" },
+    { id: "clientes", label: "👥 Clientes", icon: "👥" },
+    { id: "transportadoras", label: "🚛 Transportadoras", icon: "🚛" },
+    { id: "fornecedores", label: "🏭 Fornecedores", icon: "🏭" },
+    { id: "caminhoes", label: "🚜 Caminhões", icon: "🚜" },
+    { id: "motoristas", label: "👷 Motoristas", icon: "👷" },
+  ];
+
+  const renderContent = () => {
+    if (aba === "fazenda") return <Fazenda state={state} setState={setState} />;
+    return <CrudPage key={aba} {...crudPages[aba]} state={state} setState={setState} />;
   };
 
   return (
@@ -4970,11 +5814,6 @@ export default function App() {
   }
 
   const crudPages = {
-    clientes: { title: "Cliente", icon: "👥", stateKey: "clientes", fields: [{ key: "nome", label: "Nome / Razão Social", table: true }, { key: "cpfCnpj", label: "CPF / CNPJ", table: true }, { key: "contato", label: "Telefone", table: true }, { key: "email", label: "E-mail", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
-    transportadoras: { title: "Transportadora", icon: "🚛", stateKey: "transportadoras", fields: [{ key: "nome", label: "Razão Social", table: true }, { key: "cnpj", label: "CNPJ", table: true }, { key: "contato", label: "Contato", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
-    fornecedores: { title: "Fornecedor", icon: "🏭", stateKey: "fornecedores", fields: [{ key: "nome", label: "Nome", table: true }, { key: "cnpj", label: "CNPJ", table: true }, { key: "segmento", label: "Segmento", table: true }, { key: "contato", label: "Contato", table: true }] },
-    caminhoes: { title: "Caminhão", icon: "🚜", stateKey: "caminhoes", fields: [{ key: "placa", label: "Placa", table: true }, { key: "uf", label: "UF", table: true }, { key: "arquivo", label: "Documento (Opcional)", type: "file", optional: true }] },
-    motoristas: { title: "Motorista", icon: "👷", stateKey: "motoristas", fields: [{ key: "nome", label: "Nome Completo", table: true }, { key: "cnh", label: "CNH", table: true }, { key: "arquivo", label: "Arquivo CNH (Opcional)", type: "file", optional: true }] },
     insumos: { title: "Insumo", icon: "🧪", stateKey: "insumos", fields: [{ key: "nome", label: "Nome", table: true }, { key: "unidade", label: "Unidade", type: "select", options: ["kg","L","un","sc","t"], table: true }, { key: "categoria", label: "Categoria", type: "select", options: ["Fertilizante","Defensivo","Semente","Combustível","Outros"], table: true }, { key: "fornecedor", label: "Fornecedor", table: true }] },
     recebimentoInsumos: { title: "Recebimento de Insumo", icon: "📥", stateKey: "recebimentoInsumos", fields: [{ key: "produto", label: "Produto", table: true }, { key: "nf", label: "Nº NF", table: true }, { key: "recebidoPor", label: "Recebido Por", table: true }, { key: "data", label: "Data", type: "date", table: true }, { key: "fotoNF", label: "Foto da NF (Opcional)", type: "file", optional: true }, { key: "fotoProduto", label: "Foto do Produto (Opcional)", type: "file", optional: true }] },
   };
@@ -4992,30 +5831,14 @@ export default function App() {
     if (crudPages[active]) return <CrudPage key={active} {...crudPages[active]} state={state} setState={ss} />;
     switch (active) {
       case "dashboard": return <Dashboard state={state} setActive={setActive} />;
-      case "fazenda": return <Fazenda state={state} setState={ss} />;
-      case "graos": return <Graos state={state} />;
-      case "talhoes": return <Talhoes state={state} setState={ss} />;
-      case "produtividade": return <Produtividade state={state} />;
-      case "classificacao": return <Classificacao state={state} setState={ss} />;
-      case "contratos": return <Contratos state={state} setState={ss} />;
-      case "romaneiosEntrada": return <RomaneiosEntrada state={state} setState={ss} />;
-      case "romaneiosSaida": return <RomaneiosSaida state={state} setState={ss} />;
-      case "expedicao": return <Expedicao state={state} setState={ss} />;
-      case "estoque": return <Estoque state={state} setState={ss} />;
-      case "recebimentoInsumos": return <CrudPage {...crudPages.recebimentoInsumos} state={state} setState={ss} />;
+      case "graosDept": return <GraosDept state={state} setState={ss} />;
+      case "relatoriosDept": return <RelatoriosDept state={state} setState={ss} />;
+      case "insumosDept": return <InsumosDept state={state} setState={ss} />;
       case "usuarios": return <Usuarios state={state} setState={ss} />;
-      case "relatorioMotoristas": return <RelatorioMotoristas state={state} />;
-      case "relatoriosDiarios": return <RelatoriosDiarios state={state} />;
-      case "relatorioCarregamentos": return <RelatorioCarregamentos state={state} />;
       case "lixeira": return <Lixeira state={state} setState={ss} />;
-      case "maquinas": return <Maquinas state={state} setState={ss} />;
-      case "abastecimento": return <Abastecimento state={state} setState={ss} />;
-      case "relatorioCombustivel": return <RelatorioCombustivel state={state} />;
-      case "pecas": return <Pecas state={state} setState={ss} />;
-      case "movimentacaoPecas": return <MovimentacaoPecas state={state} setState={ss} />;
-      case "estoquePecas": return <EstoquePecas state={state} />;
-      case "fichasAplicacao": return <FichasAplicacao state={state} setState={ss} />;
-      case "vendaMilho": return <VendaMilhoBags state={state} setState={ss} />;
+      case "maquinasEquipamentos": return <MaquinasEquipamentos state={state} setState={ss} />;
+      case "almoxarifado": return <AlmoxarifadoDept state={state} setState={ss} />;
+      case "cadastros": return <CadastrosDept state={state} setState={ss} />;
       case "financas": return <Financas state={state} setState={ss} />;
       default: return null;
     }

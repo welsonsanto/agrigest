@@ -128,7 +128,6 @@ const defaultState = {
   configPixVenda: { chave: "", tipo: "CPF", nomeTitular: "", cidade: "", instrucoes: "Após o pagamento, envie o comprovante para o WhatsApp da fazenda." },
   usuarios: USUARIOS_FIXOS
 };
-
 // ─── CÁLCULO DE DESCONTO DE UMIDADE — DUPLA FAIXA ────────────────────────────
 function calcDescUmidade(umidade, umRef, umDesc, umDescPesado) {
   const v = parseFloat(umidade) || 0;
@@ -334,104 +333,84 @@ const initState = () => {
 };
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-function Login({ onLogin, usuarios, loading }) {
+function Login({ onLogin, usuarios }) {
   const [login, setLogin] = useState("");
   const [senha, setSenha] = useState("");
   const [err, setErr] = useState("");
   const [showSenha, setShowSenha] = useState(false);
 
   const handleLogin = () => {
-    if (loading) return;
-    const user = (usuarios || []).find(u => u.login?.toLowerCase() === login.trim().toLowerCase() && u.senha === senha.trim());
-    if (user) onLogin(user);
-    else setErr("Login ou senha incorretos.");
+    const loginTrim = login.trim().toLowerCase();
+    const senhaTrim = senha.trim();
+    
+    const user = (usuarios || []).find(
+      u => u.login?.trim().toLowerCase() === loginTrim && u.senha?.trim() === senhaTrim
+    );
+    
+    if (user) {
+      setErr("");
+      onLogin(user);
+    } else {
+      setErr("Usuário ou senha inválidos.");
+    }
   };
 
+  const handleKey = (e) => { if (e.key === "Enter") handleLogin(); };
+
   return (
-    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg }}>
-      <div style={{ width: "100%", maxWidth: 360, padding: 24, background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 16 }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🌾</div>
-          <h1 style={{ fontSize: 24, fontWeight: 900, color: theme.accentLight, margin: 0 }}>AgriGest</h1>
-          <p style={{ color: theme.muted, fontSize: 13, marginTop: 6 }}>Gestão Agrícola na Nuvem</p>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, position: "relative" }}>
+      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 65% 40%, ${theme.accent}1a 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, ${theme.gold}12 0%, transparent 50%)` }} />
+      <div style={{ width: 420, position: "relative", zIndex: 1 }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div style={{ width: 68, height: 68, background: `linear-gradient(135deg,${theme.accent},${theme.gold})`, borderRadius: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 34, marginBottom: 14, boxShadow: `0 0 40px ${theme.accent}44` }}>🌾</div>
+          <h1 style={{ fontWeight: 900, fontSize: 30, color: theme.text, letterSpacing: -1, margin: 0 }}>AgriGest</h1>
+          <p style={{ color: theme.muted, fontSize: 13, marginTop: 6 }}>Sistema de Gestão do Agronegócio</p>
         </div>
-        {err && <div style={{ background: `${theme.danger}18`, color: theme.danger, padding: 10, borderRadius: 8, fontSize: 12, marginBottom: 16, border: `1px solid ${theme.danger}33` }}>⚠️ {err}</div>}
-        <Field label="Login"><Input value={login} onChange={e => setLogin(e.target.value)} placeholder="Digite seu login" onKeyDown={e => e.key === "Enter" && handleLogin()} /></Field>
-        <Field label="Senha">
-          <div style={{ position: "relative" }}>
-            <Input type={showSenha ? "text" : "password"} value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handleLogin()} />
-            <button onClick={() => setShowSenha(!showSenha)} style={{ position: "absolute", right: 10, top: 10, background: "none", border: "none", color: theme.muted, cursor: "pointer" }}>{showSenha ? "🙈" : "👁️"}</button>
-          </div>
-        </Field>
-        <Btn onClick={handleLogin} style={{ width: "100%", marginTop: 10 }} disabled={loading}>{loading ? "Conectando..." : "Entrar no Sistema"}</Btn>
-        <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, color: theme.muted }}>
-          {loading ? "Sincronizando com a nuvem..." : "Dados sincronizados via Google Firebase"}
-        </div>
+        <Card>
+          <Field label="Usuário">
+            <Input
+              value={login}
+              onChange={e => { setLogin(e.target.value); setErr(""); }}
+              onKeyDown={handleKey}
+              placeholder="Digite seu usuário"
+            />
+          </Field>
+          <Field label="Senha">
+            <div style={{ position: "relative" }}>
+              <input
+                type={showSenha ? "text" : "password"}
+                value={senha}
+                onChange={e => { setSenha(e.target.value); setErr(""); }}
+                onKeyDown={handleKey}
+                placeholder="••••••••"
+                style={{
+                  width: "100%", background: theme.bg, border: `1px solid ${err ? theme.danger : theme.border}`,
+                  color: theme.text, padding: "9px 42px 9px 12px", borderRadius: 8,
+                  fontFamily: "inherit", fontSize: 13, outline: "none", boxSizing: "border-box"
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowSenha(s => !s)}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: theme.muted, fontSize: 16, lineHeight: 1 }}
+              >{showSenha ? "🙈" : "👁️"}</button>
+            </div>
+          </Field>
+
+          {err && (
+            <div style={{ background: `${theme.danger}18`, border: `1px solid ${theme.danger}44`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, color: theme.danger, fontSize: 13 }}>
+              ⚠️ {err}
+            </div>
+          )}
+
+          <Btn onClick={handleLogin} style={{ width: "100%", marginTop: 4, padding: 13 }} size="lg">
+            Entrar no Sistema
+          </Btn>
+        </Card>
       </div>
     </div>
   );
 }
-
-// ─── APP PRINCIPAL ────────────────────────────────────────────────────────────
-export default function App() {
-  const [db, setDb] = useState(null);
-  const [state, setState] = useState(defaultState);
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [usuarioLogado, setUsuarioLogado] = useState(null);
-  const [active, setActive] = useState("dashboard");
-  const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState("");
-
-  // Inicializa Firebase e Firestore
-  useEffect(() => {
-    loadFirebase().then(firebase => {
-      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-      const firestore = firebase.firestore();
-      setDb(firestore);
-
-      // Escuta mudanças em tempo real no documento "dados" da coleção "agrigest"
-      const unsub = firestore.collection("agrigest").doc("dados").onSnapshot(doc => {
-        if (doc.exists()) {
-          const data = doc.data();
-          // Mescla com usuários fixos
-          const fixos = USUARIOS_FIXOS.map(u => ({ ...u, isFixo: true }));
-          const locais = (data.usuarios || []).filter(u => !u.isFixo);
-          setState({ ...defaultState, ...data, usuarios: [...fixos, ...locais] });
-        }
-        setLoading(false);
-      }, err => {
-        console.error("Erro Firebase:", err);
-        setLoading(false);
-      });
-      return () => unsub();
-    });
-  }, []);
-
-  // Função para salvar dados na nuvem
-  const ss = (updater) => {
-    setState(prev => {
-      const newState = typeof updater === "function" ? updater(prev) : updater;
-      if (db) {
-        // Remove usuários fixos antes de salvar para não duplicar
-        const usuariosLocais = (newState.usuarios || []).filter(u => !u.isFixo);
-        db.collection("agrigest").doc("dados").set({ ...newState, usuarios: usuariosLocais })
-          .then(() => { setToast("✓ Sincronizado!"); setTimeout(() => setToast(""), 2000); })
-          .catch(e => alert("Erro ao salvar na nuvem: " + e.message));
-      }
-      return newState;
-    });
-  };
-
-  const handleLogin = (user) => { setUsuarioLogado(user); setLoggedIn(true); };
-  const handleLogout = () => { setUsuarioLogado(null); setLoggedIn(false); };
-  
-  const clearData = () => {
-    if (window.confirm("Apagar TODOS os dados da nuvem? Esta ação é IRREVERSÍVEL e afetará todos os dispositivos.")) {
-      if (db) db.collection("agrigest").doc("dados").set(defaultState).then(() => window.location.reload());
-    }
-  };
-
-  if (!loggedIn) return <Login onLogin={handleLogin} usuarios={state.usuarios} loading={loading} />;
 
 // ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 const navGroups = (isAdmin, userModulos) => {

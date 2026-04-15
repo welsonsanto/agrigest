@@ -1,38 +1,4 @@
-import React, { useState, useEffect } from "react";
-
-// ─── CONFIGURAÇÃO DO FIREBASE ────────────────────────────────────────────────
-// PASSO A PASSO PARA CONFIGURAR:
-// 1. Vá para https://console.firebase.google.com/ e crie um projeto (ex: "AgriGest").
-// 2. Clique no ícone "</>" (Web) para registrar o app e copie as chaves abaixo.
-// 3. No menu lateral, vá em "Firestore Database" e clique em "Criar Banco de Dados".
-// 4. IMPORTANTE: Em "Regras", altere para: 
-//    allow read, write: if true; 
-//    (Isso permite acesso sem login do Google, usando apenas o login do seu sistema).
-
-const firebaseConfig = {
-  apiKey: "COLE_AQUI_SUA_API_KEY",
-  authDomain: "SEU-PROJETO.firebaseapp.com",
-  projectId: "SEU-PROJETO",
-  storageBucket: "SEU-PROJETO.appspot.com",
-  messagingSenderId: "SEU_ID",
-  appId: "SEU_APP_ID"
-};
-
-// Carregamento dinâmico do Firebase via CDN (para funcionar em arquivo único)
-const loadFirebase = () => {
-  return new Promise((resolve) => {
-    if (window.firebase) return resolve(window.firebase);
-    const s = document.createElement("script");
-    s.src = "https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js";
-    s.onload = () => {
-      const s2 = document.createElement("script");
-      s2.src = "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js";
-      s2.onload = () => resolve(window.firebase);
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s);
-  });
-};
+import { useState, useEffect } from "react";
 
 const theme = {
   bg: "#0d1117",
@@ -61,19 +27,7 @@ const graosOpcoes = ["Soja", "Milho", "Sorgo", "Milheto", "Gergelim", "Trigo", "
 const safrasOpcoes = ["2023/2024", "2024/2025", "2025/2026", "2026/2027"];
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-// ─── USUÁRIOS FIXOS ──────────────────────────────────────────────────────────
-const USUARIOS_FIXOS = [
-  {
-    id: "1",
-    nome: "Administrador",
-    login: "admin",
-    senha: "agro2024",
-    role: "admin",
-    modulos: [],
-    isFixo: true
-  }
-];
-
+// ─── MÓDULOS DE ACESSO ───────────────────────────────────────────────────────
 const modulosDisponiveis = [
   { grupo: "🌾 GRÃOS", modulos: [
     { id: "dashboard", label: "Dashboard" },
@@ -107,6 +61,9 @@ const modulosDisponiveis = [
     { id: "movimentacaoPecas", label: "Movimentação" },
     { id: "estoquePecas", label: "Estoque Peças" },
   ]},
+  { grupo: "💰 FINANÇAS", modulos: [
+    { id: "financas", label: "Departamento Financeiro" },
+  ]},
   { grupo: "📋 CADASTROS", modulos: [
     { id: "clientes", label: "Clientes" },
     { id: "transportadoras", label: "Transportadoras" },
@@ -119,15 +76,11 @@ const modulosDisponiveis = [
 const todosModuloIds = modulosDisponiveis.flatMap(g => g.modulos.map(m => m.id));
 const padNum = (n) => String(n).padStart(5, "0");
 
-const defaultState = {
-  fazenda: null, clientes: [], transportadoras: [], fornecedores: [], caminhoes: [], motoristas: [],
-  contratos: [], insumos: [], estoqueInsumos: [], recebimentoInsumos: [],
-  romaneiosEntrada: [], romaneiosSaida: [], romaneiosEntradaLixeira: [], romaneiosSaidalixeira: [],
-  expedicoes: [], classificacaoParams: {}, romaneioCounter: 1, talhoes: [],
-  maquinas: [], abastecimentos: [], pecas: [], movimentacaoPecas: [], fichasAplicacao: [], vendasMilho: [],
-  configPixVenda: { chave: "", tipo: "CPF", nomeTitular: "", cidade: "", instrucoes: "Após o pagamento, envie o comprovante para o WhatsApp da fazenda." },
-  usuarios: USUARIOS_FIXOS
-};
+// ─── USUÁRIOS FIXOS ──────────────────────────────────────────────────────────
+const USUARIOS_FIXOS = [
+  { id: "1", nome: "Administrador", login: "admin", senha: "agro2024", role: "admin", modulos: [], isFixo: true }
+];
+
 // ─── CÁLCULO DE DESCONTO DE UMIDADE — DUPLA FAIXA ────────────────────────────
 function calcDescUmidade(umidade, umRef, umDesc, umDescPesado) {
   const v = parseFloat(umidade) || 0;
@@ -155,6 +108,7 @@ const Btn = ({ children, onClick, variant = "primary", size = "md", style = {}, 
     danger: { background: `${theme.danger}22`, color: theme.danger, border: `1px solid ${theme.danger}44` },
     gold: { background: `${theme.gold}22`, color: theme.gold, border: `1px solid ${theme.gold}44` },
     info: { background: `${theme.info}22`, color: theme.info, border: `1px solid ${theme.info}44` },
+    success: { background: `${theme.accent}22`, color: theme.accentLight, border: `1px solid ${theme.accent}44` },
   };
   const sizes = {
     sm: { padding: "5px 12px", fontSize: 12 },
@@ -279,7 +233,7 @@ const Table = ({ headers, rows }) => (
 const Td = ({ children }) => (
   <td style={{ padding: "11px 14px", borderBottom: `1px solid ${theme.border}18`, fontSize: 13 }}>
     {children}
-    </td>
+   </td>
 );
 
 const STORAGE_KEY = "agrigest_data";
@@ -287,8 +241,12 @@ const STORAGE_KEY = "agrigest_data";
 const initState = () => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+      if (saved) {
       const parsed = JSON.parse(saved);
+      if (!parsed.fazendas) {
+        // Migra fazenda única para array de fazendas
+        parsed.fazendas = parsed.fazenda ? [{ ...parsed.fazenda, id: parsed.fazenda.id || uid() }] : [];
+      }
       if (!parsed.talhoes) parsed.talhoes = [];
       if (!parsed.maquinas) parsed.maquinas = [];
       if (!parsed.abastecimentos) parsed.abastecimentos = [];
@@ -296,6 +254,14 @@ const initState = () => {
       if (!parsed.movimentacaoPecas) parsed.movimentacaoPecas = [];
       if (!parsed.fichasAplicacao) parsed.fichasAplicacao = [];
       if (!parsed.vendasMilho) parsed.vendasMilho = [];
+      if (!parsed.contasPagar) parsed.contasPagar = [];
+      if (!parsed.contasReceber) parsed.contasReceber = [];
+      if (!parsed.despesasOperacionais) parsed.despesasOperacionais = [];
+      if (!parsed.centrosCusto) parsed.centrosCusto = ["Grãos", "Insumos", "Frota", "Administrativo", "Comercial"];
+      if (!parsed.categoriasFinanceiras) parsed.categoriasFinanceiras = [
+        "Compra de Insumos", "Frete", "Manutenção", "Combustível", "Mão de Obra",
+        "Impostos", "Serviços de Terceiros", "Despesas Bancárias", "Outros"
+      ];
       if (!parsed.configPixVenda) parsed.configPixVenda = {
         chave: "",
         tipo: "CPF",
@@ -311,7 +277,7 @@ const initState = () => {
     }
   } catch (e) {}
   return {
-    fazenda: null, clientes: [], transportadoras: [], fornecedores: [], caminhoes: [], motoristas: [],
+    fazenda: null, fazendas: [], clientes: [], transportadoras: [], fornecedores: [], caminhoes: [], motoristas: [],
     contratos: [], insumos: [], estoqueInsumos: [], recebimentoInsumos: [],
     romaneiosEntrada: [], romaneiosSaida: [], romaneiosEntradaLixeira: [], romaneiosSaidalixeira: [],
     expedicoes: [], classificacaoParams: {}, romaneioCounter: 1, talhoes: [],
@@ -321,6 +287,11 @@ const initState = () => {
     movimentacaoPecas: [],
     fichasAplicacao: [],
     vendasMilho: [],
+    contasPagar: [],
+    contasReceber: [],
+    despesasOperacionais: [],
+    centrosCusto: ["Grãos", "Insumos", "Frota", "Administrativo", "Comercial"],
+    categoriasFinanceiras: ["Compra de Insumos", "Frete", "Manutenção", "Combustível", "Mão de Obra", "Impostos", "Serviços de Terceiros", "Despesas Bancárias", "Outros"],
     configPixVenda: {
       chave: "",
       tipo: "CPF",
@@ -412,6 +383,96 @@ function Login({ onLogin, usuarios }) {
   );
 }
 
+// ─── SELETOR DE FAZENDA E ANO SAFRA ──────────────────────────────────────────
+function FazendaSelector({ fazendas, onSelect, onNovaFazenda }) {
+  const [selectedFazenda, setSelectedFazenda] = useState("");
+  const [anoSafra, setAnoSafra] = useState(safrasOpcoes[1] || "");
+
+  const handleEntrar = () => {
+    if (!selectedFazenda || !anoSafra) return;
+    onSelect(selectedFazenda, anoSafra);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, position: "relative" }}>
+      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 65% 40%, ${theme.accent}1a 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, ${theme.gold}12 0%, transparent 50%)` }} />
+      <div style={{ width: 520, position: "relative", zIndex: 1 }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div style={{ width: 68, height: 68, background: `linear-gradient(135deg,${theme.accent},${theme.gold})`, borderRadius: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 34, marginBottom: 14, boxShadow: `0 0 40px ${theme.accent}44` }}>🌾</div>
+          <h1 style={{ fontWeight: 900, fontSize: 28, color: theme.text, letterSpacing: -1, margin: 0 }}>Selecione a Fazenda</h1>
+          <p style={{ color: theme.muted, fontSize: 13, marginTop: 6 }}>Escolha a fazenda e o ano safra para continuar</p>
+        </div>
+        <Card>
+          {fazendas.length > 0 ? (
+            <>
+              <Field label="Fazenda">
+                <Select value={selectedFazenda} onChange={e => setSelectedFazenda(e.target.value)}>
+                  <option value="">-- Selecione uma fazenda --</option>
+                  {fazendas.map(f => (
+                    <option key={f.id} value={f.id}>{f.nome} {f.cidade ? `— ${f.cidade}/${f.estado}` : ""}</option>
+                  ))}
+                </Select>
+              </Field>
+
+              {selectedFazenda && (
+                <div style={{ background: `${theme.accent}0a`, border: `1px solid ${theme.accent}33`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+                  {(() => {
+                    const faz = fazendas.find(f => f.id === selectedFazenda);
+                    if (!faz) return null;
+                    return (
+                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                        <div style={{ width: 50, height: 50, background: `${theme.accent}2a`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                          {faz.logo ? <img src={faz.logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span style={{ fontSize: 24 }}>🏡</span>}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 15, color: theme.text }}>{faz.nome}</div>
+                          <div style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>{faz.produtor} · {faz.cidade}/{faz.estado}</div>
+                          {faz.graos?.length > 0 && (
+                            <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+                              {faz.graos.map(g => <Badge key={g} color="green">{g}</Badge>)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <Field label="Ano Safra">
+                <Select value={anoSafra} onChange={e => setAnoSafra(e.target.value)}>
+                  <option value="">-- Selecione o ano safra --</option>
+                  {safrasOpcoes.map(s => <option key={s} value={s}>{s}</option>)}
+                </Select>
+              </Field>
+
+              <Btn onClick={handleEntrar} disabled={!selectedFazenda || !anoSafra} style={{ width: "100%", marginTop: 8, padding: 13 }} size="lg">
+                🌾 Entrar na Fazenda
+              </Btn>
+            </>
+          ) : (
+            <div style={{ textAlign: "center", padding: "30px 20px" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🏡</div>
+              <p style={{ color: theme.muted, fontSize: 14, marginBottom: 16 }}>Nenhuma fazenda cadastrada ainda.</p>
+              <Btn onClick={onNovaFazenda} style={{ padding: 13 }} size="lg">
+                ➕ Cadastrar Primeira Fazenda
+              </Btn>
+            </div>
+          )}
+
+          {fazendas.length > 0 && (
+            <div style={{ textAlign: "center", marginTop: 14 }}>
+              <button onClick={onNovaFazenda} style={{ background: "none", border: "none", color: theme.info, cursor: "pointer", fontSize: 12, fontFamily: "inherit", textDecoration: "underline" }}>
+                ➕ Cadastrar nova fazenda
+              </button>
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 // ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 const navGroups = (isAdmin, userModulos) => {
   const allGroups = [
@@ -457,6 +518,12 @@ const navGroups = (isAdmin, userModulos) => {
         { id: "pecas", label: "Peças", icon: "🔧" },
         { id: "movimentacaoPecas", label: "Movimentação", icon: "📦" },
         { id: "estoquePecas", label: "Estoque Peças", icon: "📊" },
+      ]
+    },
+    {
+      title: "💰 FINANÇAS", icon: "💰",
+      items: [
+        { id: "financas", label: "Departamento Financeiro", icon: "💰" },
       ]
     },
     {
@@ -535,6 +602,9 @@ function Dashboard({ state, setActive }) {
   const totalPecas       = (state.pecas || []).length;
   const estoqueTotal     = state.estoqueInsumos.reduce((a, i) => a + (parseFloat(i.qtd) || 0), 0);
   const saldoEstoquePecas = (state.estoquePecas || []).reduce((a, i) => a + (parseFloat(i.qtd) || 0), 0);
+  
+  const totalContasPagar = (state.contasPagar || []).filter(c => c.status === "Pendente").reduce((s, c) => s + (c.valor || 0), 0);
+  const totalContasReceber = (state.contasReceber || []).filter(c => c.status === "Pendente").reduce((s, c) => s + (c.valor || 0), 0);
 
   const StatCard = ({ label, value, icon, color, page, sub }) => (
     <div
@@ -634,6 +704,13 @@ function Dashboard({ state, setActive }) {
         <StatCard label="Estoque de Peças"    value={saldoEstoquePecas.toFixed(0)}   icon="📦" color={theme.gold}       page="estoquePecas"     sub="Unidades em estoque" />
       </Group>
 
+      <Group title="💰 Finanças" color={theme.gold}>
+        <StatCard label="Contas a Pagar"      value={`R$ ${totalContasPagar.toFixed(2)}`} icon="💰" color={theme.danger} page="financas" sub="Pendentes" />
+        <StatCard label="Contas a Receber"    value={`R$ ${totalContasReceber.toFixed(2)}`} icon="💵" color={theme.accent} page="financas" sub="A receber" />
+        <StatCard label="Despesas"            value={(state.despesasOperacionais || []).length} icon="📋" color={theme.warning} page="financas" sub="Registros" />
+        <StatCard label="Fluxo de Caixa"      value="Ver" icon="📊" color={theme.info} page="financas" sub="Extrato financeiro" />
+      </Group>
+
       <Group title="📋 Cadastros & Relatórios" color={theme.gold}>
         <StatCard label="Clientes"            value={state.clientes.length}          icon="👥" color={theme.accentLight} page="clientes"        sub="Compradores cadastrados" />
         <StatCard label="Motoristas"          value={state.motoristas.length}        icon="👷" color={theme.muted}       page="motoristas"      sub="Condutores ativos" />
@@ -646,7 +723,8 @@ function Dashboard({ state, setActive }) {
 
 // ─── FAZENDA ──────────────────────────────────────────────────────────────────
 function Fazenda({ state, setState }) {
-  const [form, setForm] = useState(state.fazenda || { nome: "", produtor: "", cpfCnpj: "", ie: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", estado: "", graos: [], logo: null });
+  const fazendaAtual = state.fazenda || {};
+  const [form, setForm] = useState({ ...{ nome: "", produtor: "", cpfCnpj: "", ie: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", estado: "", graos: [], logo: null }, ...fazendaAtual });
   const [saved, setSaved] = useState(false);
   const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleGrao = g => fp("graos", form.graos.includes(g) ? form.graos.filter(x => x !== g) : [...form.graos, g]);
@@ -654,7 +732,17 @@ function Fazenda({ state, setState }) {
     const file = e.target.files[0]; if (!file) return;
     const r = new FileReader(); r.onload = ev => fp("logo", ev.target.result); r.readAsDataURL(file);
   };
-  const save = () => { setState(s => ({ ...s, fazenda: form })); setSaved(true); setTimeout(() => setSaved(false), 2500); };
+  const save = () => {
+    const fazendaComId = { ...form, id: form.id || uid() };
+    setState(s => {
+      const fazendas = [...(s.fazendas || [])];
+      const idx = fazendas.findIndex(f => f.id === fazendaComId.id);
+      if (idx >= 0) fazendas[idx] = fazendaComId;
+      else fazendas.push(fazendaComId);
+      return { ...s, fazenda: fazendaComId, fazendas };
+    });
+    setSaved(true); setTimeout(() => setSaved(false), 2500);
+  };
   return (
     <div>
       <SectionTitle>🏡 Cadastro da Fazenda</SectionTitle>
@@ -955,7 +1043,7 @@ function Usuarios({ state, setState }) {
       senha: form.senha.trim(),
       id: editing || uid(),
       modulos: form.role === "admin" ? [] : (form.modulos || []),
-      isFixo: false // Usuários criados pela interface nunca são fixos
+      isFixo: false
     };
     
     setState(s => ({
@@ -1531,6 +1619,7 @@ function Produtividade({ state }) {
     </div>
   );
 }
+
 // ─── ROMANEIOS DE ENTRADA ─────────────────────────────────────────────────────
 function RomaneiosEntrada({ state, setState }) {
   return <RomaneiosGeneric state={state} setState={setState} tipo="Entrada" />;
@@ -2138,6 +2227,7 @@ function Estoque({ state, setState }) {
     </div>
   );
 }
+
 // ─── GRÃOS ────────────────────────────────────────────────────────────────────
 function Graos({ state }) {
   const graos = state.fazenda?.graos || [];
@@ -2283,8 +2373,8 @@ function Abastecimento({ state, setState }) {
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}.faz-nome{font-size:17px;font-weight:900}.faz-sub{font-size:10px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}</style></head><body>
     <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div class="faz-sub">Relatório de Abastecimento</div></div><div style="text-align:right">Gerado: ${new Date().toLocaleString("pt-BR")}</div></div>
     <table><thead><tr><th>Data</th><th>Máquina</th><th>Operador</th><th>Tipo</th><th>Litros</th><th>Preço/L</th><th>Total</th><th>Hodômetro</th></tr></thead><tbody>
-    ${items.map(a => `<tr><td>${a.data}</td><td>${a.maquina}</td><td>${a.operador || "—"}</td><td>${a.tipo || "Diesel"}</td><td>${a.litros} L</td><td>R$ ${parseFloat(a.precoLitro || 0).toFixed(2)}</td><td>R$ ${((parseFloat(a.litros) || 0) * (parseFloat(a.precoLitro) || 0)).toFixed(2)}</td><td>${a.hodometro || "—"}</td>`).join("")}
-    </tbody><tfoot><tr class="tot"><td colspan="4"><strong>TOTAIS</strong></td><td><strong>${totalLitros.toFixed(0)} L</strong></td><td></td><td><strong>R$ ${totalGastos.toFixed(2)}</strong></td><td></td></tr></tfoot>
+    ${items.map(a => `<tr><td style="white-space:nowrap">${a.data}</td><td style="white-space:nowrap">${a.maquina}${a.tipo ? ` (${a.tipo})` : ""}</td><td style="white-space:nowrap">${a.operador || "—"}</td><td style="text-align:center">${a.tipo || "Diesel"}</td><td style="text-align:center"><strong>${a.litros} L</strong></td><td style="text-align:center">R$ ${parseFloat(a.precoLitro || 0).toFixed(2)}</td><td style="text-align:center">R$ ${((parseFloat(a.litros) || 0) * (parseFloat(a.precoLitro) || 0)).toFixed(2)}</td><td style="text-align:center">${a.hodometro || "—"}</td>`).join("")}
+    </tbody><tfoot><tr class="tot"><td colspan="4"><strong>TOTAIS</strong></td><td style="text-align:center"><strong>${totalLitros.toFixed(0)} L</strong></td><td style="text-align:center"><strong>R$ ${totalGastos.toFixed(2)}</strong></td><td style="text-align:center"><strong>${items.length} abast.</strong></td><td style="text-align:center"><strong>${items.length > 0 ? (totalLitros / items.length).toFixed(1) : 0} L/abast</strong></td></tr></tfoot>
     </table>
     <div class="footer">AgriGest · Relatório de Abastecimento</div></body></html>`);
     win.document.close();
@@ -2425,9 +2515,9 @@ function RelatorioCombustivel({ state }) {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório de Consumo</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}.faz-nome{font-size:17px;font-weight:900}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
     <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div>Relatório de Consumo de Combustível</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
-    <tr><thead><tr><th>Máquina</th><th>Litros</th><th>Gasto (R$)</th><th>Abastecimentos</th><th>Média (L/abast)</th></tr></thead><tbody>
-    ${Object.entries(porMaquina).map(([nome, dados]) => `<tr><td><strong>${nome}</strong></td><td>${dados.litros.toFixed(0)} L</td><td>R$ ${dados.gasto.toFixed(2)}</td><td>${dados.abastecimentos.length}</td><td>${(dados.litros / dados.abastecimentos.length).toFixed(1)} L</td>`).join("")}
-    </tbody><tfoot><tr class="tot"><td><strong>TOTAIS</strong></td><td><strong>${totalLitros.toFixed(0)} L</strong></td><td><strong>R$ ${totalGasto.toFixed(2)}</strong></td><td>${dadosFiltrados.length} abast.</td><td>${dadosFiltrados.length > 0 ? (totalLitros / dadosFiltrados.length).toFixed(1) : 0} L</td></tr></tfoot>
+    <table><thead><tr><th>Máquina</th><th>Litros</th><th>Gasto (R$)</th><th>Abastecimentos</th><th>Média (L/abast)</th></tr></thead><tbody>
+    ${Object.entries(porMaquina).map(([nome, dados]) => `<tr><td style="font-weight:700">${nome}</td><td style="text-align:center"><strong>${dados.litros.toFixed(0)} L</strong></td><td style="text-align:center">R$ ${dados.gasto.toFixed(2)}</td><td style="text-align:center">${dados.abastecimentos.length}</td><td style="text-align:center">${(dados.litros / dados.abastecimentos.length).toFixed(1)} L</td>`).join("")}
+    </tbody><tfoot><tr class="tot"><td><strong>TOTAIS</strong></td><td style="text-align:center"><strong>${totalLitros.toFixed(0)} L</strong></td><td style="text-align:center"><strong>R$ ${totalGasto.toFixed(2)}</strong></td><td style="text-align:center"><strong>${dadosFiltrados.length} abast.</strong></td><td style="text-align:center"><strong>${dadosFiltrados.length > 0 ? (totalLitros / dadosFiltrados.length).toFixed(1) : 0} L</strong></td></tr></tfoot>
     </table>
     <div class="footer">AgriGest · Relatório de Consumo</div></body></html>`);
     win.document.close();
@@ -2635,9 +2725,9 @@ function MovimentacaoPecas({ state, setState }) {
     <table><thead><tr><th>Data</th><th>Peça</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Destino/Origem</th><th>Motivo</th></tr></thead><tbody>
     ${items.map(m => {
       const peca = pecas.find(p => p.id === m.pecaId);
-      return `<tr><td style="white-space:nowrap">${m.data}</td><td>${peca?.descricao || peca?.nome || m.pecaId}</td><td><Badge color={m.tipo === "Entrada" ? "green" : "red"} style={{background:"none",padding:0}}>${m.tipo}</Badge></td><td style="text-align:center">${m.quantidade}</td><td>${m.responsavel || "—"}</td><td>${m.destino || m.origem || "—"}</td><td>${m.motivo || "—"}</td>`;
+      return `<tr><td style="white-space:nowrap">${m.data}</td><td style="white-space:nowrap">${peca?.descricao || peca?.nome || m.pecaId}</td><td style="text-align:center">${m.tipo === "Entrada" ? "📥 Entrada" : "📤 Saída"}</td><td style="text-align:center"><strong>${m.quantidade}</strong></td><td style="white-space:nowrap">${m.responsavel || "—"}</td><td style="white-space:nowrap">${m.destino || m.origem || "—"}</td><td style="white-space:nowrap">${m.motivo || "—"}</td>`;
     }).join("")}
-    </tbody><tfoot><tr class="tot"><td colspan="3"><strong>RESUMO</strong></td><td><strong>Entradas: ${totalEntradas}</strong></td><td><strong>Saídas: ${totalSaidas}</strong></td><td colspan="2"><strong>Saldo: ${(totalEntradas - totalSaidas).toFixed(0)}</strong></td></tr></tfoot>
+    </tbody><tfoot><tr class="tot"><td colspan="3"><strong>RESUMO</strong></td><td style="text-align:center"><strong>Entradas: ${totalEntradas}</strong></td><td style="text-align:center"><strong>Saídas: ${totalSaidas}</strong></td><td style="text-align:center"><strong>Saldo: ${(totalEntradas - totalSaidas).toFixed(0)}</strong></td><td style="text-align:center"><strong>${items.length} mov.</strong></td></tr></tfoot>
     </table>
     <div class="footer">AgriGest · Movimentação de Peças</div></body></html>`);
     win.document.close();
@@ -3410,7 +3500,7 @@ function RelatorioCarregamentos({ state }) {
 
   const porCliente = {};
   dadosFiltrados.forEach(r => {
-    if (!porCliente[r.cliente]) porCliente[r.cliente] = { kg: 0, sc: 0, valor: 0, cargas: [] };
+    if (!porCliente[r.cliente]) porCliente[r.cliente] = { kg: 0, sc: 0, cargas: [] };
     const kg = parseFloat(r.pesoFinal) || 0;
     const sc = kg / 60;
     porCliente[r.cliente].kg += kg;
@@ -3424,14 +3514,68 @@ function RelatorioCarregamentos({ state }) {
   const imprimir = () => {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório de Carregamentos</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}.faz-nome{font-size:17px;font-weight:900}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
-    <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div>Relatório de Carregamentos</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
-    <table><thead><tr><th>Cliente</th><th>Total (kg)</th><th>Sacas (60kg)</th><th>Cargas</th></tr></thead><tbody>
-    ${Object.entries(porCliente).map(([nome, dados]) => `<tr><td style="font-weight:700">${nome}</td><td style="text-align:right">${dados.kg.toLocaleString()} kg</td><td style="text-align:center">${Math.round(dados.sc).toLocaleString()} sc</td><td style="text-align:center">${dados.cargas.length}</td>`).join("")}
-    </tbody><tfoot><tr class="tot"><td><strong>TOTAIS</strong></td><td style="text-align:right"><strong>${totalKg.toLocaleString()} kg</strong></td><td style="text-align:center"><strong>${Math.round(totalSc).toLocaleString()} sc</strong></td><td style="text-align:center"><strong>${dadosFiltrados.length} cargas</strong></td></tr></tfoot>
-    </table>
-    <div class="footer">AgriGest · Relatório de Carregamentos</div></body></html>`);
+    let html = `<!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8"/>
+      <title>Relatório de Carregamentos</title>
+      <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}
+        .header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}
+        .faz-nome{font-size:17px;font-weight:900}
+        table{width:100%;border-collapse:collapse;margin-bottom:14px}
+        th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}
+        td{padding:7px 10px;border:1px solid #ddd}
+        .tot td{font-weight:700;background:#f0fdf4}
+        .footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="faz-nome">${faz.nome || "Fazenda"}</div>
+          <div>Relatório de Carregamentos</div>
+        </div>
+        <div>${new Date().toLocaleString("pt-BR")}</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Total (kg)</th>
+            <th>Sacas (60kg)</th>
+            <th>Cargas</th>
+          </tr>
+        </thead>
+        <tbody>`;
+    
+    for (const [nome, dados] of Object.entries(porCliente)) {
+      html += `
+          <tr>
+            <td><strong>${nome}</strong></td>
+            <td style="text-align:right">${dados.kg.toLocaleString()} kg</td>
+            <td style="text-align:center">${Math.round(dados.sc).toLocaleString()} sc</td>
+            <td style="text-align:center">${dados.cargas.length}</td>
+          </tr>`;
+    }
+    
+    html += `
+        </tbody>
+        <tfoot>
+          <tr class="tot">
+            <td><strong>TOTAIS</strong></td>
+            <td style="text-align:right"><strong>${totalKg.toLocaleString()} kg</strong></td>
+            <td style="text-align:center"><strong>${Math.round(totalSc).toLocaleString()} sc</strong></td>
+            <td style="text-align:center"><strong>${dadosFiltrados.length} cargas</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="footer">AgriGest · Relatório de Carregamentos</div>
+    </body>
+    </html>`;
+    
+    win.document.write(html);
     win.document.close();
     setTimeout(() => win.print(), 400);
   };
@@ -3449,10 +3593,28 @@ function RelatorioCarregamentos({ state }) {
       <Card style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Filtros</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <div><label style={labelStyle}>👥 Cliente</label><select value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} style={selectStyle}><option value="">Todos os clientes</option>{clientes.map(c => <option key={c.id}>{c.nome}</option>)}</select></div>
-          <div><label style={labelStyle}>📋 Contrato</label><select value={filtroContrato} onChange={e => setFiltroContrato(e.target.value)} style={selectStyle}><option value="">Todos os contratos</option>{contratos.map(c => <option key={c.id}>{c.numero}</option>)}</select></div>
-          <div><label style={labelStyle}>📅 Período — Início</label><input type="date" value={periodoInicio} onChange={e => setPeriodoInicio(e.target.value)} style={selectStyle} /></div>
-          <div><label style={labelStyle}>📅 Período — Fim</label><input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} style={selectStyle} /></div>
+          <div>
+            <label style={labelStyle}>👥 Cliente</label>
+            <select value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} style={selectStyle}>
+              <option value="">Todos os clientes</option>
+              {clientes.map(c => <option key={c.id}>{c.nome}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>📋 Contrato</label>
+            <select value={filtroContrato} onChange={e => setFiltroContrato(e.target.value)} style={selectStyle}>
+              <option value="">Todos os contratos</option>
+              {contratos.map(c => <option key={c.id}>{c.numero}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>📅 Período — Início</label>
+            <input type="date" value={periodoInicio} onChange={e => setPeriodoInicio(e.target.value)} style={selectStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>📅 Período — Fim</label>
+            <input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} style={selectStyle} />
+          </div>
         </div>
       </Card>
 
@@ -3493,6 +3655,7 @@ function RelatorioCarregamentos({ state }) {
     </div>
   );
 }
+
 // ─── RELATÓRIO DIÁRIO DE COLHEITA ────────────────────────────────────────────
 function RelatoriosDiarios({ state }) {
   const SC_KG = 60;
@@ -3884,7 +4047,7 @@ function RelatorioMotoristas({ state }) {
         <tr class="tot"><td>MÉDIA/VIAGEM</td><td>—</td><td style="text-align:right">${d.mediaTon.toFixed(3)} t</td><td style="text-align:right">${d.mediaSacos.toFixed(1)} sc</td></tr>
       </table>
     `).join("")}
-    <tr><tr class="grand"><td>▶ TOTAIS GERAIS</td><td style="text-align:center">${grandTotalViagens} viagens</td><td style="text-align:right">${grandTotalTon.toFixed(3)} t</td><td style="text-align:right">${Math.round(grandTotalSacos).toLocaleString()} sc</td></tr>
+    <table><tr class="grand"><td>▶ TOTAIS GERAIS</td><td style="text-align:center">${grandTotalViagens} viagens</td><td style="text-align:right">${grandTotalTon.toFixed(3)} t</td><td style="text-align:right">${Math.round(grandTotalSacos).toLocaleString()} sc</td></tr>
     </table>
     <div class="footer">AgriGest · Relatório de Motoristas · ${new Date().toLocaleString("pt-BR")}</div>
     </body></html>`);
@@ -4088,7 +4251,8 @@ function VendaMilhoBags({ state, setState }) {
     <body><div class="container"><div class="header"><div class="cab-l">${faz.logo ? `<img src="${faz.logo}" class="logo"/>` : '<div class="logo-ph">🌾</div>'}<div><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div class="faz-sub">Produtor: <strong>${faz.produtor || "—"}</strong></div><div class="faz-sub">CNPJ/CPF: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div><div class="faz-sub">${faz.endereco || ""} ${faz.numero || ""}, ${faz.cidade || ""}/${faz.estado || ""}</div></div></div><div class="cab-r"><span class="badge ${isPreview ? 'badge-preview' : ''}">${isPreview ? "PRÉ-VISUALIZAÇÃO" : "ROMANEIO DE VENDA"}</span><div class="num">${venda.numero}</div><div class="dt">Emitido em ${new Date().toLocaleString("pt-BR")}</div></div></div>
     <div class="sec">📋 INFORMAÇÕES DA VENDA</div><div class="info-grid"><div class="ii"><span class="il">📅 Data da Venda</span><span class="iv">${venda.data || "—"}</span></div><div class="ii"><span class="il">👤 Cliente</span><span class="iv g">${venda.cliente || "—"}</span></div><div class="ii"><span class="il">🚛 Transportadora</span><span class="iv">${venda.transportadora || "—"}</span></div><div class="ii"><span class="il">🚜 Motorista</span><span class="iv">${venda.motorista || "—"}</span></div><div class="ii"><span class="il">🚛 Placa do Caminhão</span><span class="iv">${venda.placa || "—"}</span></div><div class="ii"><span class="il">💳 Forma de Pagamento</span><span class="iv">${venda.formaPagamento || "PIX"}</span></div></div>
     <div class="sec">⚖️ PESAGEM</div><div class="pesagem-box"><div class="peso-item"><div class="peso-lbl">PESO BRUTO</div><div class="peso-val">${(venda.pesoBruto || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div><div class="peso-sep">−</div><div class="peso-item"><div class="peso-lbl">TARA</div><div class="peso-val">${(venda.pesoTara || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div><div class="peso-sep">=</div><div class="peso-item destaque"><div class="peso-lbl">PESO LÍQUIDO</div><div class="peso-val green">${(venda.pesoLiquido || venda.pesoTotalKg || 0).toLocaleString("pt-BR")} <span style="font-size:9px">kg</span></div></div></div>
-    <div class="sec">🌾 PRODUTO</div><table><thead><tr><th>Produto</th><th>Quantidade (sacas)</th><th>Peso Total (kg)</th><th>Valor Unitário</th><th>Valor Total</th></tr></thead><tbody><tr><td style="font-weight:700">🌽 Milho em Bag</td><td style="text-align:center">${(venda.quantidadeSacas || 0).toLocaleString()} sc</td><td style="text-align:center">${(venda.pesoTotalKg || 0).toLocaleString()} kg</td><td style="text-align:center">R$ ${(venda.precoSaca || 0).toFixed(2)}/sc</td><td style="text-align:center;font-weight:700;color:#d4a843">R$ ${(venda.valorTotal || 0).toLocaleString("pt-BR", {minimumFractionDigits:2})}</td></tr></tbody></table>
+    <div class="sec">🌾 PRODUTO</div><table><thead><tr><th>Produto</th><th>Quantidade (sacas)</th><th>Peso Total (kg)</th><th>Valor Unitário</th><th>Valor Total</th></tr></thead><tbody><tr><td style="font-weight:700">🌽 Milho em Bag</td><td style="text-align:center">${(venda.quantidadeSacas || 0).toLocaleString()} sc</td><td style="text-align:center">${(venda.pesoTotalKg || 0).toLocaleString()} kg</td><td style="text-align:center">R$ ${(venda.precoSaca || 0).toFixed(2)}/sc</td><td style="text-align:center;font-weight:700;color:#d4a843">R$ ${(venda.valorTotal || 0).toLocaleString("pt-BR", {minimumFractionDigits:2})}</td></tr></tbody>
+    </table>
     <div class="sec">💰 INFORMAÇÕES DE PAGAMENTO</div><div class="pix-box"><div class="pix-title">💳 PAGAMENTO VIA PIX</div><div class="qrcode-placeholder">📱 QR Code</div><div><strong>Chave PIX (${tipoChave}):</strong></div><div class="pix-chave">${chavePix || "____________________"}</div><div style="margin-top:12px;font-size:10px;color:#475569"><strong>Nome do Titular:</strong> ${configPix.nomeTitular || "—"}<br/><strong>Cidade:</strong> ${configPix.cidade || "—"}</div><div style="margin-top:8px;font-size:9px;color:#92400e;background:#fef3c7;padding:6px;border-radius:6px">⚠️ ${configPix.instrucoes || "Após o pagamento, envie o comprovante para o WhatsApp da fazenda."}</div></div>
     ${venda.observacoes ? `<div class="obs" style="background:#fefce8;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:4px;padding:6px 10px;font-size:9px;color:#78350f;margin:8px 0"><strong>📝 Observações:</strong> ${venda.observacoes}</div>` : ""}
     <div class="assinaturas"><div class="ass"><div class="asl"></div><div class="asn">Comprador</div><div class="asc">Nome / Assinatura</div></div><div class="ass"><div class="asl"></div><div class="asn">Vendedor</div><div class="asc">Fazenda / Representante</div></div><div class="ass"><div class="asl"></div><div class="asn">Motorista</div><div class="asc">Nome / Assinatura</div></div></div>
@@ -4102,7 +4266,7 @@ function VendaMilhoBags({ state, setState }) {
     if (items.length === 0) { alert("Não há vendas registradas."); return; }
     const faz = state.fazenda || {};
     const win = window.open("", "_blank");
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Lista de Vendas de Milho</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;font-size:12px}.header{text-align:center;border-bottom:2px solid #d4a843;padding-bottom:12px;margin-bottom:20px}.faz-nome{font-size:20px;font-weight:900}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#d4a843;color:#0f172a;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head><body><div class="header"><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div>Relatório de Vendas de Milho em Bags</div><div>Gerado em: ${new Date().toLocaleString("pt-BR")}</div></div><tr><thead><tr><th>Nº Venda</th><th>Data</th><th>Cliente</th><th>Sacas</th><th>Peso (kg)</th><th>Valor Total</th><th>Status</th></tr></thead><tbody>${items.map(v => `<tr><td style="font-family:monospace">${v.numero}</td><td>${v.data}</td><td>${v.cliente}</td><td>${v.quantidadeSacas} sc</td><td>${(v.pesoTotalKg || 0).toLocaleString()} kg</td><td>R$ ${(v.valorTotal || 0).toFixed(2)}</td><td>${v.status || "Confirmada"}</td>`).join("")}</tbody></table><div class="footer">AgriGest · Relatório de Vendas</div></body></html>`);
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Lista de Vendas de Milho</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;font-size:12px}.header{text-align:center;border-bottom:2px solid #d4a843;padding-bottom:12px;margin-bottom:20px}.faz-nome{font-size:20px;font-weight:900}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#d4a843;color:#0f172a;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head><body><div class="header"><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div>Relatório de Vendas de Milho em Bags</div><div>Gerado em: ${new Date().toLocaleString("pt-BR")}</div></div><table><thead><tr><th>Nº Venda</th><th>Data</th><th>Cliente</th><th>Sacas</th><th>Peso (kg)</th><th>Valor Total</th><th>Status</th></tr></thead><tbody>${items.map(v => `<tr><td style="font-family:monospace">${v.numero}</td><td style="white-space:nowrap">${v.data}</td><td style="white-space:nowrap">${v.cliente}</td><td style="text-align:center">${v.quantidadeSacas} sc</td><td style="text-align:center">${(v.pesoTotalKg || 0).toLocaleString()} kg</td><td style="text-align:center">R$ ${(v.valorTotal || 0).toFixed(2)}</td><td style="text-align:center">${v.status || "Confirmada"}</td></tr>`).join("")}</tbody></table><div class="footer">AgriGest · Relatório de Vendas</div></body></html>`);
     win.document.close(); win.focus(); setTimeout(() => win.print(), 500);
   };
 
@@ -4164,18 +4328,594 @@ function VendaMilhoBags({ state, setState }) {
   );
 }
 
+// ─── DEPARTAMENTO FINANCEIRO ──────────────────────────────────────────────────
+function ContasPagar({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.contasPagar || [];
+  const fornecedores = state.fornecedores || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => { setForm({ data: new Date().toISOString().split("T")[0], status: "Pendente" }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const del = id => setState(s => ({ ...s, contasPagar: s.contasPagar.filter(x => x.id !== id) }));
+  const save = () => {
+    const item = { ...form, id: editing || uid(), valor: parseFloat(form.valor) || 0 };
+    setState(s => ({ ...s, contasPagar: editing ? s.contasPagar.map(x => x.id === editing ? item : x) : [...(s.contasPagar || []), item] }));
+    setOpen(false);
+  };
+
+  const totalPendente = items.filter(i => i.status === "Pendente").reduce((s, i) => s + (i.valor || 0), 0);
+  const totalVencido = items.filter(i => i.status === "Pendente" && i.vencimento && i.vencimento < new Date().toISOString().split("T")[0]).reduce((s, i) => s + (i.valor || 0), 0);
+  const totalPago = items.filter(i => i.status === "Pago").reduce((s, i) => s + (i.valor || 0), 0);
+
+  const marcarPago = (id) => {
+    setState(s => ({ ...s, contasPagar: s.contasPagar.map(x => x.id === id ? { ...x, status: "Pago", dataPagamento: new Date().toISOString().split("T")[0] } : x) }));
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>💰 Contas a Pagar</h2>
+        <Btn onClick={openNew}>+ Nova Conta</Btn>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Total Pendente", value: `R$ ${totalPendente.toFixed(2)}`, color: theme.warning },
+          { label: "Total Vencido", value: `R$ ${totalVencido.toFixed(2)}`, color: theme.danger },
+          { label: "Total Pago", value: `R$ ${totalPago.toFixed(2)}`, color: theme.accent },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 28, color: s.color }}>{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        {items.length === 0 ? (
+          <EmptyState icon="💰" text="Nenhuma conta a pagar registrada." />
+        ) : (
+          <Table
+            headers={["Descrição", "Fornecedor", "Valor (R$)", "Vencimento", "Categoria", "Status", "Ações"]}
+            rows={items.map(i => (
+              <tr key={i.id}>
+                <Td><strong>{i.descricao}</strong></Td>
+                <Td>{i.fornecedor || "—"}</Td>
+                <Td><strong style={{ color: i.status === "Pago" ? theme.accent : theme.warning }}>R$ {(i.valor || 0).toFixed(2)}</strong></Td>
+                <Td>{i.vencimento || "—"}</Td>
+                <Td>{i.categoria || "—"}</Td>
+                <Td><Badge color={i.status === "Pago" ? "green" : i.vencimento && i.vencimento < new Date().toISOString().split("T")[0] ? "red" : "gold"}>{i.status || "Pendente"}</Badge></Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {i.status !== "Pago" && <Btn size="sm" variant="success" onClick={() => marcarPago(i.id)}>✅ Pagar</Btn>}
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(i)}>✏️</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(i.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Conta a Pagar`} width={600}>
+        <Row cols={2}>
+          <Field label="Descrição"><Input value={form.descricao} onChange={e => fp("descricao", e.target.value)} placeholder="Ex: Compra de Adubo" /></Field>
+          <Field label="Fornecedor">
+            <Select value={form.fornecedor} onChange={e => fp("fornecedor", e.target.value)}>
+              <option value="">Selecione...</option>
+              {fornecedores.map(f => <option key={f.id}>{f.nome}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Row cols={2}>
+          <Field label="Valor (R$)"><Input type="number" step="0.01" value={form.valor} onChange={e => fp("valor", e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Data de Vencimento"><Input type="date" value={form.vencimento} onChange={e => fp("vencimento", e.target.value)} /></Field>
+        </Row>
+        <Row cols={2}>
+          <Field label="Categoria">
+            <Select value={form.categoria} onChange={e => fp("categoria", e.target.value)}>
+              <option value="">Selecione...</option>
+              {(state.categoriasFinanceiras || []).map(c => <option key={c}>{c}</option>)}
+            </Select>
+          </Field>
+          <Field label="Centro de Custo">
+            <Select value={form.centroCusto} onChange={e => fp("centroCusto", e.target.value)}>
+              <option value="">Selecione...</option>
+              {(state.centrosCusto || []).map(c => <option key={c}>{c}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Field label="Observações"><textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} placeholder="Observações..." /></Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function ContasReceber({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.contasReceber || [];
+  const clientes = state.clientes || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => { setForm({ data: new Date().toISOString().split("T")[0], status: "Pendente" }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const del = id => setState(s => ({ ...s, contasReceber: s.contasReceber.filter(x => x.id !== id) }));
+  const save = () => {
+    const item = { ...form, id: editing || uid(), valor: parseFloat(form.valor) || 0 };
+    setState(s => ({ ...s, contasReceber: editing ? s.contasReceber.map(x => x.id === editing ? item : x) : [...(s.contasReceber || []), item] }));
+    setOpen(false);
+  };
+
+  const totalPendente = items.filter(i => i.status === "Pendente").reduce((s, i) => s + (i.valor || 0), 0);
+  const totalVencido = items.filter(i => i.status === "Pendente" && i.vencimento && i.vencimento < new Date().toISOString().split("T")[0]).reduce((s, i) => s + (i.valor || 0), 0);
+  const totalRecebido = items.filter(i => i.status === "Recebido").reduce((s, i) => s + (i.valor || 0), 0);
+
+  const marcarRecebido = (id) => {
+    setState(s => ({ ...s, contasReceber: s.contasReceber.map(x => x.id === id ? { ...x, status: "Recebido", dataRecebimento: new Date().toISOString().split("T")[0] } : x) }));
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>💵 Contas a Receber</h2>
+        <Btn onClick={openNew}>+ Nova Conta</Btn>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Total Pendente", value: `R$ ${totalPendente.toFixed(2)}`, color: theme.warning },
+          { label: "Total Vencido", value: `R$ ${totalVencido.toFixed(2)}`, color: theme.danger },
+          { label: "Total Recebido", value: `R$ ${totalRecebido.toFixed(2)}`, color: theme.accent },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 28, color: s.color }}>{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        {items.length === 0 ? (
+          <EmptyState icon="💵" text="Nenhuma conta a receber registrada." />
+        ) : (
+          <Table
+            headers={["Descrição", "Cliente", "Valor (R$)", "Vencimento", "Origem", "Status", "Ações"]}
+            rows={items.map(i => (
+              <tr key={i.id}>
+                <Td><strong>{i.descricao}</strong></Td>
+                <Td>{i.cliente || "—"}</Td>
+                <Td><strong style={{ color: i.status === "Recebido" ? theme.accent : theme.warning }}>R$ {(i.valor || 0).toFixed(2)}</strong></Td>
+                <Td>{i.vencimento || "—"}</Td>
+                <Td>{i.origem === "VendaMilho" ? "🌽 Venda de Milho" : i.origem === "RomaneioSaida" ? "📤 Expedição" : "—"}</Td>
+                <Td><Badge color={i.status === "Recebido" ? "green" : i.vencimento && i.vencimento < new Date().toISOString().split("T")[0] ? "red" : "gold"}>{i.status || "Pendente"}</Badge></Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {i.status !== "Recebido" && <Btn size="sm" variant="success" onClick={() => marcarRecebido(i.id)}>💰 Receber</Btn>}
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(i)}>✏️</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(i.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Conta a Receber`} width={600}>
+        <Row cols={2}>
+          <Field label="Descrição"><Input value={form.descricao} onChange={e => fp("descricao", e.target.value)} placeholder="Ex: Venda de Soja" /></Field>
+          <Field label="Cliente">
+            <Select value={form.cliente} onChange={e => fp("cliente", e.target.value)}>
+              <option value="">Selecione...</option>
+              {clientes.map(c => <option key={c.id}>{c.nome}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Row cols={2}>
+          <Field label="Valor (R$)"><Input type="number" step="0.01" value={form.valor} onChange={e => fp("valor", e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Data de Vencimento"><Input type="date" value={form.vencimento} onChange={e => fp("vencimento", e.target.value)} /></Field>
+        </Row>
+        <Row cols={2}>
+          <Field label="Origem">
+            <Select value={form.origem} onChange={e => fp("origem", e.target.value)}>
+              <option value="">Selecione...</option>
+              <option value="VendaMilho">🌽 Venda de Milho</option>
+              <option value="RomaneioSaida">📤 Expedição de Grãos</option>
+              <option value="Outros">📋 Outros</option>
+            </Select>
+          </Field>
+          <Field label="Centro de Custo">
+            <Select value={form.centroCusto} onChange={e => fp("centroCusto", e.target.value)}>
+              <option value="">Selecione...</option>
+              {(state.centrosCusto || []).map(c => <option key={c}>{c}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Field label="Observações"><textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} placeholder="Observações..." /></Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function DespesasOperacionais({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.despesasOperacionais || [];
+  const maquinas = state.maquinas || [];
+  const motoristas = state.motoristas || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => { setForm({ data: new Date().toISOString().split("T")[0], tipo: "Combustível" }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const del = id => setState(s => ({ ...s, despesasOperacionais: s.despesasOperacionais.filter(x => x.id !== id) }));
+  const save = () => {
+    const item = { ...form, id: editing || uid(), valor: parseFloat(form.valor) || 0 };
+    setState(s => ({ ...s, despesasOperacionais: editing ? s.despesasOperacionais.map(x => x.id === editing ? item : x) : [...(s.despesasOperacionais || []), item] }));
+    setOpen(false);
+  };
+
+  const totalDespesas = items.reduce((s, i) => s + (i.valor || 0), 0);
+  const porTipo = {};
+  items.forEach(i => { porTipo[i.tipo] = (porTipo[i.tipo] || 0) + (i.valor || 0); });
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📋 Despesas Operacionais</h2>
+        <Btn onClick={openNew}>+ Nova Despesa</Btn>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Total de Despesas", value: `R$ ${totalDespesas.toFixed(2)}`, color: theme.danger },
+          { label: "Combustível", value: `R$ ${(porTipo.Combustível || 0).toFixed(2)}`, color: theme.warning },
+          { label: "Manutenção", value: `R$ ${(porTipo.Manutenção || 0).toFixed(2)}`, color: theme.info },
+          { label: "Frete", value: `R$ ${(porTipo.Frete || 0).toFixed(2)}`, color: theme.accent },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 24, color: s.color }}>{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        {items.length === 0 ? (
+          <EmptyState icon="📋" text="Nenhuma despesa operacional registrada." />
+        ) : (
+          <Table
+            headers={["Data", "Descrição", "Tipo", "Valor (R$)", "Máquina", "Motorista", "Ações"]}
+            rows={items.map(i => (
+              <tr key={i.id}>
+                <Td>{i.data}</Td>
+                <Td><strong>{i.descricao}</strong></Td>
+                <Td>{i.tipo}</Td>
+                <Td><strong style={{ color: theme.danger }}>R$ {(i.valor || 0).toFixed(2)}</strong></Td>
+                <Td>{i.maquina || "—"}</Td>
+                <Td>{i.motorista || "—"}</Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Btn size="sm" variant="secondary" onClick={() => openEdit(i)}>✏️</Btn>
+                    <Btn size="sm" variant="danger" onClick={() => del(i.id)}>🗑️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Despesa Operacional`} width={600}>
+        <Row cols={2}>
+          <Field label="Data"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field>
+          <Field label="Tipo de Despesa">
+            <Select value={form.tipo} onChange={e => fp("tipo", e.target.value)}>
+              {["Combustível", "Manutenção", "Frete", "Mão de Obra", "Outros"].map(t => <option key={t}>{t}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Field label="Descrição"><Input value={form.descricao} onChange={e => fp("descricao", e.target.value)} placeholder="Ex: Troca de óleo" /></Field>
+        <Row cols={2}>
+          <Field label="Valor (R$)"><Input type="number" step="0.01" value={form.valor} onChange={e => fp("valor", e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Máquina">
+            <Select value={form.maquina} onChange={e => fp("maquina", e.target.value)}>
+              <option value="">Selecione...</option>
+              {maquinas.map(m => <option key={m.id}>{m.nome}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Row cols={2}>
+          <Field label="Motorista">
+            <Select value={form.motorista} onChange={e => fp("motorista", e.target.value)}>
+              <option value="">Selecione...</option>
+              {motoristas.map(m => <option key={m.id}>{m.nome}</option>)}
+            </Select>
+          </Field>
+          <Field label="Centro de Custo">
+            <Select value={form.centroCusto} onChange={e => fp("centroCusto", e.target.value)}>
+              <option value="">Selecione...</option>
+              {(state.centrosCusto || []).map(c => <option key={c}>{c}</option>)}
+            </Select>
+          </Field>
+        </Row>
+        <Field label="Observações"><textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} placeholder="Observações..." /></Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function FluxoCaixa({ state }) {
+  const [periodoInicio, setPeriodoInicio] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]);
+  const [periodoFim, setPeriodoFim] = useState(new Date().toISOString().split("T")[0]);
+
+  const receitas = (state.contasReceber || []).filter(r => r.status === "Recebido" && r.dataRecebimento >= periodoInicio && r.dataRecebimento <= periodoFim).map(r => ({ data: r.dataRecebimento, descricao: r.descricao, valor: r.valor, tipo: "Receita" }));
+  const vendasMilho = (state.vendasMilho || []).filter(v => v.status === "Confirmada" && v.data >= periodoInicio && v.data <= periodoFim).map(v => ({ data: v.data, descricao: `🌽 Venda de Milho - ${v.cliente}`, valor: v.valorTotal, tipo: "Receita" }));
+  const despesas = (state.contasPagar || []).filter(d => d.status === "Pago" && d.dataPagamento >= periodoInicio && d.dataPagamento <= periodoFim).map(d => ({ data: d.dataPagamento, descricao: d.descricao, valor: d.valor, tipo: "Despesa" }));
+  const despesasOp = (state.despesasOperacionais || []).filter(d => d.data >= periodoInicio && d.data <= periodoFim).map(d => ({ data: d.data, descricao: d.descricao, valor: d.valor, tipo: "Despesa" }));
+
+  const todasMovimentacoes = [...receitas, ...vendasMilho, ...despesas, ...despesasOp].sort((a, b) => a.data.localeCompare(b.data));
+  const totalReceitas = [...receitas, ...vendasMilho].reduce((s, r) => s + r.valor, 0);
+  const totalDespesas = [...despesas, ...despesasOp].reduce((s, d) => s + d.valor, 0);
+  const saldoPeriodo = totalReceitas - totalDespesas;
+
+  const imprimir = () => {
+    const win = window.open("", "_blank");
+    const faz = state.fazenda || {};
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Fluxo de Caixa</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{text-align:center;border-bottom:2px solid #2ecc71;padding-bottom:12px;margin-bottom:20px}.faz-nome{font-size:20px;font-weight:900}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#2ecc71;color:#fff;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.receita{color:#2ecc71;font-weight:700}.despesa{color:#e74c3c;font-weight:700}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head>
+    <body><div class="header"><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div>Fluxo de Caixa - ${periodoInicio} a ${periodoFim}</div></div>
+    <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor (R$)</th></tr></thead><tbody>
+    ${todasMovimentacoes.map(m => `<tr><td style="white-space:nowrap">${m.data}</td><td>${m.descricao}</td><td class="${m.tipo === "Receita" ? "receita" : "despesa"}">${m.tipo}</td><td class="${m.tipo === "Receita" ? "receita" : "despesa"}">R$ ${m.valor.toFixed(2)}</td></tr>`).join("")}
+    </tbody><tfoot><tr style="background:#f0fdf4"><td colspan="3"><strong>TOTAL RECEITAS</strong></td><td><strong>R$ ${totalReceitas.toFixed(2)}</strong></td></tr>
+    <tr style="background:#fee2e2"><td colspan="3"><strong>TOTAL DESPESAS</strong></td><td><strong>R$ ${totalDespesas.toFixed(2)}</strong></td></tr>
+    <tr style="background:#d4edda"><td colspan="3"><strong>SALDO DO PERÍODO</strong></td><td><strong style="color:${saldoPeriodo >= 0 ? '#2ecc71' : '#e74c3c'}">R$ ${saldoPeriodo.toFixed(2)}</strong></td></tr></tfoot>
+    </table><div class="footer">AgriGest · Fluxo de Caixa</div></body></html>`);
+    win.document.close(); setTimeout(() => win.print(), 500);
+  };
+
+  const selectStyle = { width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, outline: "none" };
+  const labelStyle = { fontSize: 11, color: theme.muted, marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📊 Fluxo de Caixa</h2>
+        {todasMovimentacoes.length > 0 && <Btn variant="info" onClick={imprimir}>🖨️ Imprimir / PDF</Btn>}
+      </div>
+
+      <Card style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Período</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div><label style={labelStyle}>Data Início</label><input type="date" value={periodoInicio} onChange={e => setPeriodoInicio(e.target.value)} style={selectStyle} /></div>
+          <div><label style={labelStyle}>Data Fim</label><input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} style={selectStyle} /></div>
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Total de Receitas", value: `R$ ${totalReceitas.toFixed(2)}`, color: theme.accent },
+          { label: "Total de Despesas", value: `R$ ${totalDespesas.toFixed(2)}`, color: theme.danger },
+          { label: "Saldo do Período", value: `R$ ${saldoPeriodo.toFixed(2)}`, color: saldoPeriodo >= 0 ? theme.accent : theme.danger },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 28, color: s.color }}>{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        {todasMovimentacoes.length === 0 ? (
+          <EmptyState icon="📊" text="Nenhuma movimentação financeira no período selecionado." />
+        ) : (
+          <Table
+            headers={["Data", "Descrição", "Tipo", "Valor (R$)"]}
+            rows={todasMovimentacoes.map(m => (
+              <tr key={m.data + m.descricao}>
+                <Td>{m.data}</Td>
+                <Td>{m.descricao}</Td>
+                <Td><Badge color={m.tipo === "Receita" ? "green" : "red"}>{m.tipo}</Badge></Td>
+                <Td><strong style={{ color: m.tipo === "Receita" ? theme.accent : theme.danger }}>R$ {m.valor.toFixed(2)}</strong></Td>
+              </tr>
+            ))}
+          />
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function RelatorioFinanceiro({ state }) {
+  const [ano, setAno] = useState(new Date().getFullYear().toString());
+
+  const receitas = (state.contasReceber || []).filter(r => r.status === "Recebido");
+  const despesasPagas = (state.contasPagar || []).filter(d => d.status === "Pago");
+  const vendasMilho = (state.vendasMilho || []).filter(v => v.status === "Confirmada");
+  const despesasOp = (state.despesasOperacionais || []);
+
+  const receitasPorMes = {};
+  const despesasPorMes = {};
+
+  [...receitas, ...vendasMilho.map(v => ({ ...v, data: v.data, valor: v.valorTotal, tipo: "Receita" }))].forEach(r => {
+    const data = r.data?.split("-");
+    if (data && data[0] === ano) {
+      const key = data[1];
+      receitasPorMes[key] = (receitasPorMes[key] || 0) + r.valor;
+    }
+  });
+
+  [...despesasPagas, ...despesasOp].forEach(d => {
+    const data = d.data?.split("-") || d.dataPagamento?.split("-");
+    if (data && data[0] === ano) {
+      const key = data[1];
+      despesasPorMes[key] = (despesasPorMes[key] || 0) + (d.valor || 0);
+    }
+  });
+
+  const meses = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+  const nomesMeses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+  const totalReceitasAno = Object.values(receitasPorMes).reduce((s, v) => s + v, 0);
+  const totalDespesasAno = Object.values(despesasPorMes).reduce((s, v) => s + v, 0);
+  const lucroAno = totalReceitasAno - totalDespesasAno;
+
+  const imprimir = () => {
+    const win = window.open("", "_blank");
+    const faz = state.fazenda || {};
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório Financeiro - ${ano}</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{text-align:center;border-bottom:2px solid #2ecc71;padding-bottom:12px;margin-bottom:20px}.faz-nome{font-size:20px;font-weight:900}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#2ecc71;color:#fff;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.receita{color:#2ecc71}.despesa{color:#e74c3c}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head>
+    <body><div class="header"><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div>Demonstrativo de Resultados - ${ano}</div></div>
+    <table><thead><tr><th>Mês</th><th>Receitas (R$)</th><th>Despesas (R$)</th><th>Resultado (R$)</th></tr></thead><tbody>
+    ${meses.map((m, idx) => {
+      const rec = receitasPorMes[m] || 0;
+      const desp = despesasPorMes[m] || 0;
+      const res = rec - desp;
+      return `<tr><td style="font-weight:700">${nomesMeses[idx]}</td><td class="receita">R$ ${rec.toFixed(2)}</td><td class="despesa">R$ ${desp.toFixed(2)}</td><td style="color:${res >= 0 ? '#2ecc71' : '#e74c3c'};font-weight:700">R$ ${res.toFixed(2)}</td></tr>`;
+    }).join("")}
+    </tbody><tfoot><tr style="background:#f0fdf4"><td><strong>TOTAL</strong></td><td style="font-weight:700">R$ ${totalReceitasAno.toFixed(2)}</td>
+      <td style="font-weight:700">R$ ${totalDespesasAno.toFixed(2)}</td>
+      <td style="font-weight:700;color:${lucroAno >= 0 ? '#2ecc71' : '#e74c3c'}">R$ ${lucroAno.toFixed(2)}</td>
+    </tr></tfoot>
+    </table>
+    <div class="footer">AgriGest · DRE Simplificada</div>
+    </body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 500);
+  };
+
+  const selectStyle = { width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, outline: "none" };
+  const labelStyle = { fontSize: 11, color: theme.muted, marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📈 Demonstrativo de Resultados (DRE)</h2>
+        <Btn variant="info" onClick={imprimir}>🖨️ Imprimir / PDF</Btn>
+      </div>
+
+      <Card style={{ marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
+          <div><label style={labelStyle}>Ano</label><select value={ano} onChange={e => setAno(e.target.value)} style={selectStyle}>
+            <option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
+          </select></div>
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Total Receitas", value: `R$ ${totalReceitasAno.toFixed(2)}`, color: theme.accent },
+          { label: "Total Despesas", value: `R$ ${totalDespesasAno.toFixed(2)}`, color: theme.danger },
+          { label: "Lucro/Prejuízo", value: `R$ ${lucroAno.toFixed(2)}`, color: lucroAno >= 0 ? theme.accent : theme.danger },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 28, color: s.color }}>{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <Table
+          headers={["Mês", "Receitas (R$)", "Despesas (R$)", "Resultado (R$)"]}
+          rows={meses.map((m, idx) => {
+            const rec = receitasPorMes[m] || 0;
+            const desp = despesasPorMes[m] || 0;
+            const res = rec - desp;
+            return (
+              <tr key={m}>
+                <Td><strong>{nomesMeses[idx]}</strong></Td>
+                <Td><strong style={{ color: theme.accent }}>R$ {rec.toFixed(2)}</strong></Td>
+                <Td><strong style={{ color: theme.danger }}>R$ {desp.toFixed(2)}</strong></Td>
+                <Td><strong style={{ color: res >= 0 ? theme.accent : theme.danger }}>R$ {res.toFixed(2)}</strong></Td>
+              </tr>
+            );
+          })}
+        />
+        <div style={{ marginTop: 16, padding: 12, background: `${theme.accent}0a`, borderRadius: 8, textAlign: "center" }}>
+          <strong>RESUMO DO ANO {ano}</strong><br/>
+          Receitas: R$ {totalReceitasAno.toFixed(2)} | Despesas: R$ {totalDespesasAno.toFixed(2)} | Lucro: R$ {lucroAno.toFixed(2)}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function Financas({ state, setState }) {
+  const [aba, setAba] = useState("contasPagar");
+
+  const abas = [
+    { id: "contasPagar", label: "💰 Contas a Pagar", icon: "💰" },
+    { id: "contasReceber", label: "💵 Contas a Receber", icon: "💵" },
+    { id: "despesasOp", label: "📋 Despesas Operacionais", icon: "📋" },
+    { id: "fluxoCaixa", label: "📊 Fluxo de Caixa", icon: "📊" },
+    { id: "dre", label: "📈 DRE", icon: "📈" },
+  ];
+
+  const renderContent = () => {
+    switch (aba) {
+      case "contasPagar": return <ContasPagar state={state} setState={setState} />;
+      case "contasReceber": return <ContasReceber state={state} setState={setState} />;
+      case "despesasOp": return <DespesasOperacionais state={state} setState={setState} />;
+      case "fluxoCaixa": return <FluxoCaixa state={state} />;
+      case "dre": return <RelatorioFinanceiro state={state} />;
+      default: return <ContasPagar state={state} setState={setState} />;
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
+        {abas.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)} style={{
+            padding: "8px 20px", borderRadius: 8, cursor: "pointer",
+            background: aba === a.id ? `${theme.accent}22` : "transparent",
+            border: aba === a.id ? `1px solid ${theme.accent}44` : `1px solid ${theme.border}`,
+            color: aba === a.id ? theme.accentLight : theme.muted,
+            fontFamily: "inherit", fontSize: 13, fontWeight: aba === a.id ? 600 : 400,
+            transition: "all .2s", display: "flex", alignItems: "center", gap: 6
+          }}>
+            <span>{a.icon}</span> {a.label}
+          </button>
+        ))}
+      </div>
+      {renderContent()}
+    </div>
+  );
+}
+
 // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
+  const [fazendaSelecionada, setFazendaSelecionada] = useState(null);
+  const [anoSafra, setAnoSafra] = useState(null);
   const [active, setActive] = useState("dashboard");
   const [state, setState] = useState(initState());
   const [toast, setToast] = useState("");
+  const [skipSelector, setSkipSelector] = useState(false);
 
   // Persiste dados gerais e usuários locais
   useEffect(() => {
     try {
-      // Salva apenas os usuários que NÃO são fixos
       const usuariosLocais = (state.usuarios || []).filter(u => !u.isFixo);
       const dadosParaSalvar = { ...state, usuarios: usuariosLocais };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
@@ -4189,12 +4929,45 @@ export default function App() {
       setState(initState());
       setUsuarioLogado(null);
       setLoggedIn(false);
+      setFazendaSelecionada(null);
+      setAnoSafra(null);
     }
   };
-  const handleLogin = (user) => { setUsuarioLogado(user); setLoggedIn(true); };
-  const handleLogout = () => { setUsuarioLogado(null); setLoggedIn(false); };
+  const handleLogin = (user) => { setUsuarioLogado(user); setLoggedIn(true); setFazendaSelecionada(null); setAnoSafra(null); setSkipSelector(false); };
+  const handleLogout = () => { setUsuarioLogado(null); setLoggedIn(false); setFazendaSelecionada(null); setAnoSafra(null); setSkipSelector(false); };
+
+  const handleSelectFazenda = (fazendaId, safra) => {
+    const faz = (state.fazendas || []).find(f => f.id === fazendaId);
+    if (faz) {
+      setFazendaSelecionada(faz);
+      setAnoSafra(safra);
+      setState(s => ({ ...s, fazenda: faz }));
+    }
+  };
+
+  const handleTrocarFazenda = () => {
+    setFazendaSelecionada(null);
+    setAnoSafra(null);
+    setSkipSelector(false);
+    setActive("dashboard");
+  };
+
+  const handleNovaFazenda = () => {
+    const novaFazenda = { id: uid(), nome: "", produtor: "", cpfCnpj: "", ie: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", estado: "", graos: [], logo: null };
+    setFazendaSelecionada(novaFazenda);
+    setAnoSafra(safrasOpcoes[1] || safrasOpcoes[0]);
+    setState(s => ({ ...s, fazenda: novaFazenda }));
+    setSkipSelector(true);
+    setActive("fazenda");
+  };
+
   const usuariosAtivos = state.usuarios || USUARIOS_FIXOS;
   if (!loggedIn) return <Login onLogin={handleLogin} usuarios={usuariosAtivos} />;
+
+  // Tela de seleção de fazenda e ano safra
+  if (!fazendaSelecionada && !skipSelector) {
+    return <FazendaSelector fazendas={state.fazendas || []} onSelect={handleSelectFazenda} onNovaFazenda={handleNovaFazenda} />;
+  }
 
   const crudPages = {
     clientes: { title: "Cliente", icon: "👥", stateKey: "clientes", fields: [{ key: "nome", label: "Nome / Razão Social", table: true }, { key: "cpfCnpj", label: "CPF / CNPJ", table: true }, { key: "contato", label: "Telefone", table: true }, { key: "email", label: "E-mail", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
@@ -4243,6 +5016,7 @@ export default function App() {
       case "estoquePecas": return <EstoquePecas state={state} />;
       case "fichasAplicacao": return <FichasAplicacao state={state} setState={ss} />;
       case "vendaMilho": return <VendaMilhoBags state={state} setState={ss} />;
+      case "financas": return <Financas state={state} setState={ss} />;
       default: return null;
     }
   };
@@ -4251,7 +5025,19 @@ export default function App() {
     <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text, fontFamily: "'IBM Plex Sans', system-ui, sans-serif", overflow: "hidden" }}>
       <Sidebar active={active} setActive={setActive} fazenda={state.fazenda} usuario={usuarioLogado} />
       <main style={{ flex: 1, overflowY: "auto", padding: 28 }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+          {/* Indicador da fazenda e safra selecionada */}
+          {fazendaSelecionada && anoSafra && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: "auto" }}>
+              <div style={{ background: `${theme.accent}18`, border: `1px solid ${theme.accent}44`, borderRadius: 8, padding: "6px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14 }}>🏡</span>
+                <span style={{ color: theme.accentLight, fontSize: 12, fontWeight: 600 }}>{fazendaSelecionada.nome || "Nova Fazenda"}</span>
+                <span style={{ color: theme.muted, fontSize: 11 }}>|</span>
+                <span style={{ color: theme.gold, fontSize: 12, fontWeight: 600 }}>Safra {anoSafra}</span>
+              </div>
+              <button onClick={handleTrocarFazenda} style={{ background: `${theme.info}18`, color: theme.info, border: `1px solid ${theme.info}33`, padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>🔄 Trocar Fazenda</button>
+            </div>
+          )}
           {toast && <span style={{ background: `${theme.accent}22`, color: theme.accentLight, border: `1px solid ${theme.accent}44`, padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>{toast}</span>}
           <span style={{ color: theme.muted, fontSize: 11 }}>💾 Dados salvos automaticamente</span>
           <button onClick={handleLogout} style={{ background: `${theme.danger}18`, color: theme.danger, border: `1px solid ${theme.danger}33`, padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>🚪 Sair</button>

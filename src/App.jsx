@@ -4877,7 +4877,7 @@ function Financas({ state, setState }) {
       case "despesasOp": return <DespesasOperacionais state={state} setState={setState} />;
       case "fluxoCaixa": return <FluxoCaixa state={state} />;
       case "dre": return <RelatorioFinanceiro state={state} />;
-      default: return <ContasPagar state={state} setState={setState} />;
+      default: return <ContasPagar state={state} setState={ss} />;
     }
   };
 

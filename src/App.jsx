@@ -234,6 +234,7 @@ const initState = () => {
       if (!parsed.abastecimentos) parsed.abastecimentos = [];
       if (!parsed.pecas) parsed.pecas = [];
       if (!parsed.movimentacaoPecas) parsed.movimentacaoPecas = [];
+      if (!parsed.inventarios) parsed.inventarios = [];
       if (!parsed.fichasAplicacao) parsed.fichasAplicacao = [];
       if (!parsed.vendasMilho) parsed.vendasMilho = [];
       if (!parsed.contasPagar) parsed.contasPagar = [];
@@ -267,6 +268,7 @@ const initState = () => {
     abastecimentos: [],
     pecas: [],
     movimentacaoPecas: [],
+    inventarios: [],
     fichasAplicacao: [],
     vendasMilho: [],
     contasPagar: [],
@@ -2556,12 +2558,13 @@ function Pecas({ state, setState }) {
   const [editing, setEditing] = useState(null);
   const [busca, setBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroSubcategoria, setFiltroSubcategoria] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
   const items = state.pecas || [];
 
   const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const openNew = () => { setForm({ unidade: "un", estoqueMinimo: 0, codigo: `PEC-${padNum((items.length || 0) + 1)}` }); setEditing(null); setOpen(true); };
-  const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
+  const openNew = () => { setForm({ unidade: "un", estoqueMinimo: 0, codigo: `PEC-${padNum((items.length || 0) + 1)}`, fornecedores: [] }); setEditing(null); setOpen(true); };
+  const openEdit = i => { setForm({ ...i, fornecedores: i.fornecedores || [] }); setEditing(i.id); setOpen(true); };
   const del = id => { if (window.confirm("Excluir esta peça?")) setState(s => ({ ...s, pecas: s.pecas.filter(x => x.id !== id) })); };
   const save = () => {
     const item = { ...form, id: editing || uid() };
@@ -2569,11 +2572,30 @@ function Pecas({ state, setState }) {
     setOpen(false);
   };
 
+  const subcategorias = {
+    "Filtro": ["Óleo", "Ar", "Combustível", "Hidráulico", "Cabine"],
+    "Correia": ["Dentada", "V", "Poly-V", "Alternador"],
+    "Rolamento": ["Esfera", "Rolos", "Agulha", "Cônico"],
+    "Motor": ["Pistão", "Biela", "Junta", "Válvula", "Bomba de Água"],
+    "Transmissão": ["Engrenagem", "Sincronizador", "Disco de Embreagem", "Eixo"],
+    "Hidráulica": ["Cilindro", "Bomba", "Válvula", "Mangueira", "Vedação"],
+    "Elétrica": ["Alternador", "Motor de Partida", "Relé", "Fusível", "Chicote"],
+    "Pneu": ["Dianteiro", "Traseiro", "Implemento"],
+    "Lubrificante": ["Óleo Motor", "Óleo Hidráulico", "Graxa", "Fluido de Arrefecimento"],
+    "Ferramenta": ["Manual", "Elétrica", "Pneumática", "Especial"],
+    "Parafuso/Porca": ["Métrico", "Polegada", "Allen", "Auto-Atarraxante"],
+    "Vedação": ["O-Ring", "Retentor", "Junta", "Gaxeta"],
+    "Mangueira": ["Pressão", "Sucção", "Combustível", "Ar"],
+    "Outros": ["Diversos"]
+  };
+
   const categorias = [...new Set(items.map(p => p.categoria).filter(Boolean))];
+  const subcatsFiltro = filtroCategoria ? (subcategorias[filtroCategoria] || []) : [];
   const filtrados = items.filter(p => {
-    const txt = `${p.codigo} ${p.descricao} ${p.nome} ${p.categoria} ${p.localizacao}`.toLowerCase();
+    const txt = `${p.codigo} ${p.descricao} ${p.nome} ${p.categoria} ${p.subcategoria} ${p.localizacao}`.toLowerCase();
     if (busca && !txt.includes(busca.toLowerCase())) return false;
     if (filtroCategoria && p.categoria !== filtroCategoria) return false;
+    if (filtroSubcategoria && p.subcategoria !== filtroSubcategoria) return false;
     const qtd = parseFloat(p.quantidade) || 0, min = parseFloat(p.estoqueMinimo) || 0;
     if (filtroStatus === "baixo") return min > 0 && qtd <= min && qtd > 0;
     if (filtroStatus === "zerado") return qtd === 0;
@@ -2586,21 +2608,34 @@ function Pecas({ state, setState }) {
   const pecasBaixo = items.filter(p => { const q = parseFloat(p.quantidade) || 0, m = parseFloat(p.estoqueMinimo) || 0; return m > 0 && q <= m; });
   const valorTotal = items.reduce((s, p) => s + ((parseFloat(p.quantidade) || 0) * (parseFloat(p.precoUnitario) || 0)), 0);
 
+  // Preço médio
+  const precoMedio = totalItens > 0 ? valorTotal / Math.max(totalUnidades, 1) : 0;
+
+  // Fornecedor form
+  const [fornecedorInput, setFornecedorInput] = useState("");
+  const addFornecedor = () => {
+    if (!fornecedorInput.trim()) return;
+    setForm(f => ({ ...f, fornecedores: [...(f.fornecedores || []), { nome: fornecedorInput.trim(), id: uid() }] }));
+    setFornecedorInput("");
+  };
+  const remFornecedor = (fid) => setForm(f => ({ ...f, fornecedores: (f.fornecedores || []).filter(x => x.id !== fid) }));
+
   return (
     <div>
       <SectionTitle action={<Btn onClick={openNew}>+ Nova Peça</Btn>}>🔧 Peças e Componentes</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 20 }}>
         {[
           { label: "Cadastradas", value: totalItens, color: theme.info, icon: "🔧" },
           { label: "Em Estoque", value: totalUnidades.toFixed(0), color: theme.accent, icon: "📦" },
           { label: "Estoque Baixo", value: pecasBaixo.length, color: theme.warning, icon: "⚠️" },
           { label: "Valor Estoque", value: `R$ ${valorTotal.toFixed(2)}`, color: theme.gold, icon: "💰" },
+          { label: "Preço Médio", value: `R$ ${precoMedio.toFixed(2)}`, color: theme.info, icon: "📊" },
         ].map((s, i) => (
           <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <div style={{ color: theme.muted, fontSize: 9, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontWeight: 900, fontSize: 20, color: s.color }}>{s.value}</div>
+                <div style={{ fontWeight: 900, fontSize: 18, color: s.color }}>{s.value}</div>
               </div>
               <span style={{ fontSize: 20 }}>{s.icon}</span>
             </div>
@@ -2609,16 +2644,23 @@ function Pecas({ state, setState }) {
       </div>
 
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12, alignItems: "end" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12, alignItems: "end" }}>
           <div>
             <label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>🔍 Buscar</label>
             <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Código, descrição, localização..." />
           </div>
           <div>
             <label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>Categoria</label>
-            <Select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)}>
+            <Select value={filtroCategoria} onChange={e => { setFiltroCategoria(e.target.value); setFiltroSubcategoria(""); }}>
               <option value="">Todas</option>
-              {categorias.map(c => <option key={c}>{c}</option>)}
+              {Object.keys(subcategorias).map(c => <option key={c}>{c}</option>)}
+            </Select>
+          </div>
+          <div>
+            <label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>Subcategoria</label>
+            <Select value={filtroSubcategoria} onChange={e => setFiltroSubcategoria(e.target.value)} disabled={!filtroCategoria}>
+              <option value="">Todas</option>
+              {subcatsFiltro.map(s => <option key={s}>{s}</option>)}
             </Select>
           </div>
           <div>
@@ -2638,7 +2680,7 @@ function Pecas({ state, setState }) {
           <EmptyState icon="🔧" text={busca || filtroCategoria || filtroStatus ? "Nenhuma peça encontrada." : "Nenhuma peça cadastrada."} />
         ) : (
           <Table
-            headers={["Código", "Descrição", "Categoria", "Local", "Qtd", "Mín.", "Preço Un.", "Status", "Ações"]}
+            headers={["Código", "Descrição", "Cat./Sub.", "Local", "Qtd", "Mín.", "Preço Un.", "Fornecedores", "Status", "Ações"]}
             rows={filtrados.map(p => {
               const qtd = parseFloat(p.quantidade) || 0, min = parseFloat(p.estoqueMinimo) || 0;
               const status = qtd === 0 ? "Zerado" : (min > 0 && qtd <= min ? "Baixo" : "OK");
@@ -2647,11 +2689,12 @@ function Pecas({ state, setState }) {
                 <tr key={p.id} style={status !== "OK" ? { background: status === "Zerado" ? `${theme.danger}08` : `${theme.warning}08` } : {}}>
                   <Td><span style={{ fontFamily: "monospace", fontWeight: 700 }}>{p.codigo || "—"}</span></Td>
                   <Td><strong>{p.descricao || p.nome}</strong>{p.aplicacao ? <><br/><span style={{ fontSize: 10, color: theme.muted }}>📌 {p.aplicacao}</span></> : null}</Td>
-                  <Td>{p.categoria || "—"}</Td>
+                  <Td>{p.categoria || "—"}{p.subcategoria ? <><br/><span style={{ fontSize: 10, color: theme.muted }}>{p.subcategoria}</span></> : null}</Td>
                   <Td>{p.localizacao || "—"}</Td>
                   <Td><Badge color={cor}>{qtd.toLocaleString()} {p.unidade}</Badge></Td>
                   <Td>{min > 0 ? `${min} ${p.unidade}` : "—"}</Td>
                   <Td>{parseFloat(p.precoUnitario) > 0 ? `R$ ${parseFloat(p.precoUnitario).toFixed(2)}` : "—"}</Td>
+                  <Td>{(p.fornecedores || []).length > 0 ? (p.fornecedores || []).map(f => f.nome).join(", ") : p.fornecedor || "—"}</Td>
                   <Td><Badge color={cor}>{status}</Badge></Td>
                   <Td>
                     <div style={{ display: "flex", gap: 4 }}>
@@ -2667,16 +2710,22 @@ function Pecas({ state, setState }) {
         {filtrados.length > 0 && <div style={{ color: theme.muted, fontSize: 11, marginTop: 8, textAlign: "right" }}>{filtrados.length} de {items.length} peças</div>}
       </Card>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Peça`} width={650}>
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Nova"} Peça`} width={700}>
         <Row>
           <Field label="Código"><Input value={form.codigo} onChange={e => fp("codigo", e.target.value)} placeholder="PEC-00001" /></Field>
           <Field label="Descrição"><Input value={form.descricao || form.nome} onChange={e => fp("descricao", e.target.value)} placeholder="Ex: Filtro de Óleo" required /></Field>
         </Row>
         <Row>
           <Field label="Categoria">
-            <Select value={form.categoria} onChange={e => fp("categoria", e.target.value)}>
+            <Select value={form.categoria} onChange={e => { fp("categoria", e.target.value); fp("subcategoria", ""); }}>
               <option value="">Selecione...</option>
-              {["Filtro", "Correia", "Rolamento", "Motor", "Transmissão", "Hidráulica", "Elétrica", "Pneu", "Lubrificante", "Ferramenta", "Parafuso/Porca", "Vedação", "Mangueira", "Outros"].map(c => <option key={c}>{c}</option>)}
+              {Object.keys(subcategorias).map(c => <option key={c}>{c}</option>)}
+            </Select>
+          </Field>
+          <Field label="Subcategoria">
+            <Select value={form.subcategoria} onChange={e => fp("subcategoria", e.target.value)} disabled={!form.categoria}>
+              <option value="">Selecione...</option>
+              {(subcategorias[form.categoria] || []).map(s => <option key={s}>{s}</option>)}
             </Select>
           </Field>
           <Field label="Unidade">
@@ -2694,9 +2743,23 @@ function Pecas({ state, setState }) {
           <Field label="Localização"><Input value={form.localizacao} onChange={e => fp("localizacao", e.target.value)} placeholder="Ex: A-12 / Galpão 2" /></Field>
         </Row>
         <Row>
-          <Field label="Fornecedor"><Input value={form.fornecedor} onChange={e => fp("fornecedor", e.target.value)} placeholder="Opcional" /></Field>
           <Field label="Aplicação / Máquina"><Input value={form.aplicacao} onChange={e => fp("aplicacao", e.target.value)} placeholder="Ex: Trator JD 5075E" /></Field>
         </Row>
+        <Field label="Fornecedores">
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <Input value={fornecedorInput} onChange={e => setFornecedorInput(e.target.value)} placeholder="Nome do fornecedor" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addFornecedor())} />
+            <Btn size="sm" onClick={addFornecedor}>+ Add</Btn>
+          </div>
+          {(form.fornecedores || []).length > 0 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(form.fornecedores || []).map(f => (
+                <span key={f.id} style={{ background: `${theme.info}22`, color: theme.info, padding: "3px 10px", borderRadius: 12, fontSize: 12, display: "flex", alignItems: "center", gap: 6, border: `1px solid ${theme.info}33` }}>
+                  {f.nome} <span style={{ cursor: "pointer", fontWeight: 700 }} onClick={() => remFornecedor(f.id)}>✕</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </Field>
         <Field label="Observações">
           <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
         </Field>
@@ -2709,7 +2772,7 @@ function Pecas({ state, setState }) {
   );
 }
 
-// ─── MOVIMENTAÇÃO DE PEÇAS ───────────────────────────────────────────────────
+// ─── MOVIMENTAÇÃO DE PEÇAS (MELHORADO) ───────────────────────────────────────
 function MovimentacaoPecas({ state, setState }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
@@ -2737,9 +2800,16 @@ function MovimentacaoPecas({ state, setState }) {
       return;
     }
     const novaQtd = form.tipo === "Saída" ? qtdAtual - qtdMov : qtdAtual + qtdMov;
+    // Atualiza preço médio na entrada
+    let pecaAtualizada = { ...peca, quantidade: novaQtd };
+    if (form.tipo === "Entrada" && parseFloat(form.custoUnitario) > 0) {
+      const custoAnterior = (parseFloat(peca.precoUnitario) || 0) * qtdAtual;
+      const custoNovo = parseFloat(form.custoUnitario) * qtdMov;
+      pecaAtualizada.precoUnitario = ((custoAnterior + custoNovo) / novaQtd).toFixed(2);
+    }
     setState(s => ({
       ...s,
-      pecas: s.pecas.map(p => p.id === form.pecaId ? { ...p, quantidade: novaQtd } : p),
+      pecas: s.pecas.map(p => p.id === form.pecaId ? pecaAtualizada : p),
       movimentacaoPecas: editing
         ? s.movimentacaoPecas.map(x => x.id === editing ? { ...form, id: editing } : x)
         : [...s.movimentacaoPecas, { ...form, id: uid() }]
@@ -2759,6 +2829,7 @@ function MovimentacaoPecas({ state, setState }) {
 
   const totalEntradas = filtrados.filter(m => m.tipo === "Entrada").reduce((sum, m) => sum + (parseFloat(m.quantidade) || 0), 0);
   const totalSaidas = filtrados.filter(m => m.tipo === "Saída").reduce((sum, m) => sum + (parseFloat(m.quantidade) || 0), 0);
+  const custoTotal = filtrados.reduce((sum, m) => sum + ((parseFloat(m.quantidade) || 0) * (parseFloat(m.custoUnitario) || 0)), 0);
 
   const imprimir = () => {
     const win = window.open("", "_blank");
@@ -2766,9 +2837,9 @@ function MovimentacaoPecas({ state, setState }) {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Movimentação de Peças</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
     <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px"><div><div style="font-size:17px;font-weight:900">${faz.nome || "Fazenda"}</div><div>Movimentação de Peças</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
-    <table><thead><tr><th>Data</th><th>Peça</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Destino</th><th>Motivo</th></tr></thead><tbody>
-    ${filtrados.map(m => { const peca = pecas.find(p => p.id === m.pecaId); return `<tr><td>${formatDate(m.data)}</td><td>${peca?.descricao || "—"}</td><td>${m.tipo}</td><td style="text-align:center"><strong>${m.quantidade}</strong></td><td>${m.responsavel || "—"}</td><td>${m.destino || "—"}</td><td>${m.motivo || "—"}</td></tr>`; }).join("")}
-    </tbody><tfoot><tr class="tot"><td colspan="2"><strong>TOTAIS</strong></td><td></td><td style="text-align:center">E:${totalEntradas} S:${totalSaidas}</td><td colspan="3">Saldo: ${(totalEntradas - totalSaidas).toFixed(0)} | ${filtrados.length} mov.</td></tr></tfoot></table>
+    <table><thead><tr><th>Data</th><th>Peça</th><th>Tipo</th><th>Qtd</th><th>Custo Un.</th><th>Responsável</th><th>Destino</th><th>Motivo</th></tr></thead><tbody>
+    ${filtrados.map(m => { const peca = pecas.find(p => p.id === m.pecaId); return `<tr><td>${formatDate(m.data)}</td><td>${peca?.descricao || "—"}</td><td>${m.tipo}</td><td style="text-align:center"><strong>${m.quantidade}</strong></td><td>R$ ${(parseFloat(m.custoUnitario) || 0).toFixed(2)}</td><td>${m.responsavel || "—"}</td><td>${m.destino || "—"}</td><td>${m.motivo || "—"}</td></tr>`; }).join("")}
+    </tbody><tfoot><tr class="tot"><td colspan="2"><strong>TOTAIS</strong></td><td></td><td style="text-align:center">E:${totalEntradas} S:${totalSaidas}</td><td>R$ ${custoTotal.toFixed(2)}</td><td colspan="3">Saldo: ${(totalEntradas - totalSaidas).toFixed(0)}</td></tr></tfoot></table>
     <div class="footer">AgriGest · Movimentação de Peças</div></body></html>`);
     win.document.close(); setTimeout(() => win.print(), 400);
   };
@@ -2784,15 +2855,16 @@ function MovimentacaoPecas({ state, setState }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Entradas", value: totalEntradas.toFixed(0), color: theme.accent, icon: "📥" },
           { label: "Saídas", value: totalSaidas.toFixed(0), color: theme.danger, icon: "📤" },
           { label: "Saldo", value: (totalEntradas - totalSaidas).toFixed(0), color: theme.gold, icon: "📊" },
+          { label: "Custo Total", value: `R$ ${custoTotal.toFixed(2)}`, color: theme.info, icon: "💰" },
         ].map((s, i) => (
           <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
             <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontWeight: 900, fontSize: 28, color: s.color }}>{s.value}</div>
+            <div style={{ fontWeight: 900, fontSize: 24, color: s.color }}>{s.value}</div>
           </Card>
         ))}
       </div>
@@ -2800,7 +2872,7 @@ function MovimentacaoPecas({ state, setState }) {
       <Card style={{ marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12, alignItems: "end" }}>
           <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>🔍 Buscar</label><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Peça, responsável..." /></div>
-          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Tipo</label><Select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}><option value="">Todos</option><option value="Entrada">📥 Entrada</option><option value="Saída">📤 Saída</option></Select></div>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Tipo</label><Select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}><option value="">Todos</option><option value="Entrada">📥 Entrada</option><option value="Saída">📤 Saída</option><option value="Transferência">🔄 Transferência</option></Select></div>
           <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>De</label><Input type="date" value={periodoInicio} onChange={e => setPeriodoInicio(e.target.value)} /></div>
           <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Até</label><Input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} /></div>
         </div>
@@ -2811,15 +2883,16 @@ function MovimentacaoPecas({ state, setState }) {
           <EmptyState icon="📦" text="Nenhuma movimentação encontrada." />
         ) : (
           <Table
-            headers={["Data", "Peça", "Tipo", "Qtd", "Responsável", "Destino", "Motivo", "Ações"]}
+            headers={["Data", "Peça", "Tipo", "Qtd", "Custo Un.", "Responsável", "Destino", "Motivo", "Ações"]}
             rows={filtrados.map(m => {
               const peca = pecas.find(p => p.id === m.pecaId);
               return (
                 <tr key={m.id}>
                   <Td>{formatDate(m.data)}</Td>
                   <Td><strong>{peca?.descricao || peca?.nome || "—"}</strong><br/><span style={{ fontSize: 10, color: theme.muted }}>{peca?.codigo || ""}</span></Td>
-                  <Td><Badge color={m.tipo === "Entrada" ? "green" : "red"}>{m.tipo === "Entrada" ? "📥" : "📤"} {m.tipo}</Badge></Td>
+                  <Td><Badge color={m.tipo === "Entrada" ? "green" : m.tipo === "Transferência" ? "blue" : "red"}>{m.tipo === "Entrada" ? "📥" : m.tipo === "Transferência" ? "🔄" : "📤"} {m.tipo}</Badge></Td>
                   <Td><strong style={{ color: m.tipo === "Entrada" ? theme.accent : theme.danger }}>{m.quantidade}</strong></Td>
+                  <Td>{parseFloat(m.custoUnitario) > 0 ? `R$ ${parseFloat(m.custoUnitario).toFixed(2)}` : "—"}</Td>
                   <Td>{m.responsavel || "—"}</Td>
                   <Td>{m.destino || m.origem || "—"}</Td>
                   <Td>{m.motivo || "—"}</Td>
@@ -2851,13 +2924,18 @@ function MovimentacaoPecas({ state, setState }) {
             <Select value={form.tipo} onChange={e => fp("tipo", e.target.value)}>
               <option value="Entrada">📥 Entrada</option>
               <option value="Saída">📤 Saída</option>
+              <option value="Transferência">🔄 Transferência</option>
             </Select>
           </Field>
           <Field label="Quantidade"><Input type="number" step="0.01" value={form.quantidade} onChange={e => fp("quantidade", e.target.value)} placeholder="0" /></Field>
         </Row>
         <Row>
+          <Field label="Custo Unitário (R$)"><Input type="number" step="0.01" value={form.custoUnitario} onChange={e => fp("custoUnitario", e.target.value)} placeholder="0.00" /></Field>
           <Field label="Responsável"><Input value={form.responsavel} onChange={e => fp("responsavel", e.target.value)} placeholder="Quem retirou/recebeu" /></Field>
+        </Row>
+        <Row>
           <Field label="Destino / Origem"><Input value={form.destino || form.origem} onChange={e => fp("destino", e.target.value)} placeholder="Ex: Trator 5670" /></Field>
+          {form.tipo === "Transferência" && <Field label="Almoxarifado Destino"><Input value={form.almoxarifadoDestino} onChange={e => fp("almoxarifadoDestino", e.target.value)} placeholder="Ex: Galpão 2" /></Field>}
         </Row>
         <Row>
           <Field label="Motivo">
@@ -2869,6 +2947,7 @@ function MovimentacaoPecas({ state, setState }) {
               <option>Devolução</option>
               <option>Transferência</option>
               <option>Perda/Danificada</option>
+              <option>Inventário (ajuste)</option>
             </Select>
           </Field>
           <Field label="Nº NF / Requisição"><Input value={form.nfRequisicao} onChange={e => fp("nfRequisicao", e.target.value)} placeholder="Opcional" /></Field>
@@ -2881,6 +2960,59 @@ function MovimentacaoPecas({ state, setState }) {
           <Btn onClick={save}>💾 Salvar</Btn>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ─── HISTÓRICO DE MOVIMENTAÇÕES ──────────────────────────────────────────────
+function HistoricoMovimentacoes({ state }) {
+  const pecas = state.pecas || [];
+  const movs = (state.movimentacaoPecas || []).slice().sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+  const [filtroMes, setFiltroMes] = useState("");
+  const [filtroPeca, setFiltroPeca] = useState("");
+
+  const filtrados = movs.filter(m => {
+    if (filtroPeca && m.pecaId !== filtroPeca) return false;
+    if (filtroMes && m.data && !m.data.startsWith(filtroMes)) return false;
+    return true;
+  });
+
+  return (
+    <div>
+      <h2 style={{ fontWeight: 800, fontSize: 22, marginBottom: 16 }}>📜 Histórico de Movimentações</h2>
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Peça</label>
+            <Select value={filtroPeca} onChange={e => setFiltroPeca(e.target.value)}><option value="">Todas</option>{pecas.map(p => <option key={p.id} value={p.id}>{p.codigo} - {p.descricao || p.nome}</option>)}</Select>
+          </div>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Mês (YYYY-MM)</label>
+            <Input type="month" value={filtroMes} onChange={e => setFiltroMes(e.target.value)} />
+          </div>
+        </div>
+      </Card>
+      <Card>
+        {filtrados.length === 0 ? <EmptyState icon="📜" text="Nenhuma movimentação no período." /> : (
+          <div style={{ maxHeight: 500, overflow: "auto" }}>
+            {filtrados.map(m => {
+              const peca = pecas.find(p => p.id === m.pecaId);
+              return (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderBottom: `1px solid ${theme.border}`, background: m.tipo === "Entrada" ? `${theme.accent}06` : m.tipo === "Transferência" ? `${theme.info}06` : `${theme.danger}06` }}>
+                  <span style={{ fontSize: 24 }}>{m.tipo === "Entrada" ? "📥" : m.tipo === "Transferência" ? "🔄" : "📤"}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{peca?.descricao || peca?.nome || "—"} <span style={{ color: theme.muted, fontWeight: 400, fontSize: 11 }}>({peca?.codigo})</span></div>
+                    <div style={{ fontSize: 11, color: theme.muted }}>{m.motivo || "—"} • {m.responsavel || "—"} → {m.destino || "—"}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontWeight: 900, fontSize: 16, color: m.tipo === "Entrada" ? theme.accent : theme.danger }}>{m.tipo === "Entrada" ? "+" : "-"}{m.quantidade}</div>
+                    <div style={{ fontSize: 10, color: theme.muted }}>{formatDate(m.data)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div style={{ color: theme.muted, fontSize: 11, marginTop: 8, textAlign: "right" }}>{filtrados.length} movimentações</div>
+      </Card>
     </div>
   );
 }
@@ -2906,6 +3038,7 @@ function EstoquePecas({ state }) {
   const pecasBaixo = filtrados.filter(p => p.estoqueMinimo > 0 && p.saldoCalculado <= p.estoqueMinimo);
   const totalPecas = filtrados.reduce((s, p) => s + p.saldoCalculado, 0);
   const valorTotal = filtrados.reduce((s, p) => s + (p.saldoCalculado * p.precoUnitario), 0);
+  const precoMedioGeral = totalPecas > 0 ? valorTotal / totalPecas : 0;
 
   const imprimir = () => {
     const win = window.open("", "_blank");
@@ -2913,11 +3046,11 @@ function EstoquePecas({ state }) {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Estoque de Peças</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:11px;color:#111}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#f3f4f6;padding:6px 8px;text-align:left;border:1px solid #ddd;font-size:10px}td{padding:6px 8px;border:1px solid #ddd}.low{background:#fef3c7}.zero{background:#fee2e2}.footer{margin-top:20px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
     <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:12px"><div><div style="font-size:17px;font-weight:900">${faz.nome || "Fazenda"}</div><div>Estoque do Almoxarifado</div></div><div style="text-align:right">${new Date().toLocaleString("pt-BR")}<br/>${filtrados.length} itens | R$ ${valorTotal.toFixed(2)}</div></div>
-    <table><thead><tr><th>Código</th><th>Descrição</th><th>Cat.</th><th>Local</th><th>Qtd</th><th>Mín.</th><th>Preço</th><th>Valor</th><th>Status</th></tr></thead><tbody>
+    <table><thead><tr><th>Código</th><th>Descrição</th><th>Cat.</th><th>Local</th><th>Qtd</th><th>Mín.</th><th>Preço Méd.</th><th>Valor</th><th>Status</th></tr></thead><tbody>
     ${filtrados.map(p => { const st = p.saldoCalculado === 0 ? "ZERADO" : (p.estoqueMinimo > 0 && p.saldoCalculado <= p.estoqueMinimo ? "BAIXO" : "OK"); return `<tr class="${st === "ZERADO" ? "zero" : st === "BAIXO" ? "low" : ""}"><td style="font-family:monospace;font-weight:700">${p.codigo || "—"}</td><td><strong>${p.descricao || p.nome || "—"}</strong></td><td>${p.categoria || "—"}</td><td>${p.localizacao || "—"}</td><td style="text-align:center"><strong>${p.saldoCalculado}</strong> ${p.unidade}</td><td style="text-align:center">${p.estoqueMinimo || "—"}</td><td style="text-align:right">R$ ${p.precoUnitario.toFixed(2)}</td><td style="text-align:right"><strong>R$ ${(p.saldoCalculado * p.precoUnitario).toFixed(2)}</strong></td><td style="text-align:center;font-weight:700;color:${st === "OK" ? "#16a34a" : st === "BAIXO" ? "#d97706" : "#dc2626"}">${st}</td></tr>`; }).join("")}
     </tbody></table>
     ${pecasBaixo.length > 0 ? `<div style="margin-top:14px;padding:10px;border:2px solid #d97706;border-radius:6px"><strong>⚠️ ${pecasBaixo.length} ITENS CRÍTICOS</strong><br/>${pecasBaixo.map(p => `• ${p.codigo} — ${p.descricao || p.nome}: ${p.saldoCalculado}/${p.estoqueMinimo} ${p.unidade}`).join("<br/>")}</div>` : ""}
-    <div class="footer">AgriGest · Estoque Almoxarifado</div></body></html>`);
+    <div class="footer">AgriGest · Estoque Almoxarifado · Preço Médio: R$ ${precoMedioGeral.toFixed(2)}</div></body></html>`);
     win.document.close(); setTimeout(() => win.print(), 400);
   };
 
@@ -2928,16 +3061,17 @@ function EstoquePecas({ state }) {
         <Btn variant="info" onClick={imprimir}>🖨️ Imprimir Estoque</Btn>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
         {[
           { label: "Itens", value: filtrados.length, color: theme.info, icon: "🔧" },
           { label: "Em Estoque", value: totalPecas.toFixed(0), color: theme.accent, icon: "📦" },
           { label: "Valor Total", value: `R$ ${valorTotal.toFixed(2)}`, color: theme.gold, icon: "💰" },
+          { label: "Preço Médio", value: `R$ ${precoMedioGeral.toFixed(2)}`, color: theme.info, icon: "📈" },
           { label: "Críticos", value: pecasBaixo.length, color: pecasBaixo.length > 0 ? theme.danger : theme.accent, icon: pecasBaixo.length > 0 ? "🚨" : "✅" },
         ].map((s, i) => (
           <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 14, textAlign: "center" }}>
             <div style={{ fontSize: 9, color: theme.muted, textTransform: "uppercase", marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontWeight: 900, fontSize: 20, color: s.color }}>{s.value}</div>
+            <div style={{ fontWeight: 900, fontSize: 18, color: s.color }}>{s.value}</div>
           </Card>
         ))}
       </div>
@@ -2949,7 +3083,7 @@ function EstoquePecas({ state }) {
       <Card>
         {filtrados.length === 0 ? <EmptyState icon="🔧" text="Nenhuma peça encontrada." /> : (
           <Table
-            headers={["Código", "Descrição", "Cat.", "Local", "Qtd", "Mín.", "Preço", "Valor", "Status", "Últ. Mov."]}
+            headers={["Código", "Descrição", "Cat./Sub.", "Local", "Qtd", "Mín.", "Preço Méd.", "Valor", "Status", "Últ. Mov."]}
             rows={filtrados.map(p => {
               const st = p.saldoCalculado === 0 ? "Zerado" : (p.estoqueMinimo > 0 && p.saldoCalculado <= p.estoqueMinimo ? "Baixo" : "OK");
               const cor = st === "OK" ? "green" : (st === "Baixo" ? "gold" : "red");
@@ -2957,7 +3091,7 @@ function EstoquePecas({ state }) {
                 <tr key={p.id} style={st !== "OK" ? { background: st === "Zerado" ? `${theme.danger}08` : `${theme.warning}08` } : {}}>
                   <Td><span style={{ fontFamily: "monospace", fontWeight: 700 }}>{p.codigo || "—"}</span></Td>
                   <Td><strong>{p.descricao || p.nome}</strong>{p.aplicacao ? <><br/><span style={{ fontSize: 10, color: theme.muted }}>📌 {p.aplicacao}</span></> : null}</Td>
-                  <Td>{p.categoria || "—"}</Td>
+                  <Td>{p.categoria || "—"}{p.subcategoria ? <><br/><span style={{ fontSize: 10, color: theme.muted }}>{p.subcategoria}</span></> : null}</Td>
                   <Td>{p.localizacao || "—"}</Td>
                   <Td><strong style={{ color: cor === "green" ? theme.accent : (cor === "gold" ? theme.warning : theme.danger) }}>{p.saldoCalculado.toLocaleString()} {p.unidade}</strong></Td>
                   <Td>{p.estoqueMinimo > 0 ? `${p.estoqueMinimo} ${p.unidade}` : "—"}</Td>
@@ -2990,6 +3124,390 @@ function EstoquePecas({ state }) {
             ))}
           </div>
         </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── RELATÓRIO DE CONSUMO POR PERÍODO ────────────────────────────────────────
+function RelatorioConsumo({ state }) {
+  const pecas = state.pecas || [];
+  const movs = state.movimentacaoPecas || [];
+  const [periodoInicio, setPeriodoInicio] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split("T")[0]; });
+  const [periodoFim, setPeriodoFim] = useState(() => new Date().toISOString().split("T")[0]);
+
+  const movsPerido = movs.filter(m => m.data >= periodoInicio && m.data <= periodoFim);
+  const consumoPorPeca = {};
+  movsPerido.filter(m => m.tipo === "Saída").forEach(m => {
+    if (!consumoPorPeca[m.pecaId]) consumoPorPeca[m.pecaId] = { qtd: 0, custo: 0, count: 0 };
+    consumoPorPeca[m.pecaId].qtd += parseFloat(m.quantidade) || 0;
+    consumoPorPeca[m.pecaId].custo += (parseFloat(m.quantidade) || 0) * (parseFloat(m.custoUnitario) || 0);
+    consumoPorPeca[m.pecaId].count++;
+  });
+
+  const ranking = Object.entries(consumoPorPeca).map(([pecaId, dados]) => {
+    const peca = pecas.find(p => p.id === pecaId);
+    return { pecaId, peca, ...dados };
+  }).sort((a, b) => b.qtd - a.qtd);
+
+  const totalConsumo = ranking.reduce((s, r) => s + r.qtd, 0);
+  const totalCusto = ranking.reduce((s, r) => s + r.custo, 0);
+
+  const imprimir = () => {
+    const win = window.open("", "_blank");
+    const faz = state.fazenda || {};
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório de Consumo</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#f3f4f6;padding:6px 8px;text-align:left;border:1px solid #ddd}td{padding:6px 8px;border:1px solid #ddd}.footer{margin-top:20px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
+    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:12px"><div><div style="font-size:17px;font-weight:900">${faz.nome || "Fazenda"}</div><div>Relatório de Consumo — ${formatDate(periodoInicio)} a ${formatDate(periodoFim)}</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
+    <table><thead><tr><th>#</th><th>Código</th><th>Peça</th><th>Categoria</th><th>Qtd Saída</th><th>Nº Mov.</th><th>Custo Total</th></tr></thead><tbody>
+    ${ranking.map((r, i) => `<tr><td>${i + 1}</td><td style="font-family:monospace">${r.peca?.codigo || "—"}</td><td><strong>${r.peca?.descricao || r.peca?.nome || "—"}</strong></td><td>${r.peca?.categoria || "—"}</td><td style="text-align:center"><strong>${r.qtd}</strong></td><td style="text-align:center">${r.count}</td><td style="text-align:right">R$ ${r.custo.toFixed(2)}</td></tr>`).join("")}
+    </tbody></table>
+    <div style="margin-top:12px;font-weight:700">Total Consumo: ${totalConsumo} unidades | Custo Total: R$ ${totalCusto.toFixed(2)}</div>
+    <div class="footer">AgriGest · Relatório de Consumo</div></body></html>`);
+    win.document.close(); setTimeout(() => win.print(), 400);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📋 Relatório de Consumo</h2>
+        {ranking.length > 0 && <Btn variant="info" onClick={imprimir}>🖨️ Imprimir</Btn>}
+      </div>
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "end" }}>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>De</label><Input type="date" value={periodoInicio} onChange={e => setPeriodoInicio(e.target.value)} /></div>
+          <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Até</label><Input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} /></div>
+        </div>
+      </Card>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Itens Consumidos", value: ranking.length, color: theme.info, icon: "🔧" },
+          { label: "Total Saídas", value: totalConsumo.toFixed(0), color: theme.danger, icon: "📤" },
+          { label: "Custo Total", value: `R$ ${totalCusto.toFixed(2)}`, color: theme.gold, icon: "💰" },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 22, color: s.color }}>{s.value}</div>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        {ranking.length === 0 ? <EmptyState icon="📋" text="Nenhum consumo no período." /> : (
+          <Table headers={["#", "Código", "Peça", "Cat.", "Qtd Saída", "Nº Mov.", "Custo Total"]} rows={ranking.map((r, i) => (
+            <tr key={r.pecaId}>
+              <Td>{i + 1}</Td>
+              <Td><span style={{ fontFamily: "monospace", fontWeight: 700 }}>{r.peca?.codigo || "—"}</span></Td>
+              <Td><strong>{r.peca?.descricao || r.peca?.nome || "—"}</strong></Td>
+              <Td>{r.peca?.categoria || "—"}</Td>
+              <Td><strong style={{ color: theme.danger }}>{r.qtd}</strong></Td>
+              <Td>{r.count}</Td>
+              <Td><strong style={{ color: theme.gold }}>R$ {r.custo.toFixed(2)}</strong></Td>
+            </tr>
+          ))} />
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ─── ETIQUETAS PARA IMPRESSÃO ────────────────────────────────────────────────
+function EtiquetasPecas({ state }) {
+  const pecas = state.pecas || [];
+  const [selecionadas, setSelecionadas] = useState([]);
+  const [busca, setBusca] = useState("");
+
+  const filtradas = pecas.filter(p => {
+    if (!busca) return true;
+    return `${p.codigo} ${p.descricao} ${p.nome} ${p.categoria}`.toLowerCase().includes(busca.toLowerCase());
+  });
+
+  const toggle = (id) => setSelecionadas(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  const toggleAll = () => setSelecionadas(s => s.length === filtradas.length ? [] : filtradas.map(p => p.id));
+
+  const imprimirEtiquetas = () => {
+    const sel = pecas.filter(p => selecionadas.includes(p.id));
+    if (sel.length === 0) { alert("Selecione ao menos uma peça!"); return; }
+    const win = window.open("", "_blank");
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Etiquetas</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:10px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .etiq{border:2px solid #000;border-radius:6px;padding:10px;text-align:center;page-break-inside:avoid}
+    .cod{font-family:monospace;font-size:18px;font-weight:900;letter-spacing:2px;margin:6px 0}
+    .desc{font-size:11px;font-weight:700;margin-bottom:4px}
+    .info{font-size:9px;color:#666}
+    .barcode{font-family:'Libre Barcode 39',monospace;font-size:36px;line-height:1}
+    @media print{body{padding:0}.grid{gap:4px}}
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap" rel="stylesheet">
+    </head><body><div class="grid">
+    ${sel.map(p => `<div class="etiq">
+      <div class="barcode">*${(p.codigo || "000").replace(/[^A-Z0-9-]/gi, "")}*</div>
+      <div class="cod">${p.codigo || "—"}</div>
+      <div class="desc">${p.descricao || p.nome || "—"}</div>
+      <div class="info">${p.categoria || ""} ${p.subcategoria ? `/ ${p.subcategoria}` : ""} | ${p.localizacao || "S/L"}</div>
+      <div class="info">Est: ${parseFloat(p.quantidade) || 0} ${p.unidade} | R$ ${(parseFloat(p.precoUnitario) || 0).toFixed(2)}</div>
+    </div>`).join("")}
+    </div></body></html>`);
+    win.document.close(); setTimeout(() => win.print(), 600);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>🏷️ Etiquetas para Impressão</h2>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn variant="secondary" onClick={toggleAll}>{selecionadas.length === filtradas.length ? "Desmarcar Todas" : "Selecionar Todas"}</Btn>
+          <Btn onClick={imprimirEtiquetas} disabled={selecionadas.length === 0}>🖨️ Imprimir ({selecionadas.length})</Btn>
+        </div>
+      </div>
+      <Card style={{ marginBottom: 16 }}>
+        <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="🔍 Buscar peça..." />
+      </Card>
+      <Card>
+        {filtradas.length === 0 ? <EmptyState icon="🏷️" text="Nenhuma peça encontrada." /> : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 10 }}>
+            {filtradas.map(p => {
+              const sel = selecionadas.includes(p.id);
+              return (
+                <div key={p.id} onClick={() => toggle(p.id)} style={{ cursor: "pointer", border: `2px solid ${sel ? theme.accent : theme.border}`, borderRadius: 8, padding: 12, background: sel ? `${theme.accent}15` : theme.card, transition: "all .2s", textAlign: "center" }}>
+                  <div style={{ fontFamily: "monospace", fontWeight: 900, fontSize: 16, marginBottom: 4 }}>{p.codigo || "—"}</div>
+                  <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{p.descricao || p.nome}</div>
+                  <div style={{ fontSize: 10, color: theme.muted }}>{p.categoria} | {p.localizacao || "S/L"}</div>
+                  <div style={{ fontSize: 10, color: theme.muted }}>Est: {parseFloat(p.quantidade) || 0} {p.unidade}</div>
+                  {sel && <div style={{ marginTop: 6, color: theme.accent, fontWeight: 700, fontSize: 11 }}>✓ Selecionada</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ─── INVENTÁRIO / CONTAGEM DE ESTOQUE ────────────────────────────────────────
+function InventarioEstoque({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const items = state.inventarios || [];
+  const pecas = state.pecas || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const openNew = () => {
+    const itens = pecas.map(p => ({ pecaId: p.id, estoqueAtual: parseFloat(p.quantidade) || 0, contagem: "", divergencia: 0 }));
+    setForm({ data: new Date().toISOString().split("T")[0], responsavel: "", status: "Em Andamento", itens, obs: "" });
+    setEditing(null); setOpen(true);
+  };
+
+  const save = () => {
+    const item = { ...form, id: editing || uid() };
+    setState(s => ({ ...s, inventarios: editing ? (s.inventarios || []).map(x => x.id === editing ? item : x) : [...(s.inventarios || []), item] }));
+    setOpen(false);
+  };
+
+  const aplicarAjustes = (inv) => {
+    if (!window.confirm("Aplicar ajustes ao estoque? As quantidades serão atualizadas conforme a contagem.")) return;
+    setState(s => {
+      const novasPecas = [...s.pecas];
+      (inv.itens || []).forEach(it => {
+        if (it.contagem !== "" && it.contagem !== undefined) {
+          const idx = novasPecas.findIndex(p => p.id === it.pecaId);
+          if (idx >= 0) novasPecas[idx] = { ...novasPecas[idx], quantidade: parseFloat(it.contagem) || 0 };
+        }
+      });
+      const novasMovs = [...(s.movimentacaoPecas || [])];
+      (inv.itens || []).forEach(it => {
+        const diff = (parseFloat(it.contagem) || 0) - it.estoqueAtual;
+        if (diff !== 0 && it.contagem !== "" && it.contagem !== undefined) {
+          novasMovs.push({ id: uid(), pecaId: it.pecaId, tipo: diff > 0 ? "Entrada" : "Saída", quantidade: Math.abs(diff).toString(), data: inv.data, motivo: "Inventário (ajuste)", responsavel: inv.responsavel, destino: "Ajuste inventário" });
+        }
+      });
+      const novsInvs = (s.inventarios || []).map(x => x.id === inv.id ? { ...x, status: "Concluído" } : x);
+      return { ...s, pecas: novasPecas, movimentacaoPecas: novasMovs, inventarios: novsInvs };
+    });
+  };
+
+  const updateContagem = (pecaId, val) => {
+    setForm(f => ({
+      ...f,
+      itens: (f.itens || []).map(it => it.pecaId === pecaId ? { ...it, contagem: val, divergencia: (parseFloat(val) || 0) - it.estoqueAtual } : it)
+    }));
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📝 Inventário / Contagem</h2>
+        <Btn onClick={openNew}>+ Novo Inventário</Btn>
+      </div>
+      <Card style={{ marginBottom: 20 }}>
+        {items.length === 0 ? <EmptyState icon="📝" text="Nenhum inventário realizado." /> : (
+          <Table headers={["Data", "Responsável", "Itens", "Divergências", "Status", "Ações"]} rows={items.map(inv => {
+            const divs = (inv.itens || []).filter(it => it.contagem !== "" && it.contagem !== undefined && it.divergencia !== 0);
+            return (
+              <tr key={inv.id}>
+                <Td>{formatDate(inv.data)}</Td>
+                <Td>{inv.responsavel || "—"}</Td>
+                <Td>{(inv.itens || []).length}</Td>
+                <Td><Badge color={divs.length > 0 ? "red" : "green"}>{divs.length}</Badge></Td>
+                <Td><Badge color={inv.status === "Concluído" ? "green" : "gold"}>{inv.status}</Badge></Td>
+                <Td>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {inv.status !== "Concluído" && <Btn size="sm" variant="success" onClick={() => aplicarAjustes(inv)}>✅ Aplicar</Btn>}
+                    <Btn size="sm" variant="secondary" onClick={() => { setForm({ ...inv }); setEditing(inv.id); setOpen(true); }}>✏️</Btn>
+                  </div>
+                </Td>
+              </tr>
+            );
+          })} />
+        )}
+      </Card>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Novo"} Inventário`} width={800}>
+        <Row>
+          <Field label="Data"><Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} /></Field>
+          <Field label="Responsável"><Input value={form.responsavel} onChange={e => fp("responsavel", e.target.value)} placeholder="Nome do responsável" /></Field>
+        </Row>
+        {(form.itens || []).length > 0 && (
+          <div style={{ maxHeight: 400, overflow: "auto", marginTop: 12 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead><tr>
+                <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${theme.border}`, color: theme.muted, fontSize: 10 }}>Peça</th>
+                <th style={{ textAlign: "center", padding: "6px 8px", borderBottom: `1px solid ${theme.border}`, color: theme.muted, fontSize: 10 }}>Est. Atual</th>
+                <th style={{ textAlign: "center", padding: "6px 8px", borderBottom: `1px solid ${theme.border}`, color: theme.muted, fontSize: 10 }}>Contagem</th>
+                <th style={{ textAlign: "center", padding: "6px 8px", borderBottom: `1px solid ${theme.border}`, color: theme.muted, fontSize: 10 }}>Diferença</th>
+              </tr></thead>
+              <tbody>
+                {(form.itens || []).map(it => {
+                  const peca = pecas.find(p => p.id === it.pecaId);
+                  const diff = it.contagem !== "" && it.contagem !== undefined ? (parseFloat(it.contagem) || 0) - it.estoqueAtual : null;
+                  return (
+                    <tr key={it.pecaId} style={diff !== null && diff !== 0 ? { background: `${diff > 0 ? theme.accent : theme.danger}10` } : {}}>
+                      <td style={{ padding: "6px 8px", borderBottom: `1px solid ${theme.border}` }}><strong>{peca?.codigo}</strong> — {peca?.descricao || peca?.nome}</td>
+                      <td style={{ textAlign: "center", padding: "6px 8px", borderBottom: `1px solid ${theme.border}` }}>{it.estoqueAtual} {peca?.unidade}</td>
+                      <td style={{ textAlign: "center", padding: "6px 8px", borderBottom: `1px solid ${theme.border}` }}>
+                        <input type="number" step="0.01" value={it.contagem} onChange={e => updateContagem(it.pecaId, e.target.value)}
+                          style={{ width: 80, textAlign: "center", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, borderRadius: 4, padding: "4px 8px", fontFamily: "inherit" }} />
+                      </td>
+                      <td style={{ textAlign: "center", padding: "6px 8px", borderBottom: `1px solid ${theme.border}`, fontWeight: 700, color: diff === null ? theme.muted : diff === 0 ? theme.accent : diff > 0 ? theme.accent : theme.danger }}>
+                        {diff === null ? "—" : diff > 0 ? `+${diff}` : diff}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Field label="Observações">
+          <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+        </Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── GRÁFICOS DE MOVIMENTAÇÃO ────────────────────────────────────────────────
+function GraficosMovimentacao({ state }) {
+  const pecas = state.pecas || [];
+  const movs = state.movimentacaoPecas || [];
+
+  // Agrupar por mês
+  const porMes = {};
+  movs.forEach(m => {
+    const mes = m.data ? m.data.substring(0, 7) : "S/data";
+    if (!porMes[mes]) porMes[mes] = { entradas: 0, saidas: 0, custoE: 0, custoS: 0 };
+    const qtd = parseFloat(m.quantidade) || 0;
+    const custo = qtd * (parseFloat(m.custoUnitario) || 0);
+    if (m.tipo === "Entrada") { porMes[mes].entradas += qtd; porMes[mes].custoE += custo; }
+    else { porMes[mes].saidas += qtd; porMes[mes].custoS += custo; }
+  });
+  const meses = Object.keys(porMes).sort();
+
+  // Consumo por categoria
+  const porCat = {};
+  movs.filter(m => m.tipo === "Saída").forEach(m => {
+    const peca = pecas.find(p => p.id === m.pecaId);
+    const cat = peca?.categoria || "Outros";
+    porCat[cat] = (porCat[cat] || 0) + (parseFloat(m.quantidade) || 0);
+  });
+  const catEntries = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
+  const maxCat = catEntries.length > 0 ? catEntries[0][1] : 1;
+
+  // Top 10 peças mais consumidas
+  const consumoPeca = {};
+  movs.filter(m => m.tipo === "Saída").forEach(m => {
+    consumoPeca[m.pecaId] = (consumoPeca[m.pecaId] || 0) + (parseFloat(m.quantidade) || 0);
+  });
+  const top10 = Object.entries(consumoPeca).map(([id, qtd]) => ({ peca: pecas.find(p => p.id === id), qtd })).sort((a, b) => b.qtd - a.qtd).slice(0, 10);
+  const maxTop = top10.length > 0 ? top10[0].qtd : 1;
+
+  const barColors = [theme.accent, theme.info, theme.gold, theme.danger, "#9b59b6", "#e67e22", "#1abc9c", "#e74c3c", "#3498db", "#2ecc71"];
+
+  return (
+    <div>
+      <h2 style={{ fontWeight: 800, fontSize: 22, marginBottom: 20 }}>📈 Gráficos de Movimentação</h2>
+
+      {meses.length === 0 ? <Card><EmptyState icon="📈" text="Sem dados de movimentação para gerar gráficos." /></Card> : (
+        <>
+          <Card style={{ marginBottom: 20, padding: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 14 }}>📊 Entradas vs Saídas por Mês</div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 200, borderBottom: `1px solid ${theme.border}`, paddingBottom: 8 }}>
+              {meses.map(mes => {
+                const d = porMes[mes];
+                const maxVal = Math.max(...meses.map(m => Math.max(porMes[m].entradas, porMes[m].saidas)), 1);
+                return (
+                  <div key={mes} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 160 }}>
+                      <div style={{ width: 18, height: `${(d.entradas / maxVal) * 150}px`, background: theme.accent, borderRadius: "4px 4px 0 0", minHeight: 2 }} title={`Entradas: ${d.entradas}`} />
+                      <div style={{ width: 18, height: `${(d.saidas / maxVal) * 150}px`, background: theme.danger, borderRadius: "4px 4px 0 0", minHeight: 2 }} title={`Saídas: ${d.saidas}`} />
+                    </div>
+                    <div style={{ fontSize: 9, color: theme.muted, textAlign: "center" }}>{mes.substring(5)}/{mes.substring(2, 4)}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 12 }}>
+              <span style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: theme.accent, display: "inline-block" }} /> Entradas</span>
+              <span style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: theme.danger, display: "inline-block" }} /> Saídas</span>
+            </div>
+          </Card>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+            <Card style={{ padding: 20 }}>
+              <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 14 }}>📦 Consumo por Categoria</div>
+              {catEntries.map(([cat, qtd], i) => (
+                <div key={cat} style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+                    <span>{cat}</span><strong>{qtd}</strong>
+                  </div>
+                  <div style={{ height: 14, background: `${theme.border}44`, borderRadius: 7, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(qtd / maxCat) * 100}%`, background: barColors[i % barColors.length], borderRadius: 7, transition: "width .5s" }} />
+                  </div>
+                </div>
+              ))}
+            </Card>
+
+            <Card style={{ padding: 20 }}>
+              <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 14 }}>🏆 Top 10 — Mais Consumidas</div>
+              {top10.map((item, i) => (
+                <div key={item.peca?.id || i} style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+                    <span>{item.peca?.codigo} — {item.peca?.descricao || item.peca?.nome || "—"}</span><strong>{item.qtd}</strong>
+                  </div>
+                  <div style={{ height: 14, background: `${theme.border}44`, borderRadius: 7, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(item.qtd / maxTop) * 100}%`, background: barColors[i % barColors.length], borderRadius: 7, transition: "width .5s" }} />
+                  </div>
+                </div>
+              ))}
+            </Card>
+          </div>
+        </>
       )}
     </div>
   );
@@ -5654,15 +6172,25 @@ function AlmoxarifadoDept({ state, setState }) {
   const abas = [
     { id: "pecas", label: "🔧 Peças", icon: "🔧" },
     { id: "movimentacaoPecas", label: "📦 Movimentação", icon: "📦" },
+    { id: "historico", label: "📜 Histórico", icon: "📜" },
     { id: "estoquePecas", label: "📊 Estoque", icon: "📊" },
-    { id: "requisicoes", label: "📝 Requisições", icon: "📝" },
+    { id: "consumo", label: "📋 Consumo", icon: "📋" },
+    { id: "etiquetas", label: "🏷️ Etiquetas", icon: "🏷️" },
+    { id: "inventario", label: "📝 Inventário", icon: "📝" },
+    { id: "graficos", label: "📈 Gráficos", icon: "📈" },
+    { id: "requisicoes", label: "🛒 Requisições", icon: "🛒" },
   ];
 
   const renderContent = () => {
     switch (aba) {
       case "pecas": return <Pecas state={state} setState={setState} />;
       case "movimentacaoPecas": return <MovimentacaoPecas state={state} setState={setState} />;
+      case "historico": return <HistoricoMovimentacoes state={state} />;
       case "estoquePecas": return <EstoquePecas state={state} />;
+      case "consumo": return <RelatorioConsumo state={state} />;
+      case "etiquetas": return <EtiquetasPecas state={state} />;
+      case "inventario": return <InventarioEstoque state={state} setState={setState} />;
+      case "graficos": return <GraficosMovimentacao state={state} />;
       case "requisicoes": return <RequisicoesCompra state={state} setState={setState} />;
       default: return <Pecas state={state} setState={setState} />;
     }
@@ -5677,20 +6205,20 @@ function AlmoxarifadoDept({ state, setState }) {
             <span style={{ fontWeight: 700, color: theme.warning }}>{pecasBaixo.length} peça(s) com estoque baixo/zerado</span>
             <span style={{ color: theme.muted, fontSize: 12, marginLeft: 8 }}>— Verifique a aba Estoque ou gere uma Requisição automática</span>
           </div>
-          <Btn size="sm" variant="gold" onClick={() => setAba("requisicoes")}>📝 Requisições</Btn>
+          <Btn size="sm" variant="gold" onClick={() => setAba("requisicoes")}>🛒 Requisições</Btn>
         </div>
       )}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${theme.border}`, flexWrap: "wrap", paddingBottom: 8 }}>
         {abas.map(a => (
           <button key={a.id} onClick={() => setAba(a.id)} style={{
-            padding: "8px 20px", borderRadius: 8, cursor: "pointer",
+            padding: "7px 14px", borderRadius: 8, cursor: "pointer",
             background: aba === a.id ? `${theme.accent}22` : "transparent",
             border: aba === a.id ? `1px solid ${theme.accent}44` : `1px solid ${theme.border}`,
             color: aba === a.id ? theme.accentLight : theme.muted,
-            fontFamily: "inherit", fontSize: 13, fontWeight: aba === a.id ? 600 : 400,
-            transition: "all .2s", display: "flex", alignItems: "center", gap: 6
+            fontFamily: "inherit", fontSize: 12, fontWeight: aba === a.id ? 600 : 400,
+            transition: "all .2s", display: "flex", alignItems: "center", gap: 4
           }}>
-            <span>{a.icon}</span> {a.label}
+            <span style={{ fontSize: 13 }}>{a.icon}</span> {a.label.replace(/^[^\s]+\s/, "")}
           </button>
         ))}
       </div>

@@ -1,4 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+
+// ─── HOOK RESPONSIVO ─────────────────────────────────────────────────────────
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < breakpoint : false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 const theme = {
   bg: "#0d1117",
@@ -116,13 +127,13 @@ const Card = ({ children, style = {} }) => (
 const Modal = ({ open, onClose, title, children, width = 600 }) => {
   if (!open) return null;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#000c", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
-      <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 16, width: "100%", maxWidth: width, maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontWeight: 700, fontSize: 17 }}>{title}</span>
+    <div style={{ position: "fixed", inset: 0, background: "#000c", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }} onClick={onClose}>
+      <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 16, width: "100%", maxWidth: Math.min(width, window.innerWidth - 24), maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "14px 16px", borderBottom: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: theme.card, zIndex: 1 }}>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>{title}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: theme.muted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
         </div>
-        <div style={{ padding: 20 }}>{children}</div>
+        <div style={{ padding: "16px" }}>{children}</div>
       </div>
     </div>
   );
@@ -158,10 +169,33 @@ const Select = ({ value, onChange, children }) => (
   </select>
 );
 
-const Row = ({ children, cols = 2 }) => (
-  <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols},1fr)`, gap: 12, marginBottom: 4 }}>
+const Row = ({ children, cols = 2 }) => {
+  const isMob = useIsMobile(640);
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : `repeat(${cols},1fr)`, gap: 12, marginBottom: 4 }}>
+      {children}
+    </div>
+  );
+};
+
+// Responsive grid helper for stat cards, etc.
+const ResponsiveGrid = ({ children, minWidth = 220, gap = 12, style = {} }) => (
+  <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${minWidth}px, 1fr))`, gap, ...style }}>
     {children}
   </div>
+);
+
+// Global responsive styles injected once
+const ResponsiveStyles = () => (
+  <style>{`
+    @media (max-width: 768px) {
+      .agri-tabs { flex-wrap: wrap !important; }
+      .agri-tabs > button { flex: 1 1 auto !important; min-width: 120px !important; font-size: 11px !important; padding: 6px 8px !important; }
+    }
+    @media (max-width: 480px) {
+      .agri-tabs > button { min-width: 90px !important; font-size: 10px !important; }
+    }
+  `}</style>
 );
 
 const SectionTitle = ({ children, action }) => (
@@ -315,7 +349,7 @@ function Login({ onLogin, usuarios }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, position: "relative" }}>
       <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 65% 40%, ${theme.accent}1a 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, ${theme.gold}12 0%, transparent 50%)` }} />
-      <div style={{ width: 420, position: "relative", zIndex: 1 }}>
+      <div style={{ width: "100%", maxWidth: 420, padding: "0 16px", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div style={{ width: 68, height: 68, background: `linear-gradient(135deg,${theme.accent},${theme.gold})`, borderRadius: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 34, marginBottom: 14, boxShadow: `0 0 40px ${theme.accent}44` }}>🌾</div>
           <h1 style={{ fontWeight: 900, fontSize: 30, color: theme.text, letterSpacing: -1, margin: 0 }}>AgriGest</h1>
@@ -380,7 +414,7 @@ function FazendaSelector({ fazendas, onSelect, onNovaFazenda }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, position: "relative" }}>
       <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 65% 40%, ${theme.accent}1a 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, ${theme.gold}12 0%, transparent 50%)` }} />
-      <div style={{ width: 520, position: "relative", zIndex: 1 }}>
+      <div style={{ width: "100%", maxWidth: 520, padding: "0 16px", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div style={{ width: 68, height: 68, background: `linear-gradient(135deg,${theme.accent},${theme.gold})`, borderRadius: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 34, marginBottom: 14, boxShadow: `0 0 40px ${theme.accent}44` }}>🌾</div>
           <h1 style={{ fontWeight: 900, fontSize: 28, color: theme.text, letterSpacing: -1, margin: 0 }}>Selecione a Fazenda</h1>
@@ -525,10 +559,17 @@ const navGroups = (isAdmin, userModulos) => {
     .filter(g => g.items.length > 0);
 };
 
-function Sidebar({ active, setActive, fazenda, usuario }) {
+function Sidebar({ active, setActive, fazenda, usuario, mobileOpen, onClose }) {
   const groups = navGroups(usuario?.role === "admin", usuario?.modulos);
-  return (
-    <div style={{ width: 240, background: theme.surface, borderRight: `1px solid ${theme.border}`, height: "100%", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0 }}>
+  const isMobile = useIsMobile();
+
+  const handleNav = (id) => {
+    setActive(id);
+    if (isMobile && onClose) onClose();
+  };
+
+  const sidebarContent = (
+    <div style={{ width: isMobile ? "100%" : 240, background: theme.surface, borderRight: isMobile ? "none" : `1px solid ${theme.border}`, height: "100%", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0 }}>
       <div style={{ padding: "16px 14px", borderBottom: `1px solid ${theme.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <div style={{ width: 36, height: 36, background: `linear-gradient(135deg,${theme.accent},${theme.gold})`, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🌾</div>
@@ -548,15 +589,15 @@ function Sidebar({ active, setActive, fazenda, usuario }) {
               <span>{group.icon}</span><span>{group.title}</span>
             </div>
             {group.items.map(item => (
-              <button key={item.id} onClick={() => setActive(item.id)} style={{
-                width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7,
+              <button key={item.id} onClick={() => handleNav(item.id)} style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", borderRadius: 7,
                 background: active === item.id ? `${theme.accent}22` : "transparent",
                 border: active === item.id ? `1px solid ${theme.accent}44` : "1px solid transparent",
                 color: active === item.id ? theme.accentLight : theme.muted,
-                cursor: "pointer", fontFamily: "inherit", fontSize: 12,
+                cursor: "pointer", fontFamily: "inherit", fontSize: 13,
                 fontWeight: active === item.id ? 600 : 400, textAlign: "left", transition: "all .15s", marginBottom: 2,
               }}>
-                <span style={{ fontSize: 14 }}>{item.icon}</span>
+                <span style={{ fontSize: 16 }}>{item.icon}</span>
                 <span>{item.label}</span>
               </button>
             ))}
@@ -565,6 +606,25 @@ function Sidebar({ active, setActive, fazenda, usuario }) {
       </nav>
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <>
+        {mobileOpen && (
+          <div style={{ position: "fixed", inset: 0, background: "#000a", zIndex: 999 }} onClick={onClose} />
+        )}
+        <div style={{
+          position: "fixed", top: 0, left: 0, bottom: 0, width: 280, zIndex: 1000,
+          transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform .25s ease",
+        }}>
+          {sidebarContent}
+        </div>
+      </>
+    );
+  }
+
+  return sidebarContent;
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
@@ -609,7 +669,7 @@ function Dashboard({ state, setActive }) {
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color, borderBottom: `2px solid ${color}33`, paddingBottom: 6, marginBottom: 12 }}>
         {title}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
         {children}
       </div>
     </div>
@@ -1511,7 +1571,7 @@ function Produtividade({ state }) {
       )}
       <Card style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Filtros</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 14 }}>
           <div>
             <label style={labelStyle}>🗺️ Talhão</label>
             <select value={filtroTalhao} onChange={e => setFiltroTalhao(e.target.value)} style={selectStyle}>
@@ -2363,7 +2423,7 @@ function Abastecimento({ state, setState }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Total Abastecido", value: `${totalLitros.toFixed(0)} L`, color: theme.accent, icon: "⛽" },
           { label: "Total de Abastecimentos", value: items.length, color: theme.info, icon: "📋" },
@@ -2515,7 +2575,7 @@ function RelatorioCombustivel({ state }) {
         </div>
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Total Litros", value: `${totalLitros.toFixed(0)} L`, color: theme.accent },
           { label: "Total Gasto", value: `R$ ${totalGasto.toFixed(2)}`, color: theme.gold },
@@ -2981,7 +3041,7 @@ function HistoricoMovimentacoes({ state }) {
     <div>
       <h2 style={{ fontWeight: 800, fontSize: 22, marginBottom: 16 }}>📜 Histórico de Movimentações</h2>
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 12 }}>
           <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Peça</label>
             <Select value={filtroPeca} onChange={e => setFiltroPeca(e.target.value)}><option value="">Todas</option>{pecas.map(p => <option key={p.id} value={p.id}>{p.codigo} - {p.descricao || p.nome}</option>)}</Select>
           </div>
@@ -3174,12 +3234,12 @@ function RelatorioConsumo({ state }) {
         {ranking.length > 0 && <Btn variant="info" onClick={imprimir}>🖨️ Imprimir</Btn>}
       </div>
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "end" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 12, alignItems: "end" }}>
           <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>De</label><Input type="date" value={periodoInicio} onChange={e => setPeriodoInicio(e.target.value)} /></div>
           <div><label style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Até</label><Input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} /></div>
         </div>
       </Card>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Itens Consumidos", value: ranking.length, color: theme.info, icon: "🔧" },
           { label: "Total Saídas", value: totalConsumo.toFixed(0), color: theme.danger, icon: "📤" },
@@ -3478,7 +3538,7 @@ function GraficosMovimentacao({ state }) {
             </div>
           </Card>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 20, marginBottom: 20 }}>
             <Card style={{ padding: 20 }}>
               <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 14 }}>📦 Consumo por Categoria</div>
               {catEntries.map(([cat, qtd], i) => (
@@ -3549,7 +3609,7 @@ function RequisicoesCompra({ state, setState }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Pendentes", value: items.filter(r => r.status === "Pendente").length, color: theme.warning, icon: "⏳" },
           { label: "Aprovadas", value: items.filter(r => r.status === "Aprovada").length, color: theme.accent, icon: "✅" },
@@ -3905,7 +3965,7 @@ function FichasAplicacao({ state, setState }) {
         </div>
 
         {sec("Informações Gerais")}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", marginBottom: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", marginBottom: 10 }}>
           {[
             ["📅 Data",        ficha.data || "—"],
             ["👤 Responsável", ficha.responsavel || "—"],
@@ -3956,7 +4016,7 @@ function FichasAplicacao({ state, setState }) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, marginTop: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 20, marginTop: 20 }}>
           {[["Aplicador", "Nome / Assinatura"], ["Responsável Técnico", "Nome / CREA ou CRBio"], ["Engenheiro Agrônomo", "Nome / CREA"]].map(([nome, cargo]) => (
             <div key={nome} style={{ textAlign: "center" }}>
               <div style={{ borderTop: "1.5px solid #0f172a", paddingTop: 6, marginBottom: 3 }} />
@@ -4319,7 +4379,7 @@ function RelatorioCarregamentos({ state }) {
         </div>
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Total Carregamentos", value: dadosFiltrados.length, color: theme.info },
           { label: "Total Toneladas", value: `${(totalKg / 1000).toFixed(2)} t`, color: theme.accent },
@@ -4546,7 +4606,7 @@ function RelatoriosDiarios({ state }) {
 
       <Card style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Filtros</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 14 }}>
           <div><label style={labelStyle}>📅 Data</label><input type="date" value={dataFiltro} onChange={e => setDataFiltro(e.target.value)} style={selectStyle} /></div>
           <div><label style={labelStyle}>🗺️ Talhão</label><select value={filtroTalhao} onChange={e => setFiltroTalhao(e.target.value)} style={selectStyle}><option value="">Todos os talhões</option>{talhoesLista.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
         </div>
@@ -4786,7 +4846,7 @@ function RelatorioMotoristas({ state }) {
       )}
       <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Filtros</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 14, marginBottom: 14 }}>
           <div><label style={labelStyle}>👷 Motorista</label><select value={filtroMotorista} onChange={e => setFiltroMotorista(e.target.value)} style={selectStyle}><option value="">Todos os motoristas</option>{motoristasLista.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
           <div><label style={labelStyle}>🚛 Transportadora</label><select value={filtroTransportadora} onChange={e => setFiltroTransportadora(e.target.value)} style={selectStyle}><option value="">Todas as transportadoras</option>{transportadorasLista.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
         </div>
@@ -5062,7 +5122,7 @@ function ContasPagar({ state, setState }) {
         <Btn onClick={openNew}>+ Nova Conta</Btn>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Total Pendente", value: `R$ ${totalPendente.toFixed(2)}`, color: theme.warning },
           { label: "Total Vencido", value: `R$ ${totalVencido.toFixed(2)}`, color: theme.danger },
@@ -5172,7 +5232,7 @@ function ContasReceber({ state, setState }) {
         <Btn onClick={openNew}>+ Nova Conta</Btn>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Total Pendente", value: `R$ ${totalPendente.toFixed(2)}`, color: theme.warning },
           { label: "Total Vencido", value: `R$ ${totalVencido.toFixed(2)}`, color: theme.danger },
@@ -5405,13 +5465,13 @@ function FluxoCaixa({ state }) {
 
       <Card style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Período</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 14 }}>
           <div><label style={labelStyle}>Data Início</label><input type="date" value={periodoInicio} onChange={e => setPeriodoInicio(e.target.value)} style={selectStyle} /></div>
           <div><label style={labelStyle}>Data Fim</label><input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} style={selectStyle} /></div>
         </div>
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Total de Receitas", value: `R$ ${totalReceitas.toFixed(2)}`, color: theme.accent },
           { label: "Total de Despesas", value: `R$ ${totalDespesas.toFixed(2)}`, color: theme.danger },
@@ -5521,7 +5581,7 @@ function RelatorioFinanceiro({ state }) {
         </div>
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Total Receitas", value: `R$ ${totalReceitasAno.toFixed(2)}`, color: theme.accent },
           { label: "Total Despesas", value: `R$ ${totalDespesasAno.toFixed(2)}`, color: theme.danger },
@@ -5939,7 +5999,7 @@ function Manutencoes({ state, setState }) {
     <div>
       <SectionTitle action={<Btn onClick={openNew}>+ Nova Manutenção</Btn>}>🔧 Manutenções</SectionTitle>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[
           { label: "Pendentes", value: totalPendentes, color: theme.warning, icon: "⏳" },
           { label: "Em Andamento", value: totalAndamento, color: theme.info, icon: "🔧" },
@@ -6281,6 +6341,8 @@ export default function App() {
   const [fazendaSelecionada, setFazendaSelecionada] = useState(null);
   const [anoSafra, setAnoSafra] = useState(null);
   const [active, setActive] = useState("dashboard");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [state, setState] = useState(initState());
   const [toast, setToast] = useState("");
   const [skipSelector, setSkipSelector] = useState(false);
@@ -6374,11 +6436,20 @@ export default function App() {
 
   return (
     <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text, fontFamily: "'IBM Plex Sans', system-ui, sans-serif", overflow: "hidden" }}>
-      <Sidebar active={active} setActive={setActive} fazenda={state.fazenda} usuario={usuarioLogado} />
-      <main style={{ flex: 1, overflowY: "auto", padding: 28 }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      <ResponsiveStyles />
+      <Sidebar active={active} setActive={setActive} fazenda={state.fazenda} usuario={usuarioLogado} mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <main style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 12px" : 28 }}>
+        {/* Top bar */}
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: isMobile ? 8 : 12, marginBottom: isMobile ? 12 : 20, flexWrap: "wrap" }}>
+          {/* Mobile hamburger */}
+          {isMobile && (
+            <button onClick={() => setMobileMenuOpen(true)} style={{
+              background: `${theme.accent}18`, border: `1px solid ${theme.accent}44`, borderRadius: 8,
+              padding: "8px 12px", cursor: "pointer", color: theme.accentLight, fontSize: 18, lineHeight: 1, marginRight: "auto",
+            }}>☰</button>
+          )}
           {/* Indicador da fazenda e safra selecionada */}
-          {fazendaSelecionada && anoSafra && (
+          {fazendaSelecionada && anoSafra && !isMobile && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: "auto" }}>
               <div style={{ background: `${theme.accent}18`, border: `1px solid ${theme.accent}44`, borderRadius: 8, padding: "6px 14px", display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 14 }}>🏡</span>
@@ -6386,13 +6457,19 @@ export default function App() {
                 <span style={{ color: theme.muted, fontSize: 11 }}>|</span>
                 <span style={{ color: theme.gold, fontSize: 12, fontWeight: 600 }}>Safra {anoSafra}</span>
               </div>
-              <button onClick={handleTrocarFazenda} style={{ background: `${theme.info}18`, color: theme.info, border: `1px solid ${theme.info}33`, padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>🔄 Trocar Fazenda</button>
+              <button onClick={handleTrocarFazenda} style={{ background: `${theme.info}18`, color: theme.info, border: `1px solid ${theme.info}33`, padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>🔄 Trocar</button>
             </div>
           )}
-          {toast && <span style={{ background: `${theme.accent}22`, color: theme.accentLight, border: `1px solid ${theme.accent}44`, padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>{toast}</span>}
-          <span style={{ color: theme.muted, fontSize: 11 }}>💾 Dados salvos automaticamente</span>
-          <button onClick={handleLogout} style={{ background: `${theme.danger}18`, color: theme.danger, border: `1px solid ${theme.danger}33`, padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>🚪 Sair</button>
-          <button onClick={clearData} style={{ background: `${theme.warning}18`, color: theme.warning, border: `1px solid ${theme.warning}33`, padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>🗑️ Limpar Dados</button>
+          {/* Mobile: compact fazenda indicator */}
+          {fazendaSelecionada && anoSafra && isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ color: theme.accentLight, fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🏡 {fazendaSelecionada.nome || "Fazenda"} · {anoSafra}</span>
+            </div>
+          )}
+          {toast && <span style={{ background: `${theme.accent}22`, color: theme.accentLight, border: `1px solid ${theme.accent}44`, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{toast}</span>}
+          {!isMobile && <span style={{ color: theme.muted, fontSize: 11 }}>💾 Auto-save</span>}
+          <button onClick={handleLogout} style={{ background: `${theme.danger}18`, color: theme.danger, border: `1px solid ${theme.danger}33`, padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>{isMobile ? "🚪" : "🚪 Sair"}</button>
+          {!isMobile && <button onClick={clearData} style={{ background: `${theme.warning}18`, color: theme.warning, border: `1px solid ${theme.warning}33`, padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>🗑️ Limpar Dados</button>}
         </div>
         <div style={{ maxWidth: 1200 }}>{page()}</div>
       </main>

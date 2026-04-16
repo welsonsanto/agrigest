@@ -38,6 +38,198 @@ const graosOpcoes = ["Soja", "Milho", "Sorgo", "Milheto", "Gergelim", "Trigo", "
 const safrasOpcoes = ["2023/2024", "2024/2025", "2025/2026", "2026/2027"];
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+// ─── CABEÇALHO PADRÃO PARA RELATÓRIOS ────────────────────────────────────────
+const gerarCabecalhoCSS = () => `
+  .cabecalho-rel { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #0f172a; padding-bottom:8px; margin-bottom:14px; gap:12px; }
+  .cab-esq { display:flex; align-items:center; gap:10px; }
+  .cab-logo { width:48px; height:48px; object-fit:contain; border-radius:6px; }
+  .cab-logo-ph { width:48px; height:48px; background:#f0fdf4; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:22px; border:1px solid #bbf7d0; }
+  .cab-faz-nome { font-size:15px; font-weight:900; color:#0f172a; }
+  .cab-faz-sub { font-size:9px; color:#475569; margin-top:1px; line-height:1.5; }
+  .cab-dir { text-align:right; }
+  .cab-badge { background:#166534; color:#fff; font-size:8px; font-weight:800; letter-spacing:1.5px; padding:3px 10px; border-radius:20px; text-transform:uppercase; display:inline-block; }
+  .cab-subtitulo { font-size:11px; font-weight:700; color:#0f172a; margin-top:6px; }
+  .cab-data { font-size:9px; color:#64748b; margin-top:3px; }
+`;
+
+const gerarCabecalhoHTML = (faz, titulo, subtitulo) => `
+  <div class="cabecalho-rel">
+    <div class="cab-esq">
+      ${faz.logo ? '<img src="' + faz.logo + '" class="cab-logo" alt="logo"/>' : '<div class="cab-logo-ph">🌾</div>'}
+      <div>
+        <div class="cab-faz-nome">${faz.nome || "FAZENDA"}</div>
+        <div class="cab-faz-sub">Produtor: <strong>${faz.produtor || "—"}</strong></div>
+        <div class="cab-faz-sub">CNPJ/CPF: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div>
+        <div class="cab-faz-sub">${faz.endereco || ""} ${faz.numero || ""}, ${faz.cidade || ""}/${faz.estado || ""}</div>
+      </div>
+    </div>
+    <div class="cab-dir">
+      <div class="cab-badge">${titulo}</div>
+      ${subtitulo ? '<div class="cab-subtitulo">' + subtitulo + '</div>' : ''}
+      <div class="cab-data">Gerado: ${new Date().toLocaleString("pt-BR")}</div>
+    </div>
+  </div>
+`;
+
+// ─── BACKUP ───────────────────────────────────────────────────────────────────
+function BackupManager({ state, setState }) {
+  const [importando, setImportando] = useState(false);
+  const [preview, setPreview] = useState(null);
+
+  const exportarBackupCompleto = () => {
+    const dados = {
+      versao: "1.0",
+      exportadoEm: new Date().toISOString(),
+      dados: state,
+    };
+    // Remove dados sensíveis de usuários fixos
+    const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backup_agrigest_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    alert("✅ Backup exportado com sucesso!");
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (parsed.dados) {
+          setPreview(parsed);
+        } else {
+          // Tenta interpretar como dados diretos (formato antigo)
+          setPreview({ versao: "legado", exportadoEm: "desconhecido", dados: parsed });
+        }
+      } catch (err) {
+        alert("❌ Arquivo inválido. Selecione um arquivo JSON de backup válido.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const restaurarBackup = () => {
+    if (!preview?.dados) return;
+    if (!window.confirm("⚠️ ATENÇÃO: Restaurar este backup substituirá TODOS os dados atuais. Deseja continuar?")) return;
+    // Mescla usuários fixos
+    const fixos = USUARIOS_FIXOS.map(u => ({ ...u, modulos: u.modulos || [], isFixo: true }));
+    const locais = (preview.dados.usuarios || []).filter(u => !fixos.some(f => f.login === u.login));
+    const dadosRestaurados = { ...preview.dados, usuarios: [...fixos, ...locais] };
+    setState(dadosRestaurados);
+    setPreview(null);
+    setImportando(false);
+    alert("✅ Backup restaurado com sucesso! Os dados foram carregados.");
+  };
+
+  const countItems = (data) => {
+    if (!data) return {};
+    return {
+      fazendas: (data.fazendas || []).length,
+      safras: (data.safras || []).length,
+      contratos: (data.contratos || []).length,
+      romaneiosEntrada: (data.romaneiosEntrada || []).length,
+      romaneiosSaida: (data.romaneiosSaida || []).length,
+      maquinas: (data.maquinas || []).length,
+      pecas: (data.pecas || []).length,
+      clientes: (data.clientes || []).length,
+      insumos: (data.insumos || []).length,
+    };
+  };
+
+  const currentCounts = countItems(state);
+
+  return (
+    <div>
+      <SectionTitle>💾 Backup do Sistema</SectionTitle>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 20, marginBottom: 24 }}>
+        {/* Exportar */}
+        <Card style={{ borderLeft: `4px solid ${theme.accent}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 48, height: 48, background: `${theme.accent}18`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📤</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: theme.text }}>Exportar Backup</div>
+              <div style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>Salve uma cópia completa dos dados</div>
+            </div>
+          </div>
+          <div style={{ background: `${theme.surface}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: theme.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Resumo dos dados atuais</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {Object.entries(currentCounts).map(([key, val]) => (
+                <div key={key} style={{ fontSize: 12, color: theme.text, display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: theme.muted }}>{key}:</span>
+                  <strong>{val}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Btn onClick={exportarBackupCompleto} style={{ width: "100%" }}>📤 Exportar Backup Completo</Btn>
+        </Card>
+
+        {/* Restaurar */}
+        <Card style={{ borderLeft: `4px solid ${theme.gold}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 48, height: 48, background: `${theme.gold}18`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📥</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: theme.text }}>Restaurar Backup</div>
+              <div style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>Importe dados de um backup anterior</div>
+            </div>
+          </div>
+
+          {!importando && !preview && (
+            <div>
+              <div style={{ background: `${theme.warning}0a`, border: `1px solid ${theme.warning}33`, borderRadius: 8, padding: "10px 14px", marginBottom: 16 }}>
+                <p style={{ fontSize: 12, color: theme.warning, margin: 0 }}>⚠️ A restauração substituirá <strong>todos</strong> os dados atuais. Recomendamos exportar um backup antes de restaurar.</p>
+              </div>
+              <Btn variant="gold" onClick={() => setImportando(true)} style={{ width: "100%" }}>📥 Selecionar Arquivo de Backup</Btn>
+            </div>
+          )}
+
+          {importando && !preview && (
+            <div>
+              <div style={{ border: `2px dashed ${theme.border}`, borderRadius: 12, padding: "30px 20px", textAlign: "center", marginBottom: 12 }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>📁</div>
+                <p style={{ fontSize: 13, color: theme.muted, marginBottom: 12 }}>Selecione o arquivo .json de backup</p>
+                <input type="file" accept=".json" onChange={handleFileSelect} style={{ fontSize: 13, color: theme.text }} />
+              </div>
+              <Btn variant="secondary" onClick={() => setImportando(false)} style={{ width: "100%" }}>Cancelar</Btn>
+            </div>
+          )}
+
+          {preview && (
+            <div>
+              <div style={{ background: `${theme.accent}0a`, border: `1px solid ${theme.accent}33`, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: theme.accentLight, marginBottom: 6 }}>✅ Arquivo carregado com sucesso</div>
+                <div style={{ fontSize: 11, color: theme.muted }}>
+                  Versão: {preview.versao || "—"} · Exportado em: {preview.exportadoEm ? new Date(preview.exportadoEm).toLocaleString("pt-BR") : "—"}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 10 }}>
+                  {Object.entries(countItems(preview.dados)).map(([key, val]) => (
+                    <div key={key} style={{ fontSize: 11, color: theme.text, display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: theme.muted }}>{key}:</span>
+                      <strong>{val}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="secondary" onClick={() => { setPreview(null); setImportando(false); }} style={{ flex: 1 }}>Cancelar</Btn>
+                <Btn variant="gold" onClick={restaurarBackup} style={{ flex: 1 }}>✅ Restaurar Dados</Btn>
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── MÓDULOS DE ACESSO ───────────────────────────────────────────────────────
 const modulosDisponiveis = [
   { grupo: "📊 DASHBOARD", modulos: [
@@ -270,7 +462,8 @@ const initState = () => {
       if (!parsed.movimentacaoPecas) parsed.movimentacaoPecas = [];
       if (!parsed.inventarios) parsed.inventarios = [];
       if (!parsed.fichasAplicacao) parsed.fichasAplicacao = [];
-      if (!parsed.vendasMilho) parsed.vendasMilho = [];
+       if (!parsed.vendasMilho) parsed.vendasMilho = [];
+       if (!parsed.pluviometro) parsed.pluviometro = [];
       if (!parsed.contasPagar) parsed.contasPagar = [];
       if (!parsed.contasReceber) parsed.contasReceber = [];
       if (!parsed.despesasOperacionais) parsed.despesasOperacionais = [];
@@ -304,7 +497,8 @@ const initState = () => {
     movimentacaoPecas: [],
     inventarios: [],
     fichasAplicacao: [],
-    vendasMilho: [],
+     vendasMilho: [],
+     pluviometro: [],
     contasPagar: [],
     contasReceber: [],
     despesasOperacionais: [],
@@ -547,6 +741,7 @@ const navGroups = (isAdmin, userModulos) => {
       items: [
         { id: "usuarios", label: "Usuários", icon: "👥" },
         { id: "lixeira", label: "Lixeira", icon: "🗑️" },
+        { id: "backup", label: "Backup", icon: "💾" },
       ]
     }] : [])
   ];
@@ -2402,8 +2597,8 @@ function Abastecimento({ state, setState }) {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório de Abastecimento</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}.faz-nome{font-size:17px;font-weight:900}.faz-sub{font-size:10px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}</style></head><body>
-    <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div class="faz-sub">Relatório de Abastecimento</div></div><div style="text-align:right">Gerado: ${new Date().toLocaleString("pt-BR")}</div></div>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}</style></head><body>
+    ${gerarCabecalhoHTML(faz, "RELATÓRIO DE ABASTECIMENTO", "")}
     <table><thead><tr><th>Data</th><th>Máquina</th><th>Operador</th><th>Tipo</th><th>Litros</th><th>Preço/L</th><th>Total</th><th>Hodômetro</th></tr></thead><tbody>
     ${items.map(a => `<tr><td style="white-space:nowrap">${a.data}</td><td style="white-space:nowrap">${a.maquina}${a.tipo ? ` (${a.tipo})` : ""}</td><td style="white-space:nowrap">${a.operador || "—"}</td><td style="text-align:center">${a.tipo || "Diesel"}</td><td style="text-align:center"><strong>${a.litros} L</strong></td><td style="text-align:center">R$ ${parseFloat(a.precoLitro || 0).toFixed(2)}</td><td style="text-align:center">R$ ${((parseFloat(a.litros) || 0) * (parseFloat(a.precoLitro) || 0)).toFixed(2)}</td><td style="text-align:center">${a.hodometro || "—"}</td>`).join("")}
     </tbody><tfoot><tr class="tot"><td colspan="4"><strong>TOTAIS</strong></td><td style="text-align:center"><strong>${totalLitros.toFixed(0)} L</strong></td><td style="text-align:center"><strong>R$ ${totalGastos.toFixed(2)}</strong></td><td style="text-align:center"><strong>${items.length} abast.</strong></td><td style="text-align:center"><strong>${items.length > 0 ? (totalLitros / items.length).toFixed(1) : 0} L/abast</strong></td></tr></tfoot>
@@ -2545,8 +2740,8 @@ function RelatorioCombustivel({ state }) {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório de Consumo</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}.faz-nome{font-size:17px;font-weight:900}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
-    <div class="header"><div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div>Relatório de Consumo de Combustível</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
+    ${gerarCabecalhoHTML(faz, "RELATÓRIO DE CONSUMO", "Consumo de Combustível")}
     <table><thead><tr><th>Máquina</th><th>Litros</th><th>Gasto (R$)</th><th>Abastecimentos</th><th>Média (L/abast)</th></tr></thead><tbody>
     ${Object.entries(porMaquina).map(([nome, dados]) => `<tr><td style="font-weight:700">${nome}</td><td style="text-align:center"><strong>${dados.litros.toFixed(0)} L</strong></td><td style="text-align:center">R$ ${dados.gasto.toFixed(2)}</td><td style="text-align:center">${dados.abastecimentos.length}</td><td style="text-align:center">${(dados.litros / dados.abastecimentos.length).toFixed(1)} L</td>`).join("")}
     </tbody><tfoot><tr class="tot"><td><strong>TOTAIS</strong></td><td style="text-align:center"><strong>${totalLitros.toFixed(0)} L</strong></td><td style="text-align:center"><strong>R$ ${totalGasto.toFixed(2)}</strong></td><td style="text-align:center"><strong>${dadosFiltrados.length} abast.</strong></td><td style="text-align:center"><strong>${dadosFiltrados.length > 0 ? (totalLitros / dadosFiltrados.length).toFixed(1) : 0} L</strong></td></tr></tfoot>
@@ -2895,8 +3090,8 @@ function MovimentacaoPecas({ state, setState }) {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Movimentação de Peças</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
-    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px"><div><div style="font-size:17px;font-weight:900">${faz.nome || "Fazenda"}</div><div>Movimentação de Peças</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
+    ${gerarCabecalhoHTML(faz, "MOVIMENTAÇÃO DE PEÇAS", "")}
     <table><thead><tr><th>Data</th><th>Peça</th><th>Tipo</th><th>Qtd</th><th>Custo Un.</th><th>Responsável</th><th>Destino</th><th>Motivo</th></tr></thead><tbody>
     ${filtrados.map(m => { const peca = pecas.find(p => p.id === m.pecaId); return `<tr><td>${formatDate(m.data)}</td><td>${peca?.descricao || "—"}</td><td>${m.tipo}</td><td style="text-align:center"><strong>${m.quantidade}</strong></td><td>R$ ${(parseFloat(m.custoUnitario) || 0).toFixed(2)}</td><td>${m.responsavel || "—"}</td><td>${m.destino || "—"}</td><td>${m.motivo || "—"}</td></tr>`; }).join("")}
     </tbody><tfoot><tr class="tot"><td colspan="2"><strong>TOTAIS</strong></td><td></td><td style="text-align:center">E:${totalEntradas} S:${totalSaidas}</td><td>R$ ${custoTotal.toFixed(2)}</td><td colspan="3">Saldo: ${(totalEntradas - totalSaidas).toFixed(0)}</td></tr></tfoot></table>
@@ -3104,8 +3299,8 @@ function EstoquePecas({ state }) {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Estoque de Peças</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:11px;color:#111}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#f3f4f6;padding:6px 8px;text-align:left;border:1px solid #ddd;font-size:10px}td{padding:6px 8px;border:1px solid #ddd}.low{background:#fef3c7}.zero{background:#fee2e2}.footer{margin-top:20px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
-    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:12px"><div><div style="font-size:17px;font-weight:900">${faz.nome || "Fazenda"}</div><div>Estoque do Almoxarifado</div></div><div style="text-align:right">${new Date().toLocaleString("pt-BR")}<br/>${filtrados.length} itens | R$ ${valorTotal.toFixed(2)}</div></div>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:11px;color:#111}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#f3f4f6;padding:6px 8px;text-align:left;border:1px solid #ddd;font-size:10px}td{padding:6px 8px;border:1px solid #ddd}.low{background:#fef3c7}.zero{background:#fee2e2}.footer{margin-top:20px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
+    ${gerarCabecalhoHTML(faz, "ESTOQUE DO ALMOXARIFADO", filtrados.length + " itens | R$ " + valorTotal.toFixed(2))}
     <table><thead><tr><th>Código</th><th>Descrição</th><th>Cat.</th><th>Local</th><th>Qtd</th><th>Mín.</th><th>Preço Méd.</th><th>Valor</th><th>Status</th></tr></thead><tbody>
     ${filtrados.map(p => { const st = p.saldoCalculado === 0 ? "ZERADO" : (p.estoqueMinimo > 0 && p.saldoCalculado <= p.estoqueMinimo ? "BAIXO" : "OK"); return `<tr class="${st === "ZERADO" ? "zero" : st === "BAIXO" ? "low" : ""}"><td style="font-family:monospace;font-weight:700">${p.codigo || "—"}</td><td><strong>${p.descricao || p.nome || "—"}</strong></td><td>${p.categoria || "—"}</td><td>${p.localizacao || "—"}</td><td style="text-align:center"><strong>${p.saldoCalculado}</strong> ${p.unidade}</td><td style="text-align:center">${p.estoqueMinimo || "—"}</td><td style="text-align:right">R$ ${p.precoUnitario.toFixed(2)}</td><td style="text-align:right"><strong>R$ ${(p.saldoCalculado * p.precoUnitario).toFixed(2)}</strong></td><td style="text-align:center;font-weight:700;color:${st === "OK" ? "#16a34a" : st === "BAIXO" ? "#d97706" : "#dc2626"}">${st}</td></tr>`; }).join("")}
     </tbody></table>
@@ -3217,8 +3412,8 @@ function RelatorioConsumo({ state }) {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório de Consumo</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#f3f4f6;padding:6px 8px;text-align:left;border:1px solid #ddd}td{padding:6px 8px;border:1px solid #ddd}.footer{margin-top:20px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
-    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:12px"><div><div style="font-size:17px;font-weight:900">${faz.nome || "Fazenda"}</div><div>Relatório de Consumo — ${formatDate(periodoInicio)} a ${formatDate(periodoFim)}</div></div><div>${new Date().toLocaleString("pt-BR")}</div></div>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#f3f4f6;padding:6px 8px;text-align:left;border:1px solid #ddd}td{padding:6px 8px;border:1px solid #ddd}.footer{margin-top:20px;font-size:9px;color:#aaa;text-align:center}</style></head><body>
+    ${gerarCabecalhoHTML(faz, "RELATÓRIO DE CONSUMO", formatDate(periodoInicio) + " a " + formatDate(periodoFim))}
     <table><thead><tr><th>#</th><th>Código</th><th>Peça</th><th>Categoria</th><th>Qtd Saída</th><th>Nº Mov.</th><th>Custo Total</th></tr></thead><tbody>
     ${ranking.map((r, i) => `<tr><td>${i + 1}</td><td style="font-family:monospace">${r.peca?.codigo || "—"}</td><td><strong>${r.peca?.descricao || r.peca?.nome || "—"}</strong></td><td>${r.peca?.categoria || "—"}</td><td style="text-align:center"><strong>${r.qtd}</strong></td><td style="text-align:center">${r.count}</td><td style="text-align:right">R$ ${r.custo.toFixed(2)}</td></tr>`).join("")}
     </tbody></table>
@@ -3911,13 +4106,12 @@ function FichasAplicacao({ state, setState }) {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
     <title>Lista de Fichas</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:24px;font-size:11px}
-    .h{text-align:center;border-bottom:2px solid #16a34a;padding-bottom:12px;margin-bottom:18px}
+    ${gerarCabecalhoCSS()}
     table{width:100%;border-collapse:collapse}th{background:#1e293b;color:#fff;padding:8px 10px;font-size:9px;text-transform:uppercase;text-align:left}
     td{padding:6px 10px;border:1px solid #dee2e6}tr:nth-child(even)td{background:#f8fafc}
     .f{margin-top:20px;text-align:center;font-size:8px;color:#aaa;border-top:1px solid #eee;padding-top:8px}</style>
     </head><body>
-    <div class="h"><div style="font-size:18px;font-weight:900">${faz.nome || "FAZENDA"}</div>
-    <div>Fichas de Aplicação · ${new Date().toLocaleString("pt-BR")}</div></div>
+    ${gerarCabecalhoHTML(faz, "FICHAS DE APLICAÇÃO", "")}
     <table><thead><tr><th>Nº</th><th>Data</th><th>Talhão</th><th>Cultura</th><th>Tipo</th><th>Produtos</th><th>Responsável</th></tr></thead>
     <tbody>${items.map(f => `<tr>
       <td style="font-family:monospace;font-weight:700">${f.numero}</td>
@@ -4283,8 +4477,7 @@ function RelatorioCarregamentos({ state }) {
       <style>
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}
-        .header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px}
-        .faz-nome{font-size:17px;font-weight:900}
+        ${gerarCabecalhoCSS()}
         table{width:100%;border-collapse:collapse;margin-bottom:14px}
         th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd}
         td{padding:7px 10px;border:1px solid #ddd}
@@ -4293,13 +4486,7 @@ function RelatorioCarregamentos({ state }) {
       </style>
     </head>
     <body>
-      <div class="header">
-        <div>
-          <div class="faz-nome">${faz.nome || "Fazenda"}</div>
-          <div>Relatório de Carregamentos</div>
-        </div>
-        <div>${new Date().toLocaleString("pt-BR")}</div>
-      </div>
+      ${gerarCabecalhoHTML(faz, "RELATÓRIO DE CARREGAMENTOS", "")}
       <table>
         <thead>
           <tr>
@@ -4455,47 +4642,30 @@ function RelatoriosDiarios({ state }) {
     <head>
       <meta charset="UTF-8"/>
       <title>Relatório Diário de Colheita - ${dataFiltro}</title>
-      <style>
-        *{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:'Segoe UI',Arial,sans-serif;padding:28px;font-size:12px;color:#111;background:#fff}
-        .container{max-width:1200px;margin:0 auto}
-        .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2ecc71;padding-bottom:14px;margin-bottom:20px}
-        .faz-nome{font-size:18px;font-weight:900;color:#2c3e50}
-        .faz-sub{font-size:10px;color:#7f8c8d;margin-top:2px}
-        .logo-img{width:56px;height:56px;object-fit:contain;border-radius:8px}
-        .periodo-badge{background:#2ecc71;color:#fff;padding:4px 12px;border-radius:20px;font-size:11px;display:inline-block}
-        .resumo-cards{display:flex;gap:20px;margin-bottom:24px;flex-wrap:wrap}
-        .resumo-card{flex:1;min-width:150px;background:#f8f9fa;border-radius:12px;padding:16px;text-align:center;border:1px solid #e9ecef}
-        .resumo-card .valor{font-size:28px;font-weight:900;color:#2ecc71}
-        .resumo-card .label{font-size:11px;color:#6c757d;margin-top:5px;text-transform:uppercase;letter-spacing:1px}
-        h2{font-size:14px;margin:20px 0 12px;font-weight:800;border-left:4px solid #2ecc71;padding-left:12px;color:#2c3e50}
-        table{width:100%;border-collapse:collapse;margin-bottom:16px}
-        th{background:#2ecc71;color:#fff;padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
-        td{padding:8px 12px;border:1px solid #dee2e6;font-size:12px}
-        tr:nth-child(even){background:#f8f9fa}
-        .tot td{font-weight:700;background:#e8f5e9}
-        .grand-total{background:#d4edda;font-weight:900;border-top:2px solid #2ecc71}
-        .footer{margin-top:28px;font-size:9px;color:#adb5bd;text-align:center;border-top:1px solid #e9ecef;padding-top:12px}
-        @media print{body{padding:0;margin:0}}
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div style="display:flex;align-items:center;gap:15px">
-            ${faz.logo ? `<img src="${faz.logo}" class="logo-img"/>` : '<div style="width:56px;height:56px;background:#2ecc71;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:28px">🌾</div>'}
-            <div>
-              <div class="faz-nome">${faz.nome || "FAZENDA"}</div>
-              <div class="faz-sub">Produtor: ${faz.produtor || "—"} | ${faz.cidade || ""} ${faz.estado ? `- ${faz.estado}` : ""}</div>
-              <div class="faz-sub">CNPJ/CPF: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div>
-            </div>
-          </div>
-          <div style="text-align:right">
-            <div class="periodo-badge">RELATÓRIO DIÁRIO</div>
-            <div style="font-size:20px;font-weight:800;margin-top:8px">${dataFiltro}</div>
-            <div style="color:#6c757d;font-size:10px;margin-top:4px">Gerado: ${new Date().toLocaleString("pt-BR")}</div>
-          </div>
-        </div>
+       <style>
+         *{box-sizing:border-box;margin:0;padding:0}
+         body{font-family:'Segoe UI',Arial,sans-serif;padding:28px;font-size:12px;color:#111;background:#fff}
+         .container{max-width:1200px;margin:0 auto}
+         ${gerarCabecalhoCSS()}
+         .resumo-cards{display:flex;gap:20px;margin-bottom:24px;flex-wrap:wrap}
+         .resumo-card{flex:1;min-width:150px;background:#f8f9fa;border-radius:12px;padding:16px;text-align:center;border:1px solid #e9ecef}
+         .resumo-card .valor{font-size:28px;font-weight:900;color:#2ecc71}
+         .resumo-card .label{font-size:11px;color:#6c757d;margin-top:5px;text-transform:uppercase;letter-spacing:1px}
+         h2{font-size:14px;margin:20px 0 12px;font-weight:800;border-left:4px solid #2ecc71;padding-left:12px;color:#2c3e50}
+         table{width:100%;border-collapse:collapse;margin-bottom:16px}
+         th{background:#2ecc71;color:#fff;padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+         td{padding:8px 12px;border:1px solid #dee2e6;font-size:12px}
+         tr:nth-child(even){background:#f8f9fa}
+         .tot td{font-weight:700;background:#e8f5e9}
+         .grand-total{background:#d4edda;font-weight:900;border-top:2px solid #2ecc71}
+         .footer{margin-top:28px;font-size:9px;color:#adb5bd;text-align:center;border-top:1px solid #e9ecef;padding-top:12px}
+         @media print{body{padding:0;margin:0}}
+       </style>
+     </head>
+     <body>
+       <div class="container">
+
+
         
         <div class="resumo-cards">
           <div class="resumo-card"><div class="valor">${talhaoEntries.length}</div><div class="label">Talhões Colhidos</div></div>
@@ -4789,16 +4959,10 @@ function RelatorioMotoristas({ state }) {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
     const periodoLabel = filtroData ? `Data: ${filtroData}` : periodoInicio || periodoFim ? `De ${periodoInicio || "—"} até ${periodoFim || "—"}` : "Todos os períodos";
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-    <title>Relatório de Motoristas</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:20px;gap:12px}.logo-img{width:56px;height:56px;object-fit:contain}.faz-nome{font-size:17px;font-weight:900}.faz-sub{font-size:10px;color:#555;margin-top:2px}h2{font-size:13px;margin:18px 0 8px;font-weight:800;border-left:4px solid #16a34a;padding-left:9px}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd;font-size:11px}.tot td{font-weight:700;background:#f0fdf4}.grand td{font-weight:900;background:#dcfce7;font-size:13px}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}</style></head><body>
-    <div class="header">
-      <div style="display:flex;align-items:center;gap:14px">
-        ${faz.logo ? `<img src="${faz.logo}" class="logo-img"/>` : '<span style="font-size:36px">🌾</span>'}
-        <div><div class="faz-nome">${faz.nome || "Fazenda"}</div><div class="faz-sub">Produtor: ${faz.produtor || "—"}</div><div class="faz-sub">CPF/CNPJ: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div></div>
-      </div>
-      <div style="text-align:right;font-size:11px;color:#444"><strong>Relatório de Recebimento por Motorista</strong><br/>📅 ${periodoLabel}<br/><span style="font-size:9px;color:#999">Gerado: ${new Date().toLocaleString("pt-BR")}</span></div>
-    </div>
+     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+     <title>Relatório de Motoristas</title>
+     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}${gerarCabecalhoCSS()}h2{font-size:13px;margin:18px 0 8px;font-weight:800;border-left:4px solid #16a34a;padding-left:9px}table{width:100%;border-collapse:collapse;margin-bottom:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border:1px solid #ddd}td{padding:7px 10px;border:1px solid #ddd;font-size:11px}.tot td{font-weight:700;background:#f0fdf4}.grand td{font-weight:900;background:#dcfce7;font-size:13px}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}</style></head><body>
+     ${gerarCabecalhoHTML(faz, "RELATÓRIO DE MOTORISTAS", periodoLabel)}
     ${dados.map(d => `
       <h2>👷 ${d.nome}</h2>
       <table>
@@ -5027,7 +5191,7 @@ function VendaMilhoBags({ state, setState }) {
     if (items.length === 0) { alert("Não há vendas registradas."); return; }
     const faz = state.fazenda || {};
     const win = window.open("", "_blank");
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Lista de Vendas de Milho</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;font-size:12px}.header{text-align:center;border-bottom:2px solid #d4a843;padding-bottom:12px;margin-bottom:20px}.faz-nome{font-size:20px;font-weight:900}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#d4a843;color:#0f172a;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head><body><div class="header"><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div>Relatório de Vendas de Milho em Bags</div><div>Gerado em: ${new Date().toLocaleString("pt-BR")}</div></div><table><thead><tr><th>Nº Venda</th><th>Data</th><th>Cliente</th><th>Sacas</th><th>Peso (kg)</th><th>Valor Total</th><th>Status</th></tr></thead><tbody>${items.map(v => `<tr><td style="font-family:monospace">${v.numero}</td><td style="white-space:nowrap">${v.data}</td><td style="white-space:nowrap">${v.cliente}</td><td style="text-align:center">${v.quantidadeSacas} sc</td><td style="text-align:center">${(v.pesoTotalKg || 0).toLocaleString()} kg</td><td style="text-align:center">R$ ${(v.valorTotal || 0).toFixed(2)}</td><td style="text-align:center">${v.status || "Confirmada"}</td></tr>`).join("")}</tbody></table><div class="footer">AgriGest · Relatório de Vendas</div></body></html>`);
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Lista de Vendas de Milho</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;font-size:12px}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#d4a843;color:#0f172a;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head><body>${gerarCabecalhoHTML(faz, "VENDAS DE MILHO EM BAGS", "")}<table><thead><tr><th>Nº Venda</th><th>Data</th><th>Cliente</th><th>Sacas</th><th>Peso (kg)</th><th>Valor Total</th><th>Status</th></tr></thead><tbody>${items.map(v => `<tr><td style="font-family:monospace">${v.numero}</td><td style="white-space:nowrap">${v.data}</td><td style="white-space:nowrap">${v.cliente}</td><td style="text-align:center">${v.quantidadeSacas} sc</td><td style="text-align:center">${(v.pesoTotalKg || 0).toLocaleString()} kg</td><td style="text-align:center">R$ ${(v.valorTotal || 0).toFixed(2)}</td><td style="text-align:center">${v.status || "Confirmada"}</td></tr>`).join("")}</tbody></table><div class="footer">AgriGest · Relatório de Vendas</div></body></html>`);
     win.document.close(); win.focus(); setTimeout(() => win.print(), 500);
   };
 
@@ -5442,8 +5606,8 @@ function FluxoCaixa({ state }) {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Fluxo de Caixa</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{text-align:center;border-bottom:2px solid #2ecc71;padding-bottom:12px;margin-bottom:20px}.faz-nome{font-size:20px;font-weight:900}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#2ecc71;color:#fff;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.receita{color:#2ecc71;font-weight:700}.despesa{color:#e74c3c;font-weight:700}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head>
-    <body><div class="header"><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div>Fluxo de Caixa - ${periodoInicio} a ${periodoFim}</div></div>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#2ecc71;color:#fff;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.receita{color:#2ecc71;font-weight:700}.despesa{color:#e74c3c;font-weight:700}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head>
+    <body>${gerarCabecalhoHTML(faz, "FLUXO DE CAIXA", periodoInicio + " a " + periodoFim)}
     <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor (R$)</th></tr></thead><tbody>
     ${todasMovimentacoes.map(m => `<tr><td style="white-space:nowrap">${m.data}</td><td>${m.descricao}</td><td class="${m.tipo === "Receita" ? "receita" : "despesa"}">${m.tipo}</td><td class="${m.tipo === "Receita" ? "receita" : "despesa"}">R$ ${m.valor.toFixed(2)}</td></tr>`).join("")}
     </tbody><tfoot><tr style="background:#f0fdf4"><td colspan="3"><strong>TOTAL RECEITAS</strong></td><td><strong>R$ ${totalReceitas.toFixed(2)}</strong></td></tr>
@@ -5542,9 +5706,9 @@ function RelatorioFinanceiro({ state }) {
   const imprimir = () => {
     const win = window.open("", "_blank");
     const faz = state.fazenda || {};
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório Financeiro - ${ano}</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}.header{text-align:center;border-bottom:2px solid #2ecc71;padding-bottom:12px;margin-bottom:20px}.faz-nome{font-size:20px;font-weight:900}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#2ecc71;color:#fff;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.receita{color:#2ecc71}.despesa{color:#e74c3c}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head>
-    <body><div class="header"><div class="faz-nome">${faz.nome || "FAZENDA"}</div><div>Demonstrativo de Resultados - ${ano}</div></div>
+     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório Financeiro - ${ano}</title>
+     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#2ecc71;color:#fff;padding:10px;text-align:left}td{padding:8px 10px;border:1px solid #dee2e6}.receita{color:#2ecc71}.despesa{color:#e74c3c}.footer{margin-top:24px;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head>
+     <body>${gerarCabecalhoHTML(faz, "DEMONSTRATIVO DE RESULTADOS (DRE)", ano)}
     <table><thead><tr><th>Mês</th><th>Receitas (R$)</th><th>Despesas (R$)</th><th>Resultado (R$)</th></tr></thead><tbody>
     ${meses.map((m, idx) => {
       const rec = receitasPorMes[m] || 0;
@@ -5670,6 +5834,345 @@ function GraosDept({ state, setState }) {
   );
 }
 
+// ─── PLUVIÔMETRO ─────────────────────────────────────────────────────────────
+function Pluviometro({ state, setState }) {
+  const ss = (updates) => setState(prev => ({ ...prev, ...(typeof updates === "function" ? updates(prev) : updates) }));
+  const registros = state.pluviometro || [];
+  const talhoes = state.talhoes || [];
+  const [modal, setModal] = useState(false);
+  const [editIdx, setEditIdx] = useState(null);
+  const emptyForm = { data: new Date().toISOString().slice(0, 10), talhao: "", mm: "" };
+  const [form, setForm] = useState({ ...emptyForm });
+  const fp = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
+
+  const openNew = () => { setForm({ ...emptyForm }); setEditIdx(null); setModal(true); };
+  const openEdit = (i) => { setForm({ ...registros[i] }); setEditIdx(i); setModal(true); };
+  const salvar = () => {
+    if (!form.data || !form.talhao || !form.mm) { alert("Preencha todos os campos."); return; }
+    const updated = [...registros];
+    if (editIdx !== null) { updated[editIdx] = { ...form }; }
+    else { updated.push({ ...form, id: Date.now() }); }
+    ss({ pluviometro: updated });
+    setModal(false); setForm({ ...emptyForm }); setEditIdx(null);
+  };
+  const remover = (i) => { if (confirm("Remover registro?")) ss({ pluviometro: registros.filter((_, idx) => idx !== i) }); };
+
+  const filtrados = registros.filter(r => r.data?.startsWith(filtroAno)).sort((a, b) => b.data?.localeCompare(a.data));
+
+  // Totais por talhão
+  const totaisPorTalhao = {};
+  filtrados.forEach(r => {
+    if (!totaisPorTalhao[r.talhao]) totaisPorTalhao[r.talhao] = 0;
+    totaisPorTalhao[r.talhao] += parseFloat(r.mm) || 0;
+  });
+  const totalGeral = Object.values(totaisPorTalhao).reduce((s, v) => s + v, 0);
+
+  // Anos disponíveis para comparativo
+  const anosDisp = [...new Set(registros.map(r => r.data?.slice(0, 4)).filter(Boolean))].sort().reverse();
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <SectionTitle>🌧️ Lançamento de Pluviômetro</SectionTitle>
+        <Btn onClick={openNew}>+ Novo Registro</Btn>
+      </div>
+
+      <Card style={{ marginBottom: 16, padding: 14 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <Field label="Filtrar por Ano" style={{ marginBottom: 0 }}>
+            <Select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} style={{ minWidth: 120 }}>
+              {(anosDisp.length > 0 ? anosDisp : [new Date().getFullYear().toString()]).map(a => <option key={a} value={a}>{a}</option>)}
+            </Select>
+          </Field>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ background: `${theme.info}18`, border: `1px solid ${theme.info}44`, borderRadius: 8, padding: "8px 16px" }}>
+              <span style={{ fontSize: 11, color: theme.muted }}>Total Geral {filtroAno}</span>
+              <div style={{ fontWeight: 800, fontSize: 20, color: theme.info }}>{totalGeral.toFixed(1)} mm</div>
+            </div>
+            <div style={{ background: `${theme.accent}18`, border: `1px solid ${theme.accent}44`, borderRadius: 8, padding: "8px 16px" }}>
+              <span style={{ fontSize: 11, color: theme.muted }}>Registros</span>
+              <div style={{ fontWeight: 800, fontSize: 20, color: theme.accent }}>{filtrados.length}</div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Resumo por Talhão */}
+      {Object.keys(totaisPorTalhao).length > 0 && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: theme.text }}>📊 Total por Talhão — {filtroAno}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+            {Object.entries(totaisPorTalhao).sort((a, b) => b[1] - a[1]).map(([talhao, mm]) => (
+              <div key={talhao} style={{ background: `${theme.info}0a`, border: `1px solid ${theme.info}33`, borderRadius: 8, padding: "10px 14px" }}>
+                <div style={{ fontSize: 11, color: theme.muted, fontWeight: 600 }}>{talhao}</div>
+                <div style={{ fontWeight: 800, fontSize: 18, color: theme.info }}>{mm.toFixed(1)} mm</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {filtrados.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 40, color: theme.muted }}>
+          <p style={{ fontSize: 48, marginBottom: 8 }}>🌧️</p>
+          <p>Nenhum registro de chuva em {filtroAno}.</p>
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${theme.border}` }}>
+                {["Data", "Talhão", "Chuva (mm)", "Ações"].map(h => (
+                  <th key={h} style={{ padding: "10px 8px", textAlign: "left", color: theme.muted, fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.map((r, i) => {
+                const realIdx = registros.indexOf(r);
+                return (
+                  <tr key={r.id || i} style={{ borderBottom: `1px solid ${theme.border}22` }}>
+                    <Td>{formatDate(r.data)}</Td>
+                    <Td><Badge color="blue">{r.talhao}</Badge></Td>
+                    <Td><span style={{ fontWeight: 700, color: theme.info }}>{r.mm} mm</span></Td>
+                    <Td>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <Btn size="sm" variant="ghost" onClick={() => openEdit(realIdx)}>✏️</Btn>
+                        <Btn size="sm" variant="ghost" onClick={() => remover(realIdx)} style={{ color: "#ef4444" }}>🗑️</Btn>
+                      </div>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modal && (
+        <Modal open={modal} title={editIdx !== null ? "Editar Registro" : "Novo Registro de Chuva"} onClose={() => setModal(false)}>
+          <Row>
+            <Field label="Data *">
+              <Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} />
+            </Field>
+            <Field label="Talhão *">
+              {talhoes.length > 0 ? (
+                <Select value={form.talhao} onChange={e => fp("talhao", e.target.value)}>
+                  <option value="">-- Selecione --</option>
+                  {talhoes.map(t => <option key={t.nome} value={t.nome}>{t.nome}</option>)}
+                </Select>
+              ) : (
+                <Input value={form.talhao} onChange={e => fp("talhao", e.target.value)} placeholder="Digite o nome do talhão" />
+              )}
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Chuva (mm) *">
+              <Input type="number" step="0.1" value={form.mm} onChange={e => fp("mm", e.target.value)} placeholder="Ex: 12.5" />
+            </Field>
+          </Row>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn>
+            <Btn onClick={salvar}>💾 Salvar</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── RELATÓRIO DE PLUVIOMETRIA ──────────────────────────────────────────────
+function RelatorioPluviometria({ state }) {
+  const registros = state.pluviometro || [];
+  const talhoes = state.talhoes || [];
+  const anosDisp = [...new Set(registros.map(r => r.data?.slice(0, 4)).filter(Boolean))].sort().reverse();
+  const [anoSel, setAnoSel] = useState(anosDisp[0] || new Date().getFullYear().toString());
+
+  const mesesNomes = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+  // Dados por talhão e mês para o ano selecionado
+  const dadosPorTalhao = {};
+  const dadosPorMes = {};
+  registros.filter(r => r.data?.startsWith(anoSel)).forEach(r => {
+    const mes = r.data?.slice(5, 7);
+    const mm = parseFloat(r.mm) || 0;
+    if (!dadosPorTalhao[r.talhao]) dadosPorTalhao[r.talhao] = {};
+    dadosPorTalhao[r.talhao][mes] = (dadosPorTalhao[r.talhao][mes] || 0) + mm;
+    dadosPorMes[mes] = (dadosPorMes[mes] || 0) + mm;
+  });
+
+  const totalAno = Object.values(dadosPorMes).reduce((s, v) => s + v, 0);
+  const talhaoNames = Object.keys(dadosPorTalhao).sort();
+
+  // Comparativo anual
+  const comparativo = {};
+  anosDisp.forEach(ano => {
+    comparativo[ano] = {};
+    registros.filter(r => r.data?.startsWith(ano)).forEach(r => {
+      const mes = r.data?.slice(5, 7);
+      comparativo[ano][mes] = (comparativo[ano][mes] || 0) + (parseFloat(r.mm) || 0);
+    });
+  });
+
+  const maxMM = Math.max(1, ...Object.values(dadosPorMes));
+
+  const imprimir = () => {
+    const faz = state.fazenda || {};
+    const win = window.open("", "_blank");
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Relatório Pluviométrico - ${anoSel}</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:12px;color:#111}${gerarCabecalhoCSS()}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#f3f4f6;padding:7px 10px;text-align:left;border:1px solid #ddd;font-size:10px}td{padding:7px 10px;border:1px solid #ddd}.tot td{font-weight:700;background:#f0fdf4}.footer{margin-top:28px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}</style></head><body>
+    ${gerarCabecalhoHTML(faz, "RELATÓRIO PLUVIOMÉTRICO", anoSel)}
+    <h3 style="margin:16px 0 8px;font-size:13px">📊 Precipitação Mensal por Talhão (mm)</h3>
+    <table><thead><tr><th>Talhão</th>${mesesNomes.map(m => `<th style="text-align:center">${m}</th>`).join("")}<th style="text-align:center;font-weight:900">Total</th></tr></thead><tbody>
+    ${talhaoNames.map(t => {
+      const total = Object.values(dadosPorTalhao[t]).reduce((s, v) => s + v, 0);
+      return `<tr><td style="font-weight:700">${t}</td>${["01","02","03","04","05","06","07","08","09","10","11","12"].map(m => `<td style="text-align:center">${(dadosPorTalhao[t][m] || 0).toFixed(1)}</td>`).join("")}<td style="text-align:center;font-weight:700">${total.toFixed(1)}</td></tr>`;
+    }).join("")}
+    <tr class="tot"><td><strong>TOTAL GERAL</strong></td>${["01","02","03","04","05","06","07","08","09","10","11","12"].map(m => `<td style="text-align:center;font-weight:700">${(dadosPorMes[m] || 0).toFixed(1)}</td>`).join("")}<td style="text-align:center;font-weight:900;font-size:13px">${totalAno.toFixed(1)} mm</td></tr>
+    </tbody></table>
+    ${anosDisp.length > 1 ? `<h3 style="margin:24px 0 8px;font-size:13px">📈 Comparativo Anual (mm)</h3>
+    <table><thead><tr><th>Ano</th>${mesesNomes.map(m => `<th style="text-align:center">${m}</th>`).join("")}<th style="text-align:center;font-weight:900">Total</th></tr></thead><tbody>
+    ${anosDisp.map(ano => {
+      const totalA = Object.values(comparativo[ano]).reduce((s, v) => s + v, 0);
+      return `<tr><td style="font-weight:700">${ano}</td>${["01","02","03","04","05","06","07","08","09","10","11","12"].map(m => `<td style="text-align:center">${(comparativo[ano][m] || 0).toFixed(1)}</td>`).join("")}<td style="text-align:center;font-weight:700">${totalA.toFixed(1)}</td></tr>`;
+    }).join("")}
+    </tbody></table>` : ""}
+    <div class="footer">AgriGest · Relatório Pluviométrico · ${new Date().toLocaleString("pt-BR")}</div>
+    </body></html>`);
+    win.document.close(); setTimeout(() => win.print(), 400);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <SectionTitle>🌧️ Relatório Pluviométrico</SectionTitle>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Select value={anoSel} onChange={e => setAnoSel(e.target.value)} style={{ minWidth: 110 }}>
+            {(anosDisp.length > 0 ? anosDisp : [new Date().getFullYear().toString()]).map(a => <option key={a} value={a}>{a}</option>)}
+          </Select>
+          <Btn variant="info" onClick={imprimir}>🖨️ Imprimir</Btn>
+        </div>
+      </div>
+
+      {/* Resumo cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
+        <Card style={{ borderLeft: `3px solid ${theme.info}`, padding: 14, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 4 }}>Total {anoSel}</div>
+          <div style={{ fontWeight: 900, fontSize: 28, color: theme.info }}>{totalAno.toFixed(1)} mm</div>
+        </Card>
+        <Card style={{ borderLeft: `3px solid ${theme.accent}`, padding: 14, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 4 }}>Talhões</div>
+          <div style={{ fontWeight: 900, fontSize: 28, color: theme.accent }}>{talhaoNames.length}</div>
+        </Card>
+        <Card style={{ borderLeft: `3px solid ${theme.gold}`, padding: 14, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 4 }}>Média Mensal</div>
+          <div style={{ fontWeight: 900, fontSize: 28, color: theme.gold }}>{(totalAno / 12).toFixed(1)} mm</div>
+        </Card>
+      </div>
+
+      {/* Gráfico de barras simples */}
+      <Card style={{ marginBottom: 20, padding: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14, color: theme.text }}>📊 Precipitação Mensal — {anoSel}</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 160 }}>
+          {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m, i) => {
+            const val = dadosPorMes[m] || 0;
+            const pct = maxMM > 0 ? (val / maxMM) * 100 : 0;
+            return (
+              <div key={m} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 9, color: theme.muted, fontWeight: 600 }}>{val > 0 ? val.toFixed(0) : ""}</span>
+                <div style={{ width: "100%", maxWidth: 36, height: `${Math.max(pct, 2)}%`, background: val > 0 ? `linear-gradient(to top, ${theme.info}, ${theme.info}88)` : `${theme.border}44`, borderRadius: "4px 4px 0 0", minHeight: 3, transition: "height .3s" }} />
+                <span style={{ fontSize: 9, color: theme.muted }}>{mesesNomes[i]}</span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Tabela por Talhão */}
+      {talhaoNames.length > 0 && (
+        <Card style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: theme.text }}>📋 Detalhamento por Talhão</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${theme.border}` }}>
+                  <th style={{ padding: "8px", textAlign: "left", color: theme.muted }}>Talhão</th>
+                  {mesesNomes.map(m => <th key={m} style={{ padding: "8px 4px", textAlign: "center", color: theme.muted, fontSize: 10 }}>{m}</th>)}
+                  <th style={{ padding: "8px", textAlign: "center", color: theme.text, fontWeight: 800 }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {talhaoNames.map(t => {
+                  const total = Object.values(dadosPorTalhao[t]).reduce((s, v) => s + v, 0);
+                  return (
+                    <tr key={t} style={{ borderBottom: `1px solid ${theme.border}22` }}>
+                      <td style={{ padding: "8px", fontWeight: 600 }}>{t}</td>
+                      {["01","02","03","04","05","06","07","08","09","10","11","12"].map(m => (
+                        <td key={m} style={{ padding: "8px 4px", textAlign: "center", color: (dadosPorTalhao[t][m] || 0) > 0 ? theme.info : theme.muted, fontSize: 11 }}>
+                          {(dadosPorTalhao[t][m] || 0).toFixed(1)}
+                        </td>
+                      ))}
+                      <td style={{ padding: "8px", textAlign: "center", fontWeight: 800, color: theme.info }}>{total.toFixed(1)}</td>
+                    </tr>
+                  );
+                })}
+                <tr style={{ background: `${theme.accent}0a`, borderTop: `2px solid ${theme.border}` }}>
+                  <td style={{ padding: "8px", fontWeight: 800 }}>TOTAL</td>
+                  {["01","02","03","04","05","06","07","08","09","10","11","12"].map(m => (
+                    <td key={m} style={{ padding: "8px 4px", textAlign: "center", fontWeight: 700, fontSize: 11 }}>{(dadosPorMes[m] || 0).toFixed(1)}</td>
+                  ))}
+                  <td style={{ padding: "8px", textAlign: "center", fontWeight: 900, fontSize: 14, color: theme.info }}>{totalAno.toFixed(1)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Comparativo Anual */}
+      {anosDisp.length > 1 && (
+        <Card>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: theme.text }}>📈 Comparativo Anual</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${theme.border}` }}>
+                  <th style={{ padding: "8px", textAlign: "left", color: theme.muted }}>Ano</th>
+                  {mesesNomes.map(m => <th key={m} style={{ padding: "8px 4px", textAlign: "center", color: theme.muted, fontSize: 10 }}>{m}</th>)}
+                  <th style={{ padding: "8px", textAlign: "center", color: theme.text, fontWeight: 800 }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anosDisp.map(ano => {
+                  const totalA = Object.values(comparativo[ano]).reduce((s, v) => s + v, 0);
+                  return (
+                    <tr key={ano} style={{ borderBottom: `1px solid ${theme.border}22`, background: ano === anoSel ? `${theme.info}0a` : "transparent" }}>
+                      <td style={{ padding: "8px", fontWeight: ano === anoSel ? 800 : 600 }}>{ano} {ano === anoSel ? "◄" : ""}</td>
+                      {["01","02","03","04","05","06","07","08","09","10","11","12"].map(m => (
+                        <td key={m} style={{ padding: "8px 4px", textAlign: "center", fontSize: 11 }}>{(comparativo[ano][m] || 0).toFixed(1)}</td>
+                      ))}
+                      <td style={{ padding: "8px", textAlign: "center", fontWeight: 800 }}>{totalA.toFixed(1)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {registros.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: theme.muted }}>
+          <p style={{ fontSize: 48, marginBottom: 8 }}>🌧️</p>
+          <p>Nenhum dado pluviométrico registrado.</p>
+          <p style={{ fontSize: 12, marginTop: 8 }}>Registre os dados de chuva na aba "Pluviômetro" para gerar os relatórios.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── RELATÓRIOS (DEPARTAMENTO COM ABAS) ─────────────────────────────────────
 function RelatoriosDept({ state, setState }) {
   const [aba, setAba] = useState("produtividade");
@@ -5679,6 +6182,8 @@ function RelatoriosDept({ state, setState }) {
     { id: "relatorioMotoristas", label: "📊 Rel. Motoristas", icon: "📊" },
     { id: "relatoriosDiarios", label: "📅 Rel. Diário de Colheita", icon: "📅" },
     { id: "relatorioCarregamentos", label: "📦 Rel. Carregamentos", icon: "📦" },
+    { id: "pluviometro", label: "🌧️ Pluviômetro", icon: "🌧️" },
+    { id: "relPluviometria", label: "📊 Rel. Pluviometria", icon: "📊" },
   ];
 
   const renderContent = () => {
@@ -5687,6 +6192,8 @@ function RelatoriosDept({ state, setState }) {
       case "relatorioMotoristas": return <RelatorioMotoristas state={state} />;
       case "relatoriosDiarios": return <RelatoriosDiarios state={state} />;
       case "relatorioCarregamentos": return <RelatorioCarregamentos state={state} />;
+      case "pluviometro": return <Pluviometro state={state} setState={setState} />;
+      case "relPluviometria": return <RelatorioPluviometria state={state} />;
       default: return <Produtividade state={state} />;
     }
   };
@@ -6289,128 +6796,190 @@ function AlmoxarifadoDept({ state, setState }) {
 
 // ─── CADASTROS (DEPARTAMENTO) ────────────────────────────────────────────────
 function SafraCadastro({ state, setState }) {
-  const ss = (updates) => setState(prev => ({ ...prev, ...(typeof updates === "function" ? updates(prev) : updates) }));
-  const safras = state.safras || [];
-  const [modal, setModal] = useState(false);
-  const [editIdx, setEditIdx] = useState(null);
-  const emptyForm = { nome: "", anoInicio: "", anoFim: "", dataInicio: "", dataFim: "", cultura: "", areaTotal: "", status: "Planejada", obs: "" };
-  const [form, setForm] = useState({ ...emptyForm });
-  const fp = (k, v) => setForm(p => ({ ...p, [k]: v }));
+   const ss = (updates) => setState(prev => ({ ...prev, ...(typeof updates === "function" ? updates(prev) : updates) }));
+   const safras = state.safras || [];
+   const [modal, setModal] = useState(false);
+   const [editIdx, setEditIdx] = useState(null);
+   const emptyForm = { nome: "", anoInicio: "", anoFim: "", status: "Planejada", obs: "" };
+   const [form, setForm] = useState({ ...emptyForm });
+   const fp = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  const statusOpcoes = ["Planejada", "Em Andamento", "Finalizada", "Cancelada"];
-  const culturaOpcoes = ["Soja", "Milho", "Algodão", "Café", "Cana-de-açúcar", "Trigo", "Feijão", "Arroz", "Sorgo", "Girassol", "Outro"];
+    const statusOpcoes = ["Planejada", "Em Andamento", "Concluída"];
 
-  const openNew = () => { setForm({ ...emptyForm }); setEditIdx(null); setModal(true); };
-  const openEdit = (i) => { setForm({ ...safras[i] }); setEditIdx(i); setModal(true); };
-  const salvar = () => {
-    if (!form.nome || !form.anoInicio || !form.anoFim) { alert("Preencha Nome, Ano Início e Ano Fim."); return; }
-    const updated = [...safras];
-    if (editIdx !== null) { updated[editIdx] = { ...form }; }
-    else { updated.push({ ...form, id: Date.now() }); }
-    ss({ safras: updated });
-    setModal(false);
-    setForm({ ...emptyForm });
-    setEditIdx(null);
-  };
-  const remover = (i) => { if (confirm("Remover este ano safra?")) { const u = safras.filter((_, idx) => idx !== i); ss({ safras: u }); } };
+    // Auto-finalizar safras cujo ano fim já passou OU cujo ano fim é o ano atual e já passou de junho
+    useEffect(() => {
+      const agora = new Date();
+      const anoAtual = agora.getFullYear();
+      const mesAtual = agora.getMonth();
+      const updated = safras.map(s => {
+        const anoFim = parseInt(s.anoFim);
+        // Migra status antigo "Finalizada" para "Concluída"
+        let currentStatus = s.status === "Finalizada" ? "Concluída" : s.status;
+        if (currentStatus !== "Concluída" && currentStatus !== "Cancelada" && s.anoFim) {
+          if (anoFim < anoAtual || (anoFim === anoAtual && mesAtual >= 6)) {
+            return { ...s, status: "Concluída" };
+          }
+        }
+        if (currentStatus !== s.status) return { ...s, status: currentStatus };
+        return s;
+      });
+      const changed = updated.some((s, i) => s.status !== safras[i]?.status);
+      if (changed) ss({ safras: updated });
+    }, []);
 
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-        <SectionTitle>📅 Cadastro de Ano Safra</SectionTitle>
-        <Btn onClick={openNew}>+ Novo Ano Safra</Btn>
-      </div>
-      {safras.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 40, color: theme.muted }}>
-          <p style={{ fontSize: 48, marginBottom: 8 }}>📅</p>
-          <p>Nenhum ano safra cadastrado.</p>
-          <Btn onClick={openNew} style={{ marginTop: 16 }}>Cadastrar Primeiro Ano Safra</Btn>
-        </div>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: `2px solid ${theme.border}` }}>
-                {["Nome", "Período", "Cultura", "Área (ha)", "Status", "Ações"].map(h => (
-                  <th key={h} style={{ padding: "10px 8px", textAlign: "left", color: theme.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {safras.map((s, i) => (
-                <tr key={s.id || i} style={{ borderBottom: `1px solid ${theme.border}22` }}>
-                  <Td>{s.nome}</Td>
-                  <Td>{s.anoInicio}/{s.anoFim}</Td>
-                  <Td>{s.cultura || "—"}</Td>
-                  <Td>{s.areaTotal ? `${s.areaTotal} ha` : "—"}</Td>
-                  <Td><Badge color={s.status === "Planejada" ? "blue" : s.status === "Em Andamento" ? "gold" : s.status === "Finalizada" ? "green" : "red"}>{s.status}</Badge></Td>
-                  <Td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <Btn size="sm" variant="ghost" onClick={() => openEdit(i)}>✏️</Btn>
-                      <Btn size="sm" variant="ghost" onClick={() => remover(i)} style={{ color: "#ef4444" }}>🗑️</Btn>
-                    </div>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {modal && (
-        <Modal title={editIdx !== null ? "Editar Ano Safra" : "Novo Ano Safra"} onClose={() => setModal(false)}>
-          <Row>
-            <Field label="Nome do Ano Safra *">
-              <Input value={form.nome} onChange={e => fp("nome", e.target.value)} placeholder="Ex: Ano Safra 2025/2026" />
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Ano Início *">
-              <Input type="number" value={form.anoInicio} onChange={e => fp("anoInicio", e.target.value)} placeholder="2025" />
-            </Field>
-            <Field label="Ano Fim *">
-              <Input type="number" value={form.anoFim} onChange={e => fp("anoFim", e.target.value)} placeholder="2026" />
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Data Início Plantio">
-              <Input type="date" value={form.dataInicio} onChange={e => fp("dataInicio", e.target.value)} />
-            </Field>
-            <Field label="Data Fim Colheita">
-              <Input type="date" value={form.dataFim} onChange={e => fp("dataFim", e.target.value)} />
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Cultura Principal">
-              <Select value={form.cultura} onChange={e => fp("cultura", e.target.value)}>
-                <option value="">-- Selecione --</option>
-                {culturaOpcoes.map(c => <option key={c} value={c}>{c}</option>)}
-              </Select>
-            </Field>
-            <Field label="Área Total (ha)">
-              <Input type="number" value={form.areaTotal} onChange={e => fp("areaTotal", e.target.value)} placeholder="0.00" />
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Status">
-              <Select value={form.status} onChange={e => fp("status", e.target.value)}>
-                {statusOpcoes.map(s => <option key={s} value={s}>{s}</option>)}
-              </Select>
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Observações">
-              <Input value={form.obs} onChange={e => fp("obs", e.target.value)} placeholder="Notas adicionais..." />
-            </Field>
-          </Row>
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-            <Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn>
-            <Btn onClick={salvar}>💾 Salvar</Btn>
+   const openNew = () => { setForm({ ...emptyForm }); setEditIdx(null); setModal(true); };
+   const openEdit = (i) => { setForm({ ...safras[i] }); setEditIdx(i); setModal(true); };
+    const salvar = () => {
+      if (!form.nome || !form.anoInicio || !form.anoFim) { alert("Preencha Nome, Ano Início e Ano Fim."); return; }
+      const agora = new Date();
+      const anoAtual = agora.getFullYear();
+      const mesAtual = agora.getMonth();
+      const anoFim = parseInt(form.anoFim);
+      const anoIni = parseInt(form.anoInicio);
+      let statusFinal = form.status;
+      if (anoFim < anoAtual || (anoFim === anoAtual && mesAtual >= 6)) {
+        statusFinal = "Concluída";
+      } else if (anoIni <= anoAtual && statusFinal === "Planejada") {
+        statusFinal = "Em Andamento";
+      }
+      const updated = [...safras];
+      if (editIdx !== null) { updated[editIdx] = { ...form, status: statusFinal }; }
+      else { updated.push({ ...form, status: statusFinal, id: Date.now() }); }
+      ss({ safras: updated });
+      setModal(false);
+      setForm({ ...emptyForm });
+      setEditIdx(null);
+    };
+
+    // Exportar backup individual de uma safra (JSON com dados vinculados)
+    const exportarBackupSafra = (s) => {
+      const safraKey = `${s.anoInicio}/${s.anoFim}`;
+      const dados = {
+        safra: s,
+        exportadoEm: new Date().toISOString(),
+        romaneiosEntrada: (state.romaneiosEntrada || []).filter(r => r.safra === safraKey),
+        romaneiosSaida: (state.romaneiosSaida || []).filter(r => r.safra === safraKey),
+        pluviometro: (state.pluviometro || []).filter(p => p.safra === safraKey),
+        vendasMilho: (state.vendasMilho || []).filter(v => v.safra === safraKey),
+      };
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `backup_safra_${s.nome.replace(/\s/g,"_")}.json`; a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    const exportarSafras = () => {
+      const linhas = [["Nome", "Ano Início", "Ano Fim", "Status", "Observações"]];
+      safras.forEach(s => linhas.push([s.nome, s.anoInicio, s.anoFim, s.status, s.obs || ""]));
+      const csv = linhas.map(r => r.map(c => `"${(c||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "safras_agrigest.csv"; a.click();
+      URL.revokeObjectURL(url);
+    };
+
+   const getStatusStyle = (status) => {
+     if (status === "Planejada") return { bg: `${theme.accent}18`, border: `${theme.accent}44`, color: theme.accent, icon: "📋" };
+     if (status === "Em Andamento") return { bg: `${theme.gold}18`, border: `${theme.gold}44`, color: theme.gold, icon: "🌱" };
+     if (status === "Concluída") return { bg: "#22c55e18", border: "#22c55e44", color: "#22c55e", icon: "✅" };
+     return { bg: "#ef444418", border: "#ef444444", color: "#ef4444", icon: "❌" };
+   };
+
+   return (
+     <div>
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
+         <SectionTitle>📅 Cadastro de Ano Safra</SectionTitle>
+          <div style={{ display: "flex", gap: 8 }}>
+            {safras.length > 0 && <Btn variant="ghost" onClick={exportarSafras}>📥 Exportar CSV</Btn>}
+            <Btn onClick={openNew}>+ Novo Ano Safra</Btn>
           </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
+       </div>
+
+       {/* Info: safras são permanentes */}
+       <div style={{ background: `${theme.info}0a`, border: `1px solid ${theme.info}33`, borderRadius: 10, padding: "10px 16px", marginBottom: 18 }}>
+         <p style={{ fontSize: 12, color: theme.info, margin: 0 }}>ℹ️ <strong>Histórico permanente:</strong> As safras nunca são removidas do sistema, mantendo um histórico completo. Mesmo após concluída, os dados de grãos e relatórios permanecem editáveis. Cadastros, máquinas e almoxarifado são compartilhados entre todas as safras. Use "💾" para exportar backup da safra.</p>
+       </div>
+
+       {safras.length === 0 ? (
+         <div style={{ textAlign: "center", padding: 50, color: theme.muted, background: `${theme.card}`, borderRadius: 16, border: `1px dashed ${theme.border}` }}>
+           <div style={{ width: 72, height: 72, background: `linear-gradient(135deg, ${theme.accent}22, ${theme.gold}22)`, borderRadius: 20, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 36, marginBottom: 14 }}>📅</div>
+           <p style={{ fontSize: 16, fontWeight: 600, color: theme.text, marginBottom: 4 }}>Nenhum ano safra cadastrado</p>
+           <p style={{ fontSize: 13, marginBottom: 18 }}>Cadastre seu primeiro ano safra para começar</p>
+           <Btn onClick={openNew} style={{ marginTop: 4 }}>Cadastrar Primeiro Ano Safra</Btn>
+         </div>
+       ) : (
+         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+           {safras.map((s, i) => {
+             const st = getStatusStyle(s.status);
+             return (
+               <div key={s.id || i} style={{
+                 background: theme.card, borderRadius: 14, border: `1px solid ${theme.border}`,
+                 overflow: "hidden", transition: "all .2s", position: "relative"
+               }}>
+                 <div style={{ height: 4, background: `linear-gradient(90deg, ${st.color}, ${st.color}88)` }} />
+                 <div style={{ padding: "18px 20px" }}>
+                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                       <div style={{ width: 42, height: 42, background: st.bg, border: `1px solid ${st.border}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{st.icon}</div>
+                       <div>
+                         <div style={{ fontWeight: 700, fontSize: 15, color: theme.text, lineHeight: 1.2 }}>{s.nome}</div>
+                         <div style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>Período: {s.anoInicio} — {s.anoFim}</div>
+                       </div>
+                     </div>
+                     <div style={{ display: "flex", gap: 4 }}>
+                       <Btn size="sm" variant="ghost" onClick={() => openEdit(i)} title="Editar">✏️</Btn>
+                       <Btn size="sm" variant="ghost" onClick={() => exportarBackupSafra(s)} title="Exportar Backup">💾</Btn>
+                     </div>
+                   </div>
+                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                     <Badge color={s.status === "Planejada" ? "blue" : s.status === "Em Andamento" ? "gold" : s.status === "Concluída" ? "green" : "red"}>{s.status}</Badge>
+                     {s.obs && <span style={{ fontSize: 11, color: theme.muted, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>💬 {s.obs}</span>}
+                   </div>
+                 </div>
+               </div>
+             );
+           })}
+         </div>
+       )}
+       {modal && (
+         <Modal open={modal} title={editIdx !== null ? "Editar Ano Safra" : "Novo Ano Safra"} onClose={() => setModal(false)}>
+           <div style={{ marginBottom: 12, padding: "12px 16px", background: `linear-gradient(135deg, ${theme.accent}0d, ${theme.gold}0d)`, borderRadius: 12, border: `1px solid ${theme.accent}22` }}>
+             <p style={{ fontSize: 12, color: theme.muted, margin: 0 }}>📌 O status é gerenciado automaticamente: muda para <strong>"Em Andamento"</strong> ao iniciar o ano e para <strong>"Concluída"</strong> quando o período encerrar. Mesmo concluída, dados de grãos e relatórios continuam editáveis.</p>
+           </div>
+           <Row>
+             <Field label="Nome do Ano Safra *">
+               <Input value={form.nome} onChange={e => fp("nome", e.target.value)} placeholder="Ex: Safra 2025/2026" />
+             </Field>
+           </Row>
+           <Row>
+             <Field label="Ano Início *">
+               <Input type="number" value={form.anoInicio} onChange={e => fp("anoInicio", e.target.value)} placeholder="2025" />
+             </Field>
+             <Field label="Ano Fim *">
+               <Input type="number" value={form.anoFim} onChange={e => fp("anoFim", e.target.value)} placeholder="2026" />
+             </Field>
+           </Row>
+           <Row>
+             <Field label="Status">
+               <Select value={form.status} onChange={e => fp("status", e.target.value)}>
+                 {statusOpcoes.map(s => <option key={s} value={s}>{s}</option>)}
+               </Select>
+             </Field>
+           </Row>
+           <Row>
+             <Field label="Observações">
+               <Input value={form.obs} onChange={e => fp("obs", e.target.value)} placeholder="Notas adicionais..." />
+             </Field>
+           </Row>
+           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+             <Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn>
+             <Btn onClick={salvar}>💾 Salvar</Btn>
+           </div>
+         </Modal>
+       )}
+     </div>
+   );
+ }
 
 function CadastrosDept({ state, setState }) {
   const [aba, setAba] = useState("clientes");
@@ -6513,23 +7082,23 @@ export default function App() {
     setActive("dashboard");
   };
 
-  const handleNovaFazenda = () => {
-    const novaFazenda = {
-      id: uid(), nome: "", produtor: "", cpfCnpj: "", ie: "",
-      cep: "", endereco: "", numero: "", bairro: "", cidade: "",
-      estado: "", graos: [], logo: null
-    };
-    // Atualiza estado, seta fazenda selecionada e vai direto para cadastro
-    setState(s => ({
-      ...s,
-      fazenda: novaFazenda,
-      fazendas: [...(s.fazendas || []), novaFazenda]
-    }));
-    setFazendaSelecionada(novaFazenda);
-    setAnoSafra(safrasOpcoes[1] || safrasOpcoes[0] || "");
-    setSkipSelector(true);
-    setActive("fazenda");
-  };
+   const handleNovaFazenda = () => {
+     const novaFazenda = {
+       id: uid(), nome: "", produtor: "", cpfCnpj: "", ie: "",
+       cep: "", endereco: "", numero: "", bairro: "", cidade: "",
+       estado: "", graos: [], logo: null
+     };
+     setState(s => ({
+       ...s,
+       fazenda: novaFazenda,
+       fazendas: [...(s.fazendas || []), novaFazenda]
+     }));
+     setFazendaSelecionada(novaFazenda);
+     setAnoSafra(safrasOpcoes[1] || safrasOpcoes[0] || "");
+     setSkipSelector(true);
+     // Use setTimeout to ensure state updates are committed before navigating
+     setTimeout(() => setActive("fazenda"), 0);
+   };
 
   const usuariosAtivos = state.usuarios || USUARIOS_FIXOS;
   if (!loggedIn) return <Login onLogin={handleLogin} usuarios={usuariosAtivos} />;
@@ -6566,6 +7135,7 @@ export default function App() {
       case "insumosDept": return <InsumosDept state={state} setState={ss} />;
       case "usuarios": return <Usuarios state={state} setState={ss} />;
       case "lixeira": return <Lixeira state={state} setState={ss} />;
+      case "backup": return <BackupManager state={state} setState={ss} />;
       case "maquinasEquipamentos": return <MaquinasEquipamentos state={state} setState={ss} />;
       case "almoxarifado": return <AlmoxarifadoDept state={state} setState={ss} />;
       case "cadastros": return <CadastrosDept state={state} setState={ss} />;

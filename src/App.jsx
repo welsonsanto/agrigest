@@ -236,29 +236,104 @@ const modulosDisponiveis = [
     { id: "dashboard", label: "Dashboard" },
   ]},
   { grupo: "🌾 GRÃOS", modulos: [
-    { id: "graosDept", label: "Grãos" },
+    { id: "graosDept", label: "Grãos", submodulos: [
+      { id: "graosDept.graos", label: "Grãos em Produção" },
+      { id: "graosDept.talhoes", label: "Talhões" },
+      { id: "graosDept.classificacao", label: "Classificação" },
+      { id: "graosDept.contratos", label: "Contratos" },
+      { id: "graosDept.romaneiosEntrada", label: "Recebimento" },
+      { id: "graosDept.romaneiosSaida", label: "Expedição" },
+      { id: "graosDept.expedicao", label: "Agendamentos" },
+      { id: "graosDept.vendaMilho", label: "Venda de Milho" },
+    ]},
   ]},
   { grupo: "📑 RELATÓRIOS", modulos: [
-    { id: "relatoriosDept", label: "Relatórios" },
+    { id: "relatoriosDept", label: "Relatórios", submodulos: [
+      { id: "relatoriosDept.produtividade", label: "Produtividade" },
+      { id: "relatoriosDept.relatorioMotoristas", label: "Rel. Motoristas" },
+      { id: "relatoriosDept.relatoriosDiarios", label: "Rel. Diário de Colheita" },
+      { id: "relatoriosDept.relatorioCarregamentos", label: "Rel. Carregamentos" },
+      { id: "relatoriosDept.pluviometro", label: "Pluviômetro" },
+      { id: "relatoriosDept.relPluviometria", label: "Rel. Pluviometria" },
+    ]},
   ]},
   { grupo: "🧪 INSUMOS", modulos: [
-    { id: "insumosDept", label: "Insumos" },
+    { id: "insumosDept", label: "Insumos", submodulos: [
+      { id: "insumosDept.insumos", label: "Cadastro de Insumos" },
+      { id: "insumosDept.estoque", label: "Estoque Insumos" },
+      { id: "insumosDept.recebimentoInsumos", label: "Recebimento" },
+      { id: "insumosDept.fichasAplicacao", label: "Fichas de Aplicação" },
+    ]},
   ]},
   { grupo: "🚜 MÁQUINAS E EQUIPAMENTOS", modulos: [
-    { id: "maquinasEquipamentos", label: "Máquinas e Equipamentos" },
+    { id: "maquinasEquipamentos", label: "Máquinas e Equipamentos", submodulos: [
+      { id: "maquinasEquipamentos.maquinas", label: "Máquinas" },
+      { id: "maquinasEquipamentos.implementos", label: "Implementos" },
+      { id: "maquinasEquipamentos.abastecimento", label: "Abastecimento" },
+      { id: "maquinasEquipamentos.trocasOleo", label: "Trocas de Óleo" },
+      { id: "maquinasEquipamentos.filtros", label: "Filtros" },
+      { id: "maquinasEquipamentos.manutencoes", label: "Manutenções" },
+      { id: "maquinasEquipamentos.relatorioCombustivel", label: "Rel. Consumo" },
+    ]},
   ]},
   { grupo: "🔧 ALMOXARIFADO", modulos: [
-    { id: "almoxarifado", label: "Almoxarifado" },
+    { id: "almoxarifado", label: "Almoxarifado", submodulos: [
+      { id: "almoxarifado.pecas", label: "Peças" },
+      { id: "almoxarifado.movimentacaoPecas", label: "Movimentação" },
+      { id: "almoxarifado.historico", label: "Histórico" },
+      { id: "almoxarifado.estoquePecas", label: "Estoque" },
+      { id: "almoxarifado.consumo", label: "Consumo" },
+      { id: "almoxarifado.etiquetas", label: "Etiquetas" },
+      { id: "almoxarifado.inventario", label: "Inventário" },
+      { id: "almoxarifado.graficos", label: "Gráficos" },
+      { id: "almoxarifado.requisicoes", label: "Requisições" },
+    ]},
   ]},
   { grupo: "💰 FINANÇAS", modulos: [
-    { id: "financas", label: "Departamento Financeiro" },
+    { id: "financas", label: "Departamento Financeiro", submodulos: [
+      { id: "financas.contasPagar", label: "Contas a Pagar" },
+      { id: "financas.contasReceber", label: "Contas a Receber" },
+      { id: "financas.despesasOp", label: "Despesas Operacionais" },
+      { id: "financas.fluxoCaixa", label: "Fluxo de Caixa" },
+      { id: "financas.dre", label: "DRE" },
+    ]},
   ]},
   { grupo: "📋 CADASTROS", modulos: [
-    { id: "cadastros", label: "Cadastros" },
+    { id: "cadastros", label: "Cadastros", submodulos: [
+      { id: "cadastros.fazenda", label: "Fazenda" },
+      { id: "cadastros.safras", label: "Ano Safra" },
+      { id: "cadastros.clientes", label: "Clientes" },
+      { id: "cadastros.transportadoras", label: "Transportadoras" },
+      { id: "cadastros.fornecedores", label: "Fornecedores" },
+      { id: "cadastros.caminhoes", label: "Caminhões" },
+      { id: "cadastros.motoristas", label: "Motoristas" },
+    ]},
   ]},
 ];
 
-const todosModuloIds = modulosDisponiveis.flatMap(g => g.modulos.map(m => m.id));
+const todosModuloIds = modulosDisponiveis.flatMap(g => g.modulos.flatMap(m => [m.id, ...(m.submodulos || []).map(s => s.id)]));
+// Helper: get all sub-module ids for a module
+const getSubmoduloIds = (moduloId) => {
+  for (const g of modulosDisponiveis) {
+    for (const m of g.modulos) {
+      if (m.id === moduloId && m.submodulos) return m.submodulos.map(s => s.id);
+    }
+  }
+  return [];
+};
+// Helper: check if user has access to a sub-tab within a department
+const temAcessoSubmodulo = (usuario, moduloId, abaId) => {
+  if (usuario?.role === "admin") return true;
+  const modulos = usuario?.modulos || [];
+  if (modulos.length === 0) return true;
+  if (!modulos.includes(moduloId)) return false;
+  const subKey = `${moduloId}.${abaId}`;
+  // If user has the parent module but no sub-modules configured for it, allow all
+  const subIds = getSubmoduloIds(moduloId);
+  const userSubs = modulos.filter(m => subIds.includes(m));
+  if (userSubs.length === 0) return true; // no sub restriction
+  return modulos.includes(subKey);
+};
 const padNum = (n) => String(n).padStart(5, "0");
 
 // ─── USUÁRIOS FIXOS ──────────────────────────────────────────────────────────
@@ -1218,11 +1293,26 @@ function Usuarios({ state, setState }) {
   const [showSenha, setShowSenha] = useState(false);
   const [confirma, setConfirma] = useState("");
   const [erroForm, setErroForm] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("todos"); // todos | fixo | temporario
+  const [busca, setBusca] = useState("");
 
   const usuarios = state.usuarios || [];
 
+  const usuariosFiltrados = usuarios.filter(u => {
+    if (filtroTipo === "fixo" && !u.isFixo) return false;
+    if (filtroTipo === "temporario" && u.isFixo) return false;
+    if (busca.trim()) {
+      const q = busca.trim().toLowerCase();
+      if (!u.nome?.toLowerCase().includes(q) && !u.login?.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const totalFixos = usuarios.filter(u => u.isFixo).length;
+  const totalTemporarios = usuarios.filter(u => !u.isFixo).length;
+
   const openNew = () => {
-    setForm({ role: "operador", nome: "", login: "", senha: "", modulos: [] });
+    setForm({ role: "operador", nome: "", login: "", senha: "", modulos: [], tipo: "temporario" });
     setEditing(null);
     setConfirma("");
     setErroForm("");
@@ -1232,7 +1322,7 @@ function Usuarios({ state, setState }) {
 
   const openEdit = u => {
     if (u.isFixo) { alert("Usuários fixos no código não podem ser editados pela interface."); return; }
-    setForm({ ...u, senha: u.senha });
+    setForm({ ...u, senha: u.senha, tipo: u.tipo || "temporario" });
     setEditing(u.id);
     setConfirma(u.senha);
     setErroForm("");
@@ -1270,6 +1360,7 @@ function Usuarios({ state, setState }) {
       senha: form.senha.trim(),
       id: editing || uid(),
       modulos: form.role === "admin" ? [] : (form.modulos || []),
+      tipo: form.tipo || "temporario",
       isFixo: false
     };
     
@@ -1310,110 +1401,256 @@ function Usuarios({ state, setState }) {
     </Field>
   );
 
+  const UserCard = ({ u }) => (
+    <div style={{
+      background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 12,
+      padding: 16, display: "flex", flexDirection: "column", gap: 12,
+      transition: "all 0.2s", position: "relative",
+      borderLeft: `3px solid ${u.isFixo ? theme.warning : u.tipo === "fixo" ? theme.accent : theme.success}`
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: "50%",
+            background: u.role === "admin" ? `linear-gradient(135deg, ${theme.warning}, ${theme.gold})` : `linear-gradient(135deg, ${theme.accent}, ${theme.info})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, fontWeight: 700, color: "#fff",
+            boxShadow: `0 2px 8px ${u.role === "admin" ? theme.warning : theme.accent}44`
+          }}>
+            {u.nome?.charAt(0)?.toUpperCase() || "?"}
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: theme.text }}>{u.nome}</div>
+            <div style={{ fontFamily: "monospace", fontSize: 11, color: theme.muted, background: theme.bg, padding: "1px 6px", borderRadius: 4, display: "inline-block", marginTop: 2 }}>@{u.login}</div>
+          </div>
+        </div>
+        {!u.isFixo && (
+          <div style={{ display: "flex", gap: 4 }}>
+            <button onClick={() => openEdit(u)} style={{ background: `${theme.accent}18`, border: `1px solid ${theme.accent}33`, borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: theme.accent, fontSize: 13 }} title="Editar">✏️</button>
+            <button onClick={() => del(u.id)} style={{ background: `${theme.danger}18`, border: `1px solid ${theme.danger}33`, borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: theme.danger, fontSize: 13 }} title="Excluir">🗑️</button>
+          </div>
+        )}
+      </div>
+
+      {/* Badges */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <Badge color={u.role === "admin" ? "gold" : "blue"}>
+          {u.role === "admin" ? "👑 Admin" : "👤 Operador"}
+        </Badge>
+        {u.isFixo ? (
+          <Badge color="gold">🔒 Sistema</Badge>
+        ) : u.tipo === "fixo" ? (
+          <Badge color="blue">📌 Fixo</Badge>
+        ) : (
+          <Badge color="green">⏳ Temporário</Badge>
+        )}
+      </div>
+
+      {/* Modules */}
+      {u.role !== "admin" && (
+        <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 8 }}>
+          <div style={{ fontSize: 10, color: theme.muted, marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".5px" }}>Módulos</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {(u.modulos || []).length > 0 ? (
+              (u.modulos || []).slice(0, 5).map(m => {
+                const mod = modulosDisponiveis.flatMap(g => g.modulos).find(x => x.id === m);
+                return <span key={m} style={{ fontSize: 9, background: `${theme.info}15`, color: theme.info, padding: "2px 6px", borderRadius: 4, border: `1px solid ${theme.info}22` }}>{mod?.label || m}</span>;
+              })
+            ) : (
+              <span style={{ fontSize: 10, color: theme.danger }}>Nenhum módulo</span>
+            )}
+            {(u.modulos || []).length > 5 && <span style={{ fontSize: 9, color: theme.muted }}>+{(u.modulos || []).length - 5}</span>}
+          </div>
+        </div>
+      )}
+      {u.role === "admin" && (
+        <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 8 }}>
+          <span style={{ fontSize: 10, color: theme.accent, fontWeight: 600 }}>🌟 Acesso completo a todos os módulos</span>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <SectionTitle action={<Btn onClick={openNew}>+ Novo Usuário</Btn>}>👥 Usuários do Sistema</SectionTitle>
 
+      {/* Stats Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
+        {[
+          { label: "Total", value: usuarios.length, icon: "👥", color: theme.accent },
+          { label: "Sistema", value: totalFixos, icon: "🔒", color: theme.warning },
+          { label: "Fixos", value: usuarios.filter(u => !u.isFixo && u.tipo === "fixo").length, icon: "📌", color: theme.info },
+          { label: "Temporários", value: totalTemporarios, icon: "⏳", color: theme.success },
+        ].map((s, i) => (
+          <div key={i} style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, marginBottom: 2 }}>{s.icon}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: theme.muted, fontWeight: 600, textTransform: "uppercase" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Info */}
       <Card style={{ marginBottom: 16, background: `${theme.info}0a`, borderColor: `${theme.info}33` }}>
-        <p style={{ color: theme.muted, fontSize: 13 }}>
-          ℹ️ Usuários com status <strong style={{ color: theme.warning }}>Fixo</strong> estão embutidos no projeto e funcionam em qualquer lugar. Novos usuários criados aqui ficam salvos apenas neste navegador.
+        <p style={{ color: theme.muted, fontSize: 12, lineHeight: 1.5 }}>
+          ℹ️ <strong style={{ color: theme.warning }}>Sistema</strong> = embutidos no projeto. <strong style={{ color: theme.info }}>Fixos</strong> = permanecem salvos no navegador. <strong style={{ color: theme.success }}>Temporários</strong> = podem ser removidos a qualquer momento.
         </p>
       </Card>
 
-      <Card>
-        {usuarios.length === 0 ? <EmptyState icon="👥" text="Nenhum usuário cadastrado." /> : (
-          <Table
-            headers={["Nome", "Login", "Nível de Acesso", "Módulos", "Status", "Ações"]}
-            rows={usuarios.map(u => (
-              <tr key={u.id}>
-                <Td><strong>{u.nome}</strong></Td>
-                <Td>
-                  <span style={{ fontFamily: "monospace", background: theme.surface, padding: "2px 8px", borderRadius: 6, fontSize: 12 }}>
-                    {u.login}
-                  </span>
-                </Td>
-                <Td>
-                  <Badge color={u.role === "admin" ? "gold" : "blue"}>
-                    {u.role === "admin" ? "👑 Administrador" : "👤 Operador"}
-                  </Badge>
-                </Td>
-                <Td>
-                  {u.role === "admin" ? (
-                    <span style={{ fontSize: 11, color: theme.accent }}>Acesso total</span>
-                  ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, maxWidth: 200 }}>
-                      {(u.modulos || []).length > 0 ? (
-                        (u.modulos || []).length <= 3 ? (
-                          (u.modulos || []).map(m => {
-                            const mod = modulosDisponiveis.flatMap(g => g.modulos).find(x => x.id === m);
-                            return <span key={m} style={{ fontSize: 10, background: `${theme.info}18`, color: theme.info, padding: "2px 6px", borderRadius: 4, border: `1px solid ${theme.info}33` }}>{mod?.label || m}</span>;
-                          })
-                        ) : (
-                          <span style={{ fontSize: 11, color: theme.muted }}>{(u.modulos || []).length} módulos</span>
-                        )
-                      ) : (
-                        <span style={{ fontSize: 11, color: theme.danger }}>Nenhum</span>
-                      )}
-                    </div>
-                  )}
-                </Td>
-                <Td>
-                  {u.isFixo ? <Badge color="gold">Fixo</Badge> : <Badge color="green">Local</Badge>}
-                </Td>
-                <Td>
-                  {!u.isFixo && (
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <Btn size="sm" variant="secondary" onClick={() => openEdit(u)}>✏️</Btn>
-                      <Btn size="sm" variant="danger" onClick={() => del(u.id)}>🗑️</Btn>
-                    </div>
-                  )}
-                </Td>
-              </tr>
+      {/* Filters */}
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <input
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="🔍 Buscar por nome ou login..."
+              style={{
+                width: "100%", background: theme.bg, border: `1px solid ${theme.border}`,
+                color: theme.text, padding: "8px 12px", borderRadius: 8,
+                fontFamily: "inherit", fontSize: 12, outline: "none", boxSizing: "border-box"
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {[
+              { k: "todos", l: "Todos", c: usuarios.length },
+              { k: "fixo", l: "Fixos/Sistema", c: usuarios.filter(u => u.isFixo || u.tipo === "fixo").length },
+              { k: "temporario", l: "Temporários", c: totalTemporarios },
+            ].map(f => (
+              <button key={f.k} onClick={() => setFiltroTipo(f.k)} style={{
+                padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600,
+                border: filtroTipo === f.k ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                background: filtroTipo === f.k ? `${theme.accent}22` : "transparent",
+                color: filtroTipo === f.k ? theme.accentLight : theme.muted,
+                fontFamily: "inherit"
+              }}>
+                {f.l} ({f.c})
+              </button>
             ))}
-          />
-        )}
+          </div>
+        </div>
       </Card>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Novo"} Usuário`}>
-        <Field label="Nome Completo">
-          <Input value={form.nome} onChange={e => fp("nome", e.target.value)} placeholder="Ex: João da Silva" />
-        </Field>
+      {/* User Grid */}
+      {usuariosFiltrados.length === 0 ? (
+        <Card><EmptyState icon="👥" text="Nenhum usuário encontrado." /></Card>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+          {usuariosFiltrados.map(u => <UserCard key={u.id} u={u} />)}
+        </div>
+      )}
 
-        <Field label="Login">
-          <Input value={form.login} onChange={e => fp("login", e.target.value.toLowerCase().replace(/\s/g, ""))} placeholder="Ex: joao.silva" />
-        </Field>
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "✏️ Editar" : "➕ Novo"} Usuário`}>
+        {/* Personal Info Section */}
+        <div style={{ background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 16, marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: theme.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".5px" }}>📋 Dados Pessoais</div>
+          <Field label="Nome Completo">
+            <Input value={form.nome} onChange={e => fp("nome", e.target.value)} placeholder="Ex: João da Silva" />
+          </Field>
+          <Field label="Login">
+            <Input value={form.login} onChange={e => fp("login", e.target.value.toLowerCase().replace(/\s/g, ""))} placeholder="Ex: joao.silva" />
+          </Field>
+        </div>
 
-        <Row>
-          {senhaInput("Senha", form.senha || "", e => fp("senha", e.target.value))}
-          {senhaInput("Confirmar Senha", confirma, e => setConfirma(e.target.value))}
-        </Row>
+        {/* Security Section */}
+        <div style={{ background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 16, marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: theme.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".5px" }}>🔐 Segurança</div>
+          <Row>
+            {senhaInput("Senha", form.senha || "", e => fp("senha", e.target.value))}
+            {senhaInput("Confirmar Senha", confirma, e => setConfirma(e.target.value))}
+          </Row>
+        </div>
 
-        <Field label="Nível de Acesso">
-          <Select value={form.role || "operador"} onChange={e => { fp("role", e.target.value); if (e.target.value === "admin") fp("modulos", []); }}>
-            <option value="operador">👤 Operador</option>
-            <option value="admin">👑 Administrador</option>
-          </Select>
-        </Field>
+        {/* Config Section */}
+        <div style={{ background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 16, marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: theme.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".5px" }}>⚙️ Configurações</div>
+          
+          <Row>
+            <Field label="Nível de Acesso">
+              <Select value={form.role || "operador"} onChange={e => { fp("role", e.target.value); if (e.target.value === "admin") fp("modulos", []); }}>
+                <option value="operador">👤 Operador</option>
+                <option value="admin">👑 Administrador</option>
+              </Select>
+            </Field>
+            <Field label="Tipo de Usuário">
+              <Select value={form.tipo || "temporario"} onChange={e => fp("tipo", e.target.value)}>
+                <option value="fixo">📌 Fixo (permanente)</option>
+                <option value="temporario">⏳ Temporário (local)</option>
+              </Select>
+            </Field>
+          </Row>
+
+          <div style={{ marginTop: 6, padding: "8px 12px", borderRadius: 8, fontSize: 11, lineHeight: 1.5, color: theme.muted, background: `${form.tipo === "fixo" ? theme.info : theme.success}0a`, border: `1px solid ${form.tipo === "fixo" ? theme.info : theme.success}22` }}>
+            {form.tipo === "fixo"
+              ? "📌 Usuário fixo permanece salvo no sistema e não será removido automaticamente."
+              : "⏳ Usuário temporário pode ser removido a qualquer momento pelo administrador."}
+          </div>
+        </div>
 
         {form.role !== "admin" && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 11, color: theme.muted, marginBottom: 8, fontWeight: 600, letterSpacing: ".5px", textTransform: "uppercase" }}>🔒 Módulos com Acesso</div>
-            <div style={{ background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 14, maxHeight: 300, overflowY: "auto" }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                <button onClick={() => fp("modulos", [...todosModuloIds])} style={{ background: `${theme.accent}22`, color: theme.accentLight, border: `1px solid ${theme.accent}44`, padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>✅ Marcar Todos</button>
-                <button onClick={() => fp("modulos", [])} style={{ background: `${theme.danger}18`, color: theme.danger, border: `1px solid ${theme.danger}44`, padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>❌ Desmarcar Todos</button>
-              </div>
+          <div style={{ background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: theme.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".5px" }}>🔒 Módulos e Submódulos com Acesso</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <button onClick={() => fp("modulos", [...todosModuloIds])} style={{ background: `${theme.accent}22`, color: theme.accentLight, border: `1px solid ${theme.accent}44`, padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>✅ Marcar Todos</button>
+              <button onClick={() => fp("modulos", [])} style={{ background: `${theme.danger}18`, color: theme.danger, border: `1px solid ${theme.danger}44`, padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>❌ Desmarcar Todos</button>
+            </div>
+            <div style={{ maxHeight: 350, overflowY: "auto" }}>
               {modulosDisponiveis.map(grupo => (
-                <div key={grupo.grupo} style={{ marginBottom: 12 }}>
+                <div key={grupo.grupo} style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: theme.gold, marginBottom: 6 }}>{grupo.grupo}</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {grupo.modulos.map(mod => {
-                      const checked = (form.modulos || []).includes(mod.id);
-                      return (
-                        <button key={mod.id} onClick={() => { const cur = form.modulos || []; fp("modulos", checked ? cur.filter(m => m !== mod.id) : [...cur, mod.id]); }} style={{ padding: "5px 12px", borderRadius: 6, cursor: "pointer", border: checked ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`, background: checked ? `${theme.accent}28` : "transparent", color: checked ? theme.accentLight : theme.muted, fontSize: 11, fontWeight: 600 }}>{checked ? "✅" : "⬜"} {mod.label}</button>
-                      );
-                    })}
-                  </div>
+                  {grupo.modulos.map(mod => {
+                    const checked = (form.modulos || []).includes(mod.id);
+                    const subIds = (mod.submodulos || []).map(s => s.id);
+                    const allSubsChecked = subIds.length > 0 && subIds.every(sid => (form.modulos || []).includes(sid));
+                    return (
+                      <div key={mod.id} style={{ marginBottom: 8 }}>
+                        <button onClick={() => {
+                          const cur = form.modulos || [];
+                          if (checked) {
+                            fp("modulos", cur.filter(m => m !== mod.id && !subIds.includes(m)));
+                          } else {
+                            fp("modulos", [...new Set([...cur, mod.id, ...subIds])]);
+                          }
+                        }} style={{ padding: "5px 12px", borderRadius: 6, cursor: "pointer", border: checked ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`, background: checked ? `${theme.accent}28` : "transparent", color: checked ? theme.accentLight : theme.muted, fontSize: 12, fontWeight: 700 }}>
+                          {checked ? "✅" : "⬜"} {mod.label}
+                        </button>
+                        {checked && mod.submodulos && mod.submodulos.length > 0 && (
+                          <div style={{ marginLeft: 20, marginTop: 6, display: "flex", flexWrap: "wrap", gap: 5 }}>
+                            <button onClick={() => {
+                              const cur = form.modulos || [];
+                              if (allSubsChecked) {
+                                fp("modulos", cur.filter(m => !subIds.includes(m)));
+                              } else {
+                                fp("modulos", [...new Set([...cur, ...subIds])]);
+                              }
+                            }} style={{ padding: "3px 8px", borderRadius: 5, cursor: "pointer", border: `1px solid ${theme.border}`, background: allSubsChecked ? `${theme.info}18` : "transparent", color: theme.info, fontSize: 10, fontWeight: 600 }}>
+                              {allSubsChecked ? "☑️ Todos" : "☐ Todos"}
+                            </button>
+                            {mod.submodulos.map(sub => {
+                              const subChecked = (form.modulos || []).includes(sub.id);
+                              return (
+                                <button key={sub.id} onClick={() => {
+                                  const cur = form.modulos || [];
+                                  fp("modulos", subChecked ? cur.filter(m => m !== sub.id) : [...cur, sub.id]);
+                                }} style={{
+                                  padding: "3px 10px", borderRadius: 5, cursor: "pointer",
+                                  border: subChecked ? `1px solid ${theme.accent}88` : `1px solid ${theme.border}`,
+                                  background: subChecked ? `${theme.accent}15` : "transparent",
+                                  color: subChecked ? theme.accentLight : theme.muted,
+                                  fontSize: 10, fontWeight: 500
+                                }}>
+                                  {subChecked ? "✅" : "⬜"} {sub.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -5785,10 +6022,8 @@ function RelatorioFinanceiro({ state }) {
 }
 
 // ─── GRÃOS (DEPARTAMENTO COM ABAS) ──────────────────────────────────────────
-function GraosDept({ state, setState }) {
-  const [aba, setAba] = useState("graos");
-
-  const abas = [
+function GraosDept({ state, setState, usuario }) {
+  const allAbas = [
     { id: "graos", label: "🌾 Grãos em Produção", icon: "🌾" },
     { id: "talhoes", label: "🗺️ Talhões", icon: "🗺️" },
     { id: "classificacao", label: "⚙️ Classificação", icon: "⚙️" },
@@ -5798,6 +6033,8 @@ function GraosDept({ state, setState }) {
     { id: "expedicao", label: "🚚 Agendamentos", icon: "🚚" },
     { id: "vendaMilho", label: "🌽 Venda de Milho", icon: "🌽" },
   ];
+  const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "graosDept", a.id));
+  const [aba, setAba] = useState(abas[0]?.id || "graos");
 
   const renderContent = () => {
     switch (aba) {
@@ -6174,10 +6411,8 @@ function RelatorioPluviometria({ state }) {
 }
 
 // ─── RELATÓRIOS (DEPARTAMENTO COM ABAS) ─────────────────────────────────────
-function RelatoriosDept({ state, setState }) {
-  const [aba, setAba] = useState("produtividade");
-
-  const abas = [
+function RelatoriosDept({ state, setState, usuario }) {
+  const allAbas = [
     { id: "produtividade", label: "📈 Produtividade", icon: "📈" },
     { id: "relatorioMotoristas", label: "📊 Rel. Motoristas", icon: "📊" },
     { id: "relatoriosDiarios", label: "📅 Rel. Diário de Colheita", icon: "📅" },
@@ -6185,6 +6420,8 @@ function RelatoriosDept({ state, setState }) {
     { id: "pluviometro", label: "🌧️ Pluviômetro", icon: "🌧️" },
     { id: "relPluviometria", label: "📊 Rel. Pluviometria", icon: "📊" },
   ];
+  const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "relatoriosDept", a.id));
+  const [aba, setAba] = useState(abas[0]?.id || "produtividade");
 
   const renderContent = () => {
     switch (aba) {
@@ -6220,15 +6457,15 @@ function RelatoriosDept({ state, setState }) {
 }
 
 // ─── INSUMOS (DEPARTAMENTO COM ABAS) ────────────────────────────────────────
-function InsumosDept({ state, setState }) {
-  const [aba, setAba] = useState("insumos");
-
-  const abas = [
+function InsumosDept({ state, setState, usuario }) {
+  const allAbas = [
     { id: "insumos", label: "🧪 Cadastro de Insumos", icon: "🧪" },
     { id: "estoque", label: "📦 Estoque Insumos", icon: "📦" },
     { id: "recebimentoInsumos", label: "📥 Recebimento", icon: "📥" },
     { id: "fichasAplicacao", label: "📋 Fichas de Aplicação", icon: "📋" },
   ];
+  const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "insumosDept", a.id));
+  const [aba, setAba] = useState(abas[0]?.id || "insumos");
 
   const crudPages = {
     insumos: { title: "🧪 Cadastro de Insumos", stateKey: "insumos", fields: [
@@ -6272,16 +6509,16 @@ function InsumosDept({ state, setState }) {
   );
 }
 
-function Financas({ state, setState }) {
-  const [aba, setAba] = useState("contasPagar");
-
-  const abas = [
+function Financas({ state, setState, usuario }) {
+  const allAbas = [
     { id: "contasPagar", label: "💰 Contas a Pagar", icon: "💰" },
     { id: "contasReceber", label: "💵 Contas a Receber", icon: "💵" },
     { id: "despesasOp", label: "📋 Despesas Operacionais", icon: "📋" },
     { id: "fluxoCaixa", label: "📊 Fluxo de Caixa", icon: "📊" },
     { id: "dre", label: "📈 DRE", icon: "📈" },
   ];
+  const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "financas", a.id));
+  const [aba, setAba] = useState(abas[0]?.id || "contasPagar");
 
   const renderContent = () => {
     switch (aba) {
@@ -6683,10 +6920,8 @@ function Implementos({ state, setState }) {
 }
 
 // ─── MÁQUINAS E EQUIPAMENTOS (DEPARTAMENTO) ──────────────────────────────────
-function MaquinasEquipamentos({ state, setState }) {
-  const [aba, setAba] = useState("maquinas");
-
-  const abas = [
+function MaquinasEquipamentos({ state, setState, usuario }) {
+  const allAbas = [
     { id: "maquinas", label: "🚜 Máquinas", icon: "🚜" },
     { id: "implementos", label: "🔩 Implementos", icon: "🔩" },
     { id: "abastecimento", label: "⛽ Abastecimento", icon: "⛽" },
@@ -6695,6 +6930,8 @@ function MaquinasEquipamentos({ state, setState }) {
     { id: "manutencoes", label: "🔧 Manutenções", icon: "🔧" },
     { id: "relatorioCombustivel", label: "📈 Rel. Consumo", icon: "📈" },
   ];
+  const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "maquinasEquipamentos", a.id));
+  const [aba, setAba] = useState(abas[0]?.id || "maquinas");
 
   const renderContent = () => {
     switch (aba) {
@@ -6731,12 +6968,10 @@ function MaquinasEquipamentos({ state, setState }) {
 }
 
 // ─── ALMOXARIFADO (DEPARTAMENTO) ─────────────────────────────────────────────
-function AlmoxarifadoDept({ state, setState }) {
-  const [aba, setAba] = useState("pecas");
-
+function AlmoxarifadoDept({ state, setState, usuario }) {
   const pecasBaixo = (state.pecas || []).filter(p => { const q = parseFloat(p.quantidade) || 0, m = parseFloat(p.estoqueMinimo) || 0; return m > 0 && q <= m; });
 
-  const abas = [
+  const allAbas = [
     { id: "pecas", label: "🔧 Peças", icon: "🔧" },
     { id: "movimentacaoPecas", label: "📦 Movimentação", icon: "📦" },
     { id: "historico", label: "📜 Histórico", icon: "📜" },
@@ -6747,6 +6982,8 @@ function AlmoxarifadoDept({ state, setState }) {
     { id: "graficos", label: "📈 Gráficos", icon: "📈" },
     { id: "requisicoes", label: "🛒 Requisições", icon: "🛒" },
   ];
+  const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "almoxarifado", a.id));
+  const [aba, setAba] = useState(abas[0]?.id || "pecas");
 
   const renderContent = () => {
     switch (aba) {
@@ -6981,9 +7218,7 @@ function SafraCadastro({ state, setState }) {
    );
  }
 
-function CadastrosDept({ state, setState }) {
-  const [aba, setAba] = useState("clientes");
-
+function CadastrosDept({ state, setState, usuario }) {
   const crudPages = {
     clientes: { title: "Cliente", icon: "👥", stateKey: "clientes", fields: [{ key: "nome", label: "Nome / Razão Social", table: true }, { key: "cpfCnpj", label: "CPF / CNPJ", table: true }, { key: "contato", label: "Telefone", table: true }, { key: "email", label: "E-mail", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
     transportadoras: { title: "Transportadora", icon: "🚛", stateKey: "transportadoras", fields: [{ key: "nome", label: "Razão Social", table: true }, { key: "cnpj", label: "CNPJ", table: true }, { key: "contato", label: "Contato", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
@@ -6992,7 +7227,7 @@ function CadastrosDept({ state, setState }) {
     motoristas: { title: "Motorista", icon: "👷", stateKey: "motoristas", fields: [{ key: "nome", label: "Nome Completo", table: true }, { key: "cnh", label: "CNH", table: true }, { key: "arquivo", label: "Arquivo CNH (Opcional)", type: "file", optional: true }] },
   };
 
-  const abas = [
+  const allAbas = [
     { id: "fazenda", label: "🏡 Fazenda", icon: "🏡" },
     { id: "safras", label: "📅 Ano Safra", icon: "📅" },
     { id: "clientes", label: "👥 Clientes", icon: "👥" },
@@ -7001,6 +7236,8 @@ function CadastrosDept({ state, setState }) {
     { id: "caminhoes", label: "🚜 Caminhões", icon: "🚜" },
     { id: "motoristas", label: "👷 Motoristas", icon: "👷" },
   ];
+  const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "cadastros", a.id));
+  const [aba, setAba] = useState(abas[0]?.id || "clientes");
 
   const renderContent = () => {
     if (aba === "fazenda") return <Fazenda state={state} setState={setState} />;
@@ -7130,16 +7367,16 @@ export default function App() {
     switch (active) {
       case "dashboard":          return <Dashboard state={state} setActive={setActive} />;
       case "fazenda":            return <Fazenda state={state} setState={ss} />;
-      case "graosDept":          return <GraosDept state={state} setState={ss} />;
-      case "relatoriosDept": return <RelatoriosDept state={state} setState={ss} />;
-      case "insumosDept": return <InsumosDept state={state} setState={ss} />;
+      case "graosDept":          return <GraosDept state={state} setState={ss} usuario={usuarioLogado} />;
+      case "relatoriosDept": return <RelatoriosDept state={state} setState={ss} usuario={usuarioLogado} />;
+      case "insumosDept": return <InsumosDept state={state} setState={ss} usuario={usuarioLogado} />;
       case "usuarios": return <Usuarios state={state} setState={ss} />;
       case "lixeira": return <Lixeira state={state} setState={ss} />;
       case "backup": return <BackupManager state={state} setState={ss} />;
-      case "maquinasEquipamentos": return <MaquinasEquipamentos state={state} setState={ss} />;
-      case "almoxarifado": return <AlmoxarifadoDept state={state} setState={ss} />;
-      case "cadastros": return <CadastrosDept state={state} setState={ss} />;
-      case "financas": return <Financas state={state} setState={ss} />;
+      case "maquinasEquipamentos": return <MaquinasEquipamentos state={state} setState={ss} usuario={usuarioLogado} />;
+      case "almoxarifado": return <AlmoxarifadoDept state={state} setState={ss} usuario={usuarioLogado} />;
+      case "cadastros": return <CadastrosDept state={state} setState={ss} usuario={usuarioLogado} />;
+      case "financas": return <Financas state={state} setState={ss} usuario={usuarioLogado} />;
       default: return null;
     }
   };

@@ -96,13 +96,12 @@ function calcDesc(val, ref, pct) {
 
 const Btn = ({ children, onClick, variant = "primary", size = "md", style = {}, disabled = false }) => {
   const variants = {
-    primary:   { background: theme.accent,       color: "#fff",            border: "none" },
-    secondary: { background: "transparent",       color: theme.text,        border: `1px solid ${theme.border}` },
-    danger:    { background: `${theme.danger}22`, color: theme.danger,      border: `1px solid ${theme.danger}44` },
-    gold:      { background: `${theme.gold}22`,   color: theme.gold,        border: `1px solid ${theme.gold}44` },
-    info:      { background: `${theme.info}22`,   color: theme.info,        border: `1px solid ${theme.info}44` },
-    success:   { background: `${theme.accent}22`, color: theme.accentLight, border: `1px solid ${theme.accent}44` },
-    ghost:     { background: "transparent",        color: theme.muted,       border: `1px solid ${theme.border}` },
+    primary: { background: theme.accent, color: "#fff", border: "none" },
+    secondary: { background: "transparent", color: theme.text, border: `1px solid ${theme.border}` },
+    danger: { background: `${theme.danger}22`, color: theme.danger, border: `1px solid ${theme.danger}44` },
+    gold: { background: `${theme.gold}22`, color: theme.gold, border: `1px solid ${theme.gold}44` },
+    info: { background: `${theme.info}22`, color: theme.info, border: `1px solid ${theme.info}44` },
+    success: { background: `${theme.accent}22`, color: theme.accentLight, border: `1px solid ${theme.accent}44` },
   };
   const sizes = {
     sm: { padding: "5px 12px", fontSize: 12 },
@@ -271,8 +270,6 @@ const initState = () => {
       if (!parsed.movimentacaoPecas) parsed.movimentacaoPecas = [];
       if (!parsed.inventarios) parsed.inventarios = [];
       if (!parsed.fichasAplicacao) parsed.fichasAplicacao = [];
-      if (!parsed.safras)          parsed.safras = [];
-      if (!parsed.pluviometro)     parsed.pluviometro = [];
       if (!parsed.vendasMilho) parsed.vendasMilho = [];
       if (!parsed.contasPagar) parsed.contasPagar = [];
       if (!parsed.contasReceber) parsed.contasReceber = [];
@@ -307,8 +304,6 @@ const initState = () => {
     movimentacaoPecas: [],
     inventarios: [],
     fichasAplicacao: [],
-    safras: [],
-    pluviometro: [],
     vendasMilho: [],
     contasPagar: [],
     contasReceber: [],
@@ -643,44 +638,31 @@ function Dashboard({ state, setActive }) {
   const totalContasPagar = (state.contasPagar || []).filter(c => c.status === "Pendente").reduce((s, c) => s + (c.valor || 0), 0);
   const totalContasReceber = (state.contasReceber || []).filter(c => c.status === "Pendente").reduce((s, c) => s + (c.valor || 0), 0);
 
-  const StatCard = ({ label, value, icon, color, page, sub }) => {
-    const [hov, setHov] = React.useState(false);
-    return (
-      <div
-        onClick={() => page && setActive(page)}
-        onMouseEnter={() => setHov(true)}
-        onMouseLeave={() => setHov(false)}
-        style={{
-          background:  hov && page ? theme.surface : theme.card,
-          border:      `1px solid ${hov && page ? color : theme.border}`,
-          borderLeft:  `4px solid ${color}`,
-          borderRadius: 10, padding: "14px 16px",
-          cursor: page ? "pointer" : "default",
-          transition: "background .15s, border-color .15s",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ color: theme.muted, fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, fontWeight: 600 }}>{label}</div>
-            <div style={{ fontWeight: 900, fontSize: 30, color, lineHeight: 1 }}>{value}</div>
-            {sub && <div style={{ color: theme.muted, fontSize: 11, marginTop: 5 }}>{sub}</div>}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-            <span style={{ fontSize: 26 }}>{icon}</span>
-            {page && (
-              <span style={{
-                fontSize: 9, color,
-                background: `${color}22`, border: `1px solid ${color}55`,
-                padding: "2px 8px", borderRadius: 20, fontWeight: 700,
-                letterSpacing: .5, whiteSpace: "nowrap",
-                opacity: hov ? 1 : 0.5, transition: "opacity .15s"
-              }}>→ Ver</span>
-            )}
-          </div>
+  const StatCard = ({ label, value, icon, color, page, sub }) => (
+    <div
+      onClick={() => page && setActive(page)}
+      style={{
+        background: theme.card, border: `1px solid ${theme.border}`,
+        borderLeft: `4px solid ${color}`, borderRadius: 10, padding: "14px 16px",
+        cursor: page ? "pointer" : "default",
+        transition: "all .18s",
+      }}
+      onMouseEnter={e => { if (page) { e.currentTarget.style.borderColor = color; e.currentTarget.style.background = `color-mix(in srgb, ${color} 8%, ${theme.card})`; }}}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.background = theme.card; e.currentTarget.style.borderLeftColor = color; }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ color: theme.muted, fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, fontWeight: 600 }}>{label}</div>
+          <div style={{ fontWeight: 900, fontSize: 30, color, lineHeight: 1 }}>{value}</div>
+          {sub && <div style={{ color: theme.muted, fontSize: 11, marginTop: 5 }}>{sub}</div>}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 26 }}>{icon}</span>
+          {page && <span style={{ fontSize: 9, color, background: `${color}20`, border: `1px solid ${color}44`, padding: "2px 7px", borderRadius: 20, fontWeight: 700, letterSpacing: .5, whiteSpace: "nowrap" }}>→ Ver</span>}
         </div>
       </div>
-    );
-  };
+    </div>
+  );
 
   const Group = ({ title, color, children }) => (
     <div style={{ marginBottom: 24 }}>
@@ -5689,377 +5671,23 @@ function GraosDept({ state, setState }) {
 }
 
 // ─── RELATÓRIOS (DEPARTAMENTO COM ABAS) ─────────────────────────────────────
-// ─── PLUVIÔMETRO ─────────────────────────────────────────────────────────────
-function Pluviometro({ state, setState }) {
-  const talhoes      = state.talhoes      || [];
-  const safras       = state.safras       || [];
-  const registros    = state.pluviometro  || [];
-
-  const [aba, setAba]               = useState("lancamento");
-  const [modal, setModal]           = useState(false);
-  const [editId, setEditId]         = useState(null);
-  const [filtroTalhao, setFiltroTalhao] = useState("");
-  const [filtroSafra, setFiltroSafra]   = useState("");
-  const [filtroInicio, setFiltroInicio] = useState("");
-  const [filtroFim, setFiltroFim]       = useState("");
-
-  const emptyForm = { data: new Date().toISOString().split("T")[0], talhao: "", mm: "", safra: "", obs: "" };
-  const [form, setForm] = useState({ ...emptyForm });
-  const fp = (k, v) => setForm(p => ({ ...p, [k]: v }));
-
-  const salvar = () => {
-    if (!form.data || !form.talhao || !form.mm) { alert("Informe a data, o talhão e os mm de chuva."); return; }
-    const item = { ...form, mm: parseFloat(form.mm) || 0, id: editId || uid() };
-    setState(s => ({
-      ...s,
-      pluviometro: editId
-        ? (s.pluviometro || []).map(r => r.id === editId ? item : r)
-        : [...(s.pluviometro || []), item]
-    }));
-    setModal(false); setEditId(null); setForm({ ...emptyForm });
-  };
-
-  const del = (id) => {
-    if (window.confirm("Excluir este registro?"))
-      setState(s => ({ ...s, pluviometro: (s.pluviometro || []).filter(r => r.id !== id) }));
-  };
-
-  const openEdit = (r) => { setForm({ ...r }); setEditId(r.id); setModal(true); };
-
-  // Filtragem
-  const filtrados = registros.filter(r => {
-    const mt = filtroTalhao ? r.talhao === filtroTalhao : true;
-    const ms = filtroSafra  ? r.safra  === filtroSafra  : true;
-    let   md = true;
-    if (filtroInicio && filtroFim) md = r.data >= filtroInicio && r.data <= filtroFim;
-    else if (filtroInicio)         md = r.data >= filtroInicio;
-    else if (filtroFim)            md = r.data <= filtroFim;
-    return mt && ms && md;
-  }).sort((a, b) => b.data.localeCompare(a.data));
-
-  // Totais por talhão (para relatório geral)
-  const totaisPorTalhao = talhoes.map(t => {
-    const regs = filtrados.filter(r => r.talhao === t.nome);
-    const total = regs.reduce((s, r) => s + (parseFloat(r.mm) || 0), 0);
-    const media = regs.length > 0 ? total / regs.length : 0;
-    const max   = regs.length > 0 ? Math.max(...regs.map(r => r.mm)) : 0;
-    return { nome: t.nome, area: t.area, total, media, max, registros: regs.length };
-  }).filter(t => t.registros > 0 || filtroTalhao === "").sort((a, b) => b.total - a.total);
-
-  const totalGeral = totaisPorTalhao.reduce((s, t) => s + t.total, 0);
-  const mediaGeral = totaisPorTalhao.length > 0 ? totalGeral / totaisPorTalhao.length : 0;
-
-  // Comparativo por safra
-  const comparativoSafras = safras.map(safra => {
-    const nomeSafra = safra.nome || `${safra.anoInicio}/${safra.anoFim}`;
-    const regs = registros.filter(r => r.safra === nomeSafra);
-    const total = regs.reduce((s, r) => s + (parseFloat(r.mm) || 0), 0);
-    const media = regs.length > 0 ? total / regs.length : 0;
-    const max   = regs.length > 0 ? Math.max(...regs.map(r => r.mm)) : 0;
-    // Por talhão nesta safra
-    const porTalhao = talhoes.map(t => {
-      const rt = regs.filter(r => r.talhao === t.nome);
-      return { nome: t.nome, total: rt.reduce((s, r) => s + r.mm, 0), n: rt.length };
-    }).filter(t => t.n > 0);
-    return { nome: nomeSafra, anoFim: safra.anoFim, total, media, max, n: regs.length, porTalhao };
-  }).filter(s => s.n > 0).sort((a, b) => (a.anoFim || "").localeCompare(b.anoFim || ""));
-
-  // Imprimir
-  const imprimir = () => {
-    const faz = state.fazenda || {};
-    const win = window.open("", "_blank");
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-    <title>Relatório Pluviométrico</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:24px;font-size:11px;color:#111}
-      .hd{display:flex;justify-content:space-between;border-bottom:2px solid #2563eb;padding-bottom:12px;margin-bottom:18px}
-      .faz{font-size:16px;font-weight:900}.sub{font-size:9px;color:#555;margin-top:2px}
-      h2{font-size:12px;font-weight:700;margin:16px 0 8px;border-left:3px solid #2563eb;padding-left:8px}
-      table{width:100%;border-collapse:collapse;margin-bottom:14px}
-      th{background:#1e293b;color:#fff;padding:6px 10px;font-size:9px;text-transform:uppercase;text-align:left}
-      td{padding:6px 10px;border:1px solid #e2e8f0;font-size:10px}
-      tr:nth-child(even)td{background:#f8fafc}
-      .tot td{background:#dbeafe;font-weight:700}
-      .footer{margin-top:20px;font-size:8px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}
-    </style></head><body>
-    <div class="hd">
-      <div><div class="faz">${faz.nome || "FAZENDA"}</div>
-      <div class="sub">Produtor: ${faz.produtor || "—"}</div>
-      <div class="sub">Relatório Pluviométrico</div></div>
-      <div style="text-align:right;font-size:9px;color:#555">Gerado: ${new Date().toLocaleString("pt-BR")}<br/>
-      ${filtroSafra ? `Safra: ${filtroSafra}` : "Todas as safras"}${filtroTalhao ? ` · Talhão: ${filtroTalhao}` : ""}</div>
-    </div>
-
-    <h2>TOTAL POR TALHÃO</h2>
-    <table>
-      <tr><th>Talhão</th><th>Registros</th><th>Total (mm)</th><th>Média (mm)</th><th>Máxima (mm)</th></tr>
-      ${totaisPorTalhao.map(t => `<tr><td><strong>${t.nome}</strong></td><td>${t.registros}</td><td>${t.total.toFixed(1)}</td><td>${t.media.toFixed(1)}</td><td>${t.max.toFixed(1)}</td></tr>`).join("")}
-      <tr class="tot"><td colspan="2">TOTAL GERAL</td><td>${totalGeral.toFixed(1)} mm</td><td>${mediaGeral.toFixed(1)} mm</td><td>—</td></tr>
-    </table>
-
-    ${comparativoSafras.length > 1 ? `
-    <h2>COMPARATIVO POR SAFRA</h2>
-    <table>
-      <tr><th>Safra</th><th>Registros</th><th>Total (mm)</th><th>Média (mm)</th><th>Máxima (mm)</th></tr>
-      ${comparativoSafras.map(s => `<tr><td><strong>${s.nome}</strong></td><td>${s.n}</td><td>${s.total.toFixed(1)}</td><td>${s.media.toFixed(1)}</td><td>${s.max.toFixed(1)}</td></tr>`).join("")}
-    </table>` : ""}
-
-    <h2>LANÇAMENTOS DETALHADOS</h2>
-    <table>
-      <tr><th>Data</th><th>Talhão</th><th>Safra</th><th>Precipitação (mm)</th><th>Observações</th></tr>
-      ${filtrados.map(r => `<tr><td>${r.data}</td><td>${r.talhao}</td><td>${r.safra||"—"}</td><td><strong>${r.mm} mm</strong></td><td>${r.obs||"—"}</td></tr>`).join("")}
-    </table>
-    <div class="footer">AgriGest · Relatório Pluviométrico · ${new Date().toLocaleString("pt-BR")}</div>
-    </body></html>`);
-    win.document.close();
-    setTimeout(() => win.print(), 400);
-  };
-
-  const tabBtn = (id, label) => (
-    <button key={id} onClick={() => setAba(id)} style={{
-      padding: "8px 18px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 13,
-      fontWeight: aba === id ? 600 : 400, transition: "all .2s",
-      background: aba === id ? `${theme.info}22` : "transparent",
-      border: aba === id ? `1px solid ${theme.info}44` : `1px solid ${theme.border}`,
-      color: aba === id ? theme.info : theme.muted,
-    }}>{label}</button>
-  );
-
-  const inputSt = { width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, outline: "none" };
-  const lblSt   = { fontSize: 11, color: theme.muted, marginBottom: 5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block" };
-
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>🌧️ Pluviômetro</h2>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Btn variant="info" onClick={imprimir}>🖨️ Imprimir / PDF</Btn>
-          <Btn onClick={() => { setForm({ ...emptyForm }); setEditId(null); setModal(true); }}>+ Novo Lançamento</Btn>
-        </div>
-      </div>
-
-      {/* Abas */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        {tabBtn("lancamento", "📋 Lançamentos")}
-        {tabBtn("relatorio",  "📊 Relatório por Talhão")}
-        {tabBtn("comparativo","📈 Comparativo por Safra")}
-      </div>
-
-      {/* Filtros (visíveis em todas as abas) */}
-      <Card style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>🔍 Filtros</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
-          <div>
-            <label style={lblSt}>Talhão</label>
-            <select value={filtroTalhao} onChange={e => setFiltroTalhao(e.target.value)} style={inputSt}>
-              <option value="">Todos os talhões</option>
-              {talhoes.map(t => <option key={t.id}>{t.nome}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={lblSt}>Safra</label>
-            <select value={filtroSafra} onChange={e => setFiltroSafra(e.target.value)} style={inputSt}>
-              <option value="">Todas as safras</option>
-              {safras.map(s => { const n = s.nome || `${s.anoInicio}/${s.anoFim}`; return <option key={s.id}>{n}</option>; })}
-            </select>
-          </div>
-          <div>
-            <label style={lblSt}>Data Início</label>
-            <input type="date" value={filtroInicio} onChange={e => setFiltroInicio(e.target.value)} style={inputSt} />
-          </div>
-          <div>
-            <label style={lblSt}>Data Fim</label>
-            <input type="date" value={filtroFim} onChange={e => setFiltroFim(e.target.value)} style={inputSt} />
-          </div>
-        </div>
-        {(filtroTalhao || filtroSafra || filtroInicio || filtroFim) && (
-          <button onClick={() => { setFiltroTalhao(""); setFiltroSafra(""); setFiltroInicio(""); setFiltroFim(""); }}
-            style={{ marginTop: 10, background: "transparent", border: `1px solid ${theme.border}`, color: theme.muted, padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>
-            ✕ Limpar filtros
-          </button>
-        )}
-      </Card>
-
-      {/* ── ABA: LANÇAMENTOS ── */}
-      {aba === "lancamento" && (
-        <Card>
-          {filtrados.length === 0 ? (
-            <EmptyState icon="🌧️" text="Nenhum lançamento pluviométrico encontrado." />
-          ) : (
-            <Table
-              headers={["Data", "Talhão", "Safra", "Precipitação (mm)", "Observações", "Ações"]}
-              rows={filtrados.map(r => (
-                <tr key={r.id}>
-                  <Td>{r.data}</Td>
-                  <Td><strong style={{ color: theme.accentLight }}>{r.talhao}</strong></Td>
-                  <Td>{r.safra ? <Badge color="gold">{r.safra}</Badge> : "—"}</Td>
-                  <Td>
-                    <span style={{ fontFamily: "monospace", fontWeight: 900, fontSize: 16, color: r.mm >= 20 ? theme.info : r.mm >= 5 ? theme.accent : theme.muted }}>
-                      {r.mm} mm
-                    </span>
-                  </Td>
-                  <Td style={{ color: theme.muted, fontSize: 12 }}>{r.obs || "—"}</Td>
-                  <Td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <Btn size="sm" variant="secondary" onClick={() => openEdit(r)}>✏️</Btn>
-                      <Btn size="sm" variant="danger"    onClick={() => del(r.id)}>🗑️</Btn>
-                    </div>
-                  </Td>
-                </tr>
-              ))}
-            />
-          )}
-        </Card>
-      )}
-
-      {/* ── ABA: RELATÓRIO POR TALHÃO ── */}
-      {aba === "relatorio" && (
-        <div>
-          {/* Cards de totais */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
-            {[
-              { label: "Total Geral",   value: `${totalGeral.toFixed(1)} mm`, color: theme.info    },
-              { label: "Média Geral",   value: `${mediaGeral.toFixed(1)} mm`, color: theme.accent  },
-              { label: "Nº Registros",  value: filtrados.length,              color: theme.gold    },
-            ].map(c => (
-              <Card key={c.label} style={{ borderLeft: `3px solid ${c.color}`, padding: "14px 18px" }}>
-                <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{c.label}</div>
-                <div style={{ fontWeight: 900, fontSize: 28, color: c.color }}>{c.value}</div>
-              </Card>
-            ))}
-          </div>
-          <Card>
-            {totaisPorTalhao.length === 0 ? (
-              <EmptyState icon="📊" text="Nenhum dado para o filtro selecionado." />
-            ) : (
-              <Table
-                headers={["Talhão", "Registros", "Total (mm)", "Média por Evento (mm)", "Máxima (mm)"]}
-                rows={[
-                  ...totaisPorTalhao.map(t => (
-                    <tr key={t.nome}>
-                      <Td><strong style={{ color: theme.accentLight }}>{t.nome}</strong></Td>
-                      <Td><Badge color="blue">{t.registros}</Badge></Td>
-                      <Td><span style={{ fontFamily: "monospace", fontWeight: 700, color: theme.info, fontSize: 15 }}>{t.total.toFixed(1)} mm</span></Td>
-                      <Td><span style={{ color: theme.accent }}>{t.media.toFixed(1)} mm</span></Td>
-                      <Td><span style={{ color: theme.gold }}>{t.max.toFixed(1)} mm</span></Td>
-                    </tr>
-                  )),
-                  <tr key="total" style={{ background: `${theme.info}0a`, borderTop: `2px solid ${theme.border}` }}>
-                    <Td><strong>TOTAL GERAL</strong></Td>
-                    <Td><strong>{filtrados.length}</strong></Td>
-                    <Td><strong style={{ color: theme.info, fontSize: 16 }}>{totalGeral.toFixed(1)} mm</strong></Td>
-                    <Td><strong style={{ color: theme.accent }}>{mediaGeral.toFixed(1)} mm</strong></Td>
-                    <Td>—</Td>
-                  </tr>
-                ]}
-              />
-            )}
-          </Card>
-        </div>
-      )}
-
-      {/* ── ABA: COMPARATIVO POR SAFRA ── */}
-      {aba === "comparativo" && (
-        <div>
-          {comparativoSafras.length < 2 ? (
-            <Card>
-              <EmptyState icon="📈" text="Lançamentos em pelo menos 2 safras são necessários para o comparativo." />
-            </Card>
-          ) : (
-            <div>
-              <Card style={{ marginBottom: 16 }}>
-                <Table
-                  headers={["Safra", "Registros", "Total (mm)", "Média/Evento (mm)", "Máxima (mm)"]}
-                  rows={comparativoSafras.map(s => (
-                    <tr key={s.nome}>
-                      <Td><strong style={{ color: theme.gold }}>{s.nome}</strong></Td>
-                      <Td><Badge color="blue">{s.n}</Badge></Td>
-                      <Td><span style={{ fontFamily: "monospace", fontWeight: 700, color: theme.info, fontSize: 15 }}>{s.total.toFixed(1)} mm</span></Td>
-                      <Td><span style={{ color: theme.accent }}>{s.media.toFixed(1)} mm</span></Td>
-                      <Td><span style={{ color: theme.gold }}>{s.max.toFixed(1)} mm</span></Td>
-                    </tr>
-                  ))}
-                />
-              </Card>
-
-              {/* Detalhe por talhão em cada safra */}
-              {comparativoSafras.map(s => (
-                <Card key={s.nome} style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: theme.gold, marginBottom: 12 }}>
-                    🌧️ {s.nome} — Total: <span style={{ color: theme.info }}>{s.total.toFixed(1)} mm</span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
-                    {s.porTalhao.map(t => (
-                      <div key={t.nome} style={{ background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "10px 14px" }}>
-                        <div style={{ fontSize: 11, color: theme.muted, marginBottom: 4 }}>{t.nome}</div>
-                        <div style={{ fontWeight: 700, fontSize: 20, color: theme.info }}>{t.total.toFixed(1)} <span style={{ fontSize: 12 }}>mm</span></div>
-                        <div style={{ fontSize: 11, color: theme.muted }}>{t.n} evento(s)</div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Modal de lançamento */}
-      <Modal open={modal} onClose={() => setModal(false)} title={editId ? "Editar Lançamento" : "Novo Lançamento Pluviométrico"}>
-        <Row>
-          <Field label="Data *">
-            <Input type="date" value={form.data} onChange={e => fp("data", e.target.value)} />
-          </Field>
-          <Field label="Precipitação (mm) *">
-            <Input type="number" step="0.1" value={form.mm} onChange={e => fp("mm", e.target.value)} placeholder="Ex: 12.5" />
-          </Field>
-        </Row>
-        <Row>
-          <Field label="Talhão *">
-            <Select value={form.talhao} onChange={e => fp("talhao", e.target.value)}>
-              <option value="">Selecione o talhão...</option>
-              {talhoes.map(t => <option key={t.id}>{t.nome}</option>)}
-            </Select>
-          </Field>
-          <Field label="Safra (opcional)">
-            <Select value={form.safra} onChange={e => fp("safra", e.target.value)}>
-              <option value="">Sem safra vinculada</option>
-              {safras.map(s => { const n = s.nome || `${s.anoInicio}/${s.anoFim}`; return <option key={s.id}>{n}</option>; })}
-            </Select>
-          </Field>
-        </Row>
-        <Field label="Observações (opcional)">
-          <Input value={form.obs} onChange={e => fp("obs", e.target.value)} placeholder="Ex: Chuva forte com granizo, garoa..." />
-        </Field>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-          <Btn variant="secondary" onClick={() => setModal(false)}>Cancelar</Btn>
-          <Btn onClick={salvar}>💾 Salvar</Btn>
-        </div>
-      </Modal>
-    </div>
-  );
-}
-
-// ─── RELATÓRIOS (DEPARTAMENTO) ────────────────────────────────────────────────
 function RelatoriosDept({ state, setState }) {
   const [aba, setAba] = useState("produtividade");
 
   const abas = [
-    { id: "produtividade",          label: "📈 Produtividade",           icon: "📈" },
-    { id: "pluviometro",            label: "🌧️ Pluviômetro",             icon: "🌧️" },
-    { id: "relatorioMotoristas",    label: "📊 Rel. Motoristas",         icon: "📊" },
-    { id: "relatoriosDiarios",      label: "📅 Rel. Diário de Colheita", icon: "📅" },
-    { id: "relatorioCarregamentos", label: "📦 Rel. Carregamentos",      icon: "📦" },
+    { id: "produtividade", label: "📈 Produtividade", icon: "📈" },
+    { id: "relatorioMotoristas", label: "📊 Rel. Motoristas", icon: "📊" },
+    { id: "relatoriosDiarios", label: "📅 Rel. Diário de Colheita", icon: "📅" },
+    { id: "relatorioCarregamentos", label: "📦 Rel. Carregamentos", icon: "📦" },
   ];
 
   const renderContent = () => {
     switch (aba) {
-      case "produtividade":          return <Produtividade state={state} />;
-      case "pluviometro":            return <Pluviometro state={state} setState={setState} />;
-      case "relatorioMotoristas":    return <RelatorioMotoristas state={state} />;
-      case "relatoriosDiarios":      return <RelatoriosDiarios state={state} />;
+      case "produtividade": return <Produtividade state={state} />;
+      case "relatorioMotoristas": return <RelatorioMotoristas state={state} />;
+      case "relatoriosDiarios": return <RelatoriosDiarios state={state} />;
       case "relatorioCarregamentos": return <RelatorioCarregamentos state={state} />;
-      default:                       return <Produtividade state={state} />;
+      default: return <Produtividade state={state} />;
     }
   };
 
@@ -6663,186 +6291,123 @@ function AlmoxarifadoDept({ state, setState }) {
 function SafraCadastro({ state, setState }) {
   const ss = (updates) => setState(prev => ({ ...prev, ...(typeof updates === "function" ? updates(prev) : updates) }));
   const safras = state.safras || [];
-  const [modal, setModal]   = useState(false);
+  const [modal, setModal] = useState(false);
   const [editIdx, setEditIdx] = useState(null);
-  const [erro, setErro]     = useState("");
-
-  const emptyForm = { nome: "", anoInicio: "", anoFim: "", status: "Em Andamento", obs: "" };
+  const emptyForm = { nome: "", anoInicio: "", anoFim: "", dataInicio: "", dataFim: "", cultura: "", areaTotal: "", status: "Planejada", obs: "" };
   const [form, setForm] = useState({ ...emptyForm });
   const fp = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  const statusOpcoes = ["Planejada", "Em Andamento", "Concluída", "Cancelada"];
+  const statusOpcoes = ["Planejada", "Em Andamento", "Finalizada", "Cancelada"];
+  const culturaOpcoes = ["Soja", "Milho", "Algodão", "Café", "Cana-de-açúcar", "Trigo", "Feijão", "Arroz", "Sorgo", "Girassol", "Outro"];
 
-  // Muda status automaticamente: se anoFim < ano atual → Concluída
-  const calcularStatus = (safra) => {
-    const anoAtual = new Date().getFullYear();
-    if (safra.status === "Cancelada") return "Cancelada";
-    if (parseInt(safra.anoFim) < anoAtual) return "Concluída";
-    if (parseInt(safra.anoInicio) <= anoAtual && parseInt(safra.anoFim) >= anoAtual) return "Em Andamento";
-    if (parseInt(safra.anoInicio) > anoAtual) return "Planejada";
-    return safra.status;
-  };
-
-  const openNew  = () => { setForm({ ...emptyForm }); setEditIdx(null); setErro(""); setModal(true); };
-  const openEdit = (i) => { setForm({ ...safras[i] }); setEditIdx(i); setErro(""); setModal(true); };
-
+  const openNew = () => { setForm({ ...emptyForm }); setEditIdx(null); setModal(true); };
+  const openEdit = (i) => { setForm({ ...safras[i] }); setEditIdx(i); setModal(true); };
   const salvar = () => {
-    setErro("");
-    if (!form.anoInicio?.toString().trim() || !form.anoFim?.toString().trim()) {
-      setErro("Informe o Ano Início e o Ano Fim."); return;
-    }
-    if (parseInt(form.anoFim) < parseInt(form.anoInicio)) {
-      setErro("O Ano Fim deve ser maior ou igual ao Ano Início."); return;
-    }
-    const nome = form.nome?.trim() || `${form.anoInicio}/${form.anoFim}`;
-    const isDupe = safras.some((s, i) => {
-      const n = s.nome || `${s.anoInicio}/${s.anoFim}`;
-      return n === nome && i !== editIdx;
-    });
-    if (isDupe) { setErro("Já existe um ano safra com este nome/período."); return; }
-
-    const item = { ...form, nome, id: form.id || uid(), status: calcularStatus({ ...form, nome }) };
+    if (!form.nome || !form.anoInicio || !form.anoFim) { alert("Preencha Nome, Ano Início e Ano Fim."); return; }
     const updated = [...safras];
-    if (editIdx !== null) updated[editIdx] = item;
-    else updated.push(item);
+    if (editIdx !== null) { updated[editIdx] = { ...form }; }
+    else { updated.push({ ...form, id: Date.now() }); }
     ss({ safras: updated });
     setModal(false);
     setForm({ ...emptyForm });
     setEditIdx(null);
   };
-
-  const remover = (i) => {
-    if (window.confirm(`Remover o ano safra "${safras[i].nome}"?`))
-      ss({ safras: safras.filter((_, idx) => idx !== i) });
-  };
-
-  // Atualiza status automaticamente ao renderizar
-  const safrasAtualizadas = safras.map(s =>
-    s.status !== "Cancelada" ? { ...s, status: calcularStatus(s) } : s
-  );
-
-  const statusColor = { "Planejada": "blue", "Em Andamento": "gold", "Concluída": "green", "Cancelada": "red" };
-
-  // Culturas da fazenda (vindas do cadastro)
-  const culturasFazenda = state.fazenda?.graos || (state.fazendas || []).flatMap(f => f.graos || []);
+  const remover = (i) => { if (confirm("Remover este ano safra?")) { const u = safras.filter((_, idx) => idx !== i); ss({ safras: u }); } };
 
   return (
     <div>
-      <SectionTitle action={<Btn onClick={openNew}>+ Novo Ano Safra</Btn>}>
-        📅 Cadastro de Ano Safra
-      </SectionTitle>
-
-      <Card style={{ marginBottom: 16, background: `${theme.info}0a`, borderColor: `${theme.info}33` }}>
-        <p style={{ color: theme.muted, fontSize: 13 }}>
-          ℹ️ Os anos safra cadastrados aqui aparecem no seletor da tela inicial. O status é calculado <strong>automaticamente</strong> com base no período: safras cujo ano fim já passou ficam <strong>Concluídas</strong> automaticamente. As culturas são as cadastradas na fazenda: {culturasFazenda.length > 0 ? culturasFazenda.join(", ") : "nenhuma ainda"}.
-        </p>
-      </Card>
-
-      <Card>
-        {safrasAtualizadas.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 20px", color: theme.muted }}>
-            <div style={{ fontSize: 52, marginBottom: 12 }}>📅</div>
-            <p style={{ fontSize: 14, marginBottom: 20 }}>Nenhum ano safra cadastrado ainda.</p>
-            <Btn onClick={openNew}>+ Cadastrar Primeiro Ano Safra</Btn>
-          </div>
-        ) : (
-          <Table
-            headers={["Nome / Período", "Ano", "Culturas da Fazenda", "Status", "Observações", "Ações"]}
-            rows={safrasAtualizadas.map((s, i) => (
-              <tr key={s.id || i}>
-                <Td><strong style={{ color: theme.accentLight }}>{s.nome}</strong></Td>
-                <Td>
-                  <span style={{ fontFamily: "monospace", color: theme.gold, fontWeight: 700 }}>
-                    {s.anoInicio} / {s.anoFim}
-                  </span>
-                </Td>
-                <Td>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {culturasFazenda.length > 0
-                      ? culturasFazenda.map(g => <Badge key={g} color="green">{g}</Badge>)
-                      : <span style={{ color: theme.muted, fontSize: 12 }}>—</span>}
-                  </div>
-                </Td>
-                <Td>
-                  <Badge color={statusColor[s.status] || "blue"}>{s.status}</Badge>
-                </Td>
-                <Td style={{ fontSize: 12, color: theme.muted }}>{s.obs || "—"}</Td>
-                <Td>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <Btn size="sm" variant="secondary" onClick={() => openEdit(i)}>✏️</Btn>
-                    <Btn size="sm" variant="danger"    onClick={() => remover(i)}>🗑️</Btn>
-                  </div>
-                </Td>
-              </tr>
-            ))}
-          />
-        )}
-      </Card>
-
-      <Modal open={modal} onClose={() => setModal(false)} title={editIdx !== null ? "Editar Ano Safra" : "Novo Ano Safra"}>
-        <Row>
-          <Field label="Ano Início *">
-            <Input
-              type="number"
-              value={form.anoInicio}
-              onChange={e => {
-                fp("anoInicio", e.target.value);
-                if (!form.nome?.trim()) fp("nome", `${e.target.value}/${form.anoFim || ""}`);
-              }}
-              placeholder={String(new Date().getFullYear())}
-            />
-          </Field>
-          <Field label="Ano Fim *">
-            <Input
-              type="number"
-              value={form.anoFim}
-              onChange={e => {
-                fp("anoFim", e.target.value);
-                if (!form.nome?.trim()) fp("nome", `${form.anoInicio || ""}/${e.target.value}`);
-              }}
-              placeholder={String(new Date().getFullYear() + 1)}
-            />
-          </Field>
-        </Row>
-
-        <Field label="Nome (gerado automaticamente se deixar vazio)">
-          <Input
-            value={form.nome}
-            onChange={e => fp("nome", e.target.value)}
-            placeholder={`${form.anoInicio || new Date().getFullYear()}/${form.anoFim || new Date().getFullYear() + 1}`}
-          />
-        </Field>
-
-        <Field label="Status">
-          <Select value={form.status} onChange={e => fp("status", e.target.value)}>
-            {statusOpcoes.map(s => <option key={s} value={s}>{s}</option>)}
-          </Select>
-          <p style={{ fontSize: 11, color: theme.muted, marginTop: 4 }}>
-            💡 O status é calculado automaticamente — safras cujo Ano Fim já passou ficam <strong>Concluídas</strong>.
-          </p>
-        </Field>
-
-        <Field label="Observações">
-          <textarea
-            value={form.obs}
-            onChange={e => fp("obs", e.target.value)}
-            placeholder="Notas sobre esta safra..."
-            rows={2}
-            style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }}
-          />
-        </Field>
-
-        {erro && (
-          <div style={{ background: `${theme.danger}18`, border: `1px solid ${theme.danger}44`, borderRadius: 8, padding: "8px 14px", color: theme.danger, fontSize: 13, marginTop: 8 }}>
-            ⚠️ {erro}
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-          <Btn variant="secondary" onClick={() => setModal(false)}>Cancelar</Btn>
-          <Btn onClick={salvar}>💾 Salvar</Btn>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <SectionTitle>📅 Cadastro de Ano Safra</SectionTitle>
+        <Btn onClick={openNew}>+ Novo Ano Safra</Btn>
+      </div>
+      {safras.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 40, color: theme.muted }}>
+          <p style={{ fontSize: 48, marginBottom: 8 }}>📅</p>
+          <p>Nenhum ano safra cadastrado.</p>
+          <Btn onClick={openNew} style={{ marginTop: 16 }}>Cadastrar Primeiro Ano Safra</Btn>
         </div>
-      </Modal>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${theme.border}` }}>
+                {["Nome", "Período", "Cultura", "Área (ha)", "Status", "Ações"].map(h => (
+                  <th key={h} style={{ padding: "10px 8px", textAlign: "left", color: theme.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {safras.map((s, i) => (
+                <tr key={s.id || i} style={{ borderBottom: `1px solid ${theme.border}22` }}>
+                  <Td>{s.nome}</Td>
+                  <Td>{s.anoInicio}/{s.anoFim}</Td>
+                  <Td>{s.cultura || "—"}</Td>
+                  <Td>{s.areaTotal ? `${s.areaTotal} ha` : "—"}</Td>
+                  <Td><Badge color={s.status === "Planejada" ? "blue" : s.status === "Em Andamento" ? "gold" : s.status === "Finalizada" ? "green" : "red"}>{s.status}</Badge></Td>
+                  <Td>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Btn size="sm" variant="ghost" onClick={() => openEdit(i)}>✏️</Btn>
+                      <Btn size="sm" variant="ghost" onClick={() => remover(i)} style={{ color: "#ef4444" }}>🗑️</Btn>
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {modal && (
+        <Modal title={editIdx !== null ? "Editar Ano Safra" : "Novo Ano Safra"} onClose={() => setModal(false)}>
+          <Row>
+            <Field label="Nome do Ano Safra *">
+              <Input value={form.nome} onChange={e => fp("nome", e.target.value)} placeholder="Ex: Ano Safra 2025/2026" />
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Ano Início *">
+              <Input type="number" value={form.anoInicio} onChange={e => fp("anoInicio", e.target.value)} placeholder="2025" />
+            </Field>
+            <Field label="Ano Fim *">
+              <Input type="number" value={form.anoFim} onChange={e => fp("anoFim", e.target.value)} placeholder="2026" />
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Data Início Plantio">
+              <Input type="date" value={form.dataInicio} onChange={e => fp("dataInicio", e.target.value)} />
+            </Field>
+            <Field label="Data Fim Colheita">
+              <Input type="date" value={form.dataFim} onChange={e => fp("dataFim", e.target.value)} />
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Cultura Principal">
+              <Select value={form.cultura} onChange={e => fp("cultura", e.target.value)}>
+                <option value="">-- Selecione --</option>
+                {culturaOpcoes.map(c => <option key={c} value={c}>{c}</option>)}
+              </Select>
+            </Field>
+            <Field label="Área Total (ha)">
+              <Input type="number" value={form.areaTotal} onChange={e => fp("areaTotal", e.target.value)} placeholder="0.00" />
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Status">
+              <Select value={form.status} onChange={e => fp("status", e.target.value)}>
+                {statusOpcoes.map(s => <option key={s} value={s}>{s}</option>)}
+              </Select>
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Observações">
+              <Input value={form.obs} onChange={e => fp("obs", e.target.value)} placeholder="Notas adicionais..." />
+            </Field>
+          </Row>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn>
+            <Btn onClick={salvar}>💾 Salvar</Btn>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -6932,12 +6497,13 @@ export default function App() {
   const handleLogout = () => { setUsuarioLogado(null); setLoggedIn(false); setFazendaSelecionada(null); setAnoSafra(null); setSkipSelector(false); };
 
   const handleSelectFazenda = (fazendaId, safra) => {
-    const faz = (state.fazendas || []).find(f => f.id === fazendaId);
-    if (faz) {
-      setFazendaSelecionada(faz);
-      setAnoSafra(safra);
-      setState(s => ({ ...s, fazenda: faz }));
-    }
+    const faz = (state.fazendas || []).find(f => f.id === fazendaId)
+      || (state.fazenda?.id === fazendaId ? state.fazenda : null)
+      || { id: fazendaId, nome: "Fazenda", graos: [] };
+    setFazendaSelecionada(faz);
+    setAnoSafra(safra || "");
+    setState(s => ({ ...s, fazenda: faz }));
+    setActive("dashboard");
   };
 
   const handleTrocarFazenda = () => {
@@ -6948,10 +6514,19 @@ export default function App() {
   };
 
   const handleNovaFazenda = () => {
-    const novaFazenda = { id: uid(), nome: "", produtor: "", cpfCnpj: "", ie: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", estado: "", graos: [], logo: null };
-    setState(s => ({ ...s, fazenda: novaFazenda, fazendas: [...(s.fazendas || []), novaFazenda] }));
+    const novaFazenda = {
+      id: uid(), nome: "", produtor: "", cpfCnpj: "", ie: "",
+      cep: "", endereco: "", numero: "", bairro: "", cidade: "",
+      estado: "", graos: [], logo: null
+    };
+    // Atualiza estado, seta fazenda selecionada e vai direto para cadastro
+    setState(s => ({
+      ...s,
+      fazenda: novaFazenda,
+      fazendas: [...(s.fazendas || []), novaFazenda]
+    }));
     setFazendaSelecionada(novaFazenda);
-    setAnoSafra(safrasOpcoes[1] || safrasOpcoes[0]);
+    setAnoSafra(safrasOpcoes[1] || safrasOpcoes[0] || "");
     setSkipSelector(true);
     setActive("fazenda");
   };
@@ -6971,9 +6546,12 @@ export default function App() {
 
   const ss = setStateAndSave;
   const temAcesso = (pageId) => {
+    if (pageId === "dashboard") return true;
+    if (pageId === "fazenda")   return true; // sempre acessível
     if (usuarioLogado?.role === "admin") return true;
     const modulos = usuarioLogado?.modulos || [];
     if (["usuarios", "lixeira"].includes(pageId)) return false;
+    if (modulos.length === 0) return true; // sem módulos configurados = libera tudo
     return modulos.includes(pageId);
   };
 
@@ -6981,9 +6559,9 @@ export default function App() {
     if (!temAcesso(active)) return <div style={{ textAlign: "center", padding: "60px 20px", color: theme.muted }}><div style={{ fontSize: 54, marginBottom: 16 }}>🔒</div><h2 style={{ color: theme.text, fontWeight: 700, fontSize: 22, marginBottom: 8 }}>Acesso Restrito</h2><p style={{ fontSize: 14 }}>Você não tem permissão para acessar este módulo.</p></div>;
     if (crudPages[active]) return <CrudPage key={active} {...crudPages[active]} state={state} setState={ss} />;
     switch (active) {
-      case "dashboard": return <Dashboard state={state} setActive={setActive} />;
-      case "fazenda": return <Fazenda state={state} setState={ss} />;
-      case "graosDept": return <GraosDept state={state} setState={ss} />;
+      case "dashboard":          return <Dashboard state={state} setActive={setActive} />;
+      case "fazenda":            return <Fazenda state={state} setState={ss} />;
+      case "graosDept":          return <GraosDept state={state} setState={ss} />;
       case "relatoriosDept": return <RelatoriosDept state={state} setState={ss} />;
       case "insumosDept": return <InsumosDept state={state} setState={ss} />;
       case "usuarios": return <Usuarios state={state} setState={ss} />;

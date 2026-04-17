@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, Children } from "react";
 
 // ─── HOOK RESPONSIVO ─────────────────────────────────────────────────────────
 function useIsMobile(breakpoint = 768) {
@@ -36,7 +36,8 @@ const formatDate = (dateString) => {
 
 const graosOpcoes = ["Soja", "Milho", "Sorgo", "Milheto", "Gergelim", "Trigo", "Feijão"];
 const safrasOpcoes = ["2023/2024", "2024/2025", "2025/2026", "2026/2027"];
-const uid = () => Math.random().toString(36).slice(2, 9);
+let _uidCounter = 0;
+const uid = () => `${Date.now().toString(36)}_${(++_uidCounter).toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
 // ─── CABEÇALHO PADRÃO PARA RELATÓRIOS ────────────────────────────────────────
 const gerarCabecalhoCSS = () => `
@@ -225,6 +226,243 @@ function BackupManager({ state, setState }) {
           )}
         </Card>
       </div>
+    </div>
+  );
+}
+
+function ImportarTalhoes({ state, setState }) {
+  const [linhas, setLinhas] = useState([]);
+  const [erros, setErros] = useState([]);
+  const [arquivo, setArquivo] = useState("");
+  const [textoColado, setTextoColado] = useState("");
+  const [resultado, setResultado] = useState(null);
+  const [modo, setModo] = useState("merge"); // merge | replace
+
+  const COLUNAS = [
+    { keys: ["talhao", "talhão", "nome", "nome do talhao", "nome do talhão"], campo: "nome", obrigatorio: true },
+    { keys: ["cultura", "grao", "grão", "produto"], campo: "cultura", obrigatorio: true },
+    { keys: ["anosafra", "ano safra", "safra"], campo: "safra", obrigatorio: false },
+    { keys: ["ha", "area", "área", "hectares"], campo: "area", obrigatorio: true },
+    { keys: ["obs", "observacao", "observação"], campo: "obs", obrigatorio: false },
+  ];
+
+  const norm = (s) => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const detectarSep = (linha) => {
+    const c = (linha.match(/;/g) || []).length;
+    const t = (linha.match(/\t/g) || []).length;
+    const v = (linha.match(/,/g) || []).length;
+    if (t >= c && t >= v) return "\t";
+    if (c >= v) return ";";
+    return ",";
+  };
+
+  const parseCSV = (texto) => {
+    const linhasTxt = texto.split(/\r?\n/).filter(l => l.trim());
+    if (linhasTxt.length < 2) return { header: [], rows: [] };
+    const sep = detectarSep(linhasTxt[0]);
+    const split = (linha) => {
+      const out = []; let atual = ""; let dentroAspas = false;
+      for (let i = 0; i < linha.length; i++) {
+        const c = linha[i];
+        if (c === '"') { dentroAspas = !dentroAspas; continue; }
+        if (c === sep && !dentroAspas) { out.push(atual); atual = ""; continue; }
+        atual += c;
+      }
+      out.push(atual);
+      return out.map(s => s.trim());
+    };
+    const header = split(linhasTxt[0]).map(norm);
+    const rows = linhasTxt.slice(1).map(l => split(l));
+    return { header, rows };
+  };
+
+  const parseNum = (s) => {
+    if (s === null || s === undefined || s === "") return 0;
+    const v = String(s).replace(/\./g, "").replace(",", ".").replace(/[^\d.\-]/g, "");
+    return parseFloat(v) || 0;
+  };
+
+  const processar = (texto) => {
+    setErros([]); setResultado(null);
+    const { header, rows } = parseCSV(texto);
+    if (header.length === 0) { setErros(["Não foi possível ler a planilha. Verifique o formato."]); setLinhas([]); return; }
+
+    const mapa = {};
+    COLUNAS.forEach(col => {
+      const idx = header.findIndex(h => col.keys.includes(h));
+      if (idx >= 0) mapa[col.campo] = idx;
+    });
+
+    const errosLocais = [];
+    COLUNAS.filter(c => c.obrigatorio).forEach(c => {
+      if (mapa[c.campo] === undefined) errosLocais.push(`Coluna obrigatória ausente: ${c.keys[0]}`);
+    });
+    if (errosLocais.length) { setErros(errosLocais); setLinhas([]); return; }
+
+    const parsed = rows.map((r, i) => {
+      const obj = { _linha: i + 2 };
+      Object.entries(mapa).forEach(([campo, idx]) => { obj[campo] = (r[idx] || "").trim(); });
+      obj.area = parseNum(obj.area);
+      return obj;
+    }).filter(o => o.nome && o.cultura);
+
+    setLinhas(parsed);
+  };
+
+  const lerArquivo = (file) => {
+    if (!file) return;
+    setArquivo(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => { const txt = e.target.result; setTextoColado(txt); processar(txt); };
+    reader.readAsText(file, "UTF-8");
+  };
+
+  // Agrupa linhas por nome de talhão para gerar a estrutura { nome, culturas:[...] }
+  const agrupados = () => {
+    const map = {};
+    linhas.forEach(l => {
+      const key = l.nome.trim();
+      if (!map[key]) map[key] = { nome: key, culturas: [] };
+      map[key].culturas.push({
+        id: uid(),
+        grao: l.cultura,
+        area: l.area,
+        safra: l.safra || "",
+        obs: l.obs || "",
+      });
+    });
+    return Object.values(map);
+  };
+
+  const importar = () => {
+    if (!linhas.length) { alert("Nada para importar."); return; }
+    const novos = agrupados();
+    const msg = modo === "replace"
+      ? `SUBSTITUIR todos os talhões existentes por ${novos.length} novo(s)? Esta ação não pode ser desfeita.`
+      : `Importar/mesclar ${novos.length} talhão(ões)? Talhões com mesmo nome terão as culturas adicionadas.`;
+    if (!window.confirm(msg)) return;
+
+    setState(s => {
+      const atuais = s.talhoes || [];
+      let resultado;
+      if (modo === "replace") {
+        resultado = novos.map(n => ({ id: uid(), ...n }));
+      } else {
+        const mapaAtual = {};
+        atuais.forEach(t => { mapaAtual[t.nome] = { ...t, culturas: [...(t.culturas || [])] }; });
+        novos.forEach(n => {
+          if (mapaAtual[n.nome]) {
+            mapaAtual[n.nome].culturas = [...mapaAtual[n.nome].culturas, ...n.culturas];
+          } else {
+            mapaAtual[n.nome] = { id: uid(), ...n };
+          }
+        });
+        resultado = Object.values(mapaAtual);
+      }
+      return { ...s, talhoes: resultado };
+    });
+
+    setResultado({ qtd: novos.length, linhas: linhas.length });
+    setLinhas([]); setTextoColado(""); setArquivo("");
+  };
+
+  const baixarModelo = () => {
+    const csv = "talhao;cultura;ano safra;ha;obs\n" +
+                "Talhão A;Soja;2024/2025;120,5;\n" +
+                "Talhão A;Milho Safrinha;2024/2025;120,5;Após soja\n" +
+                "Talhão B;Soja;2024/2025;85,0;\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "modelo_talhoes.csv";
+    a.click();
+  };
+
+  const preview = agrupados();
+
+  return (
+    <div>
+      <SectionTitle>🗺️ Importar Talhões (Planilha)</SectionTitle>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: theme.muted, marginBottom: 12 }}>
+          Importe uma planilha com os talhões. Cada linha representa uma <strong>cultura</strong> de um talhão. Linhas com o mesmo nome de talhão são agrupadas automaticamente.
+        </p>
+        <div style={{ background: `${theme.info}11`, border: `1px solid ${theme.info}44`, padding: 12, borderRadius: 8, fontSize: 12, color: theme.text, marginBottom: 12 }}>
+          <strong>Colunas aceitas:</strong> talhão, cultura, ano safra, ha, obs.
+          <br /><strong>Obrigatórias:</strong> talhão, cultura, ha.
+          <br />Separador: vírgula, ponto-e-vírgula ou tab. Use vírgula como decimal (ex: 120,5).
+        </div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
+          <Btn onClick={baixarModelo}>⬇️ Baixar Modelo CSV</Btn>
+          <label style={{ display: "inline-block" }}>
+            <input type="file" accept=".csv,.tsv,.txt" onChange={(e) => lerArquivo(e.target.files?.[0])} style={{ display: "none" }} />
+            <span style={{ display: "inline-block", padding: "10px 16px", background: theme.accent, color: "#fff", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>📁 Selecionar Arquivo</span>
+          </label>
+          {arquivo && <span style={{ fontSize: 12, color: theme.muted, alignSelf: "center" }}>📎 {arquivo}</span>}
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
+            <label style={{ display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
+              <input type="radio" checked={modo === "merge"} onChange={() => setModo("merge")} /> Mesclar
+            </label>
+            <label style={{ display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
+              <input type="radio" checked={modo === "replace"} onChange={() => setModo("replace")} /> Substituir tudo
+            </label>
+          </div>
+        </div>
+
+        <Field label="Ou cole os dados aqui (CSV/TSV)">
+          <textarea
+            rows={6}
+            value={textoColado}
+            onChange={(e) => setTextoColado(e.target.value)}
+            placeholder={"talhao;cultura;ano safra;ha\nTalhão A;Soja;2024/2025;120,5\nTalhão A;Milho Safrinha;2024/2025;120,5"}
+            style={{ fontFamily: "monospace", fontSize: 12, width: "100%", padding: 10, borderRadius: 8, border: `1px solid ${theme.border || "#334155"}`, background: theme.cardBg || theme.bg, color: theme.text, minHeight: 120, resize: "vertical" }}
+          />
+        </Field>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <Btn onClick={() => processar(textoColado)} disabled={!textoColado.trim()}>🔍 Pré-visualizar</Btn>
+          <Btn onClick={() => { setTextoColado(""); setLinhas([]); setErros([]); setArquivo(""); setResultado(null); }} variant="ghost">🧹 Limpar</Btn>
+        </div>
+      </Card>
+
+      {erros.length > 0 && (
+        <Card style={{ padding: 16, marginBottom: 16, background: `${theme.danger || "#dc2626"}11`, border: `1px solid ${theme.danger || "#dc2626"}55` }}>
+          <strong style={{ color: theme.danger || "#dc2626" }}>⚠️ Erros encontrados:</strong>
+          <ul style={{ margin: "8px 0 0 20px", fontSize: 13 }}>{erros.map((e, i) => <li key={i}>{e}</li>)}</ul>
+        </Card>
+      )}
+
+      {resultado && (
+        <Card style={{ padding: 16, marginBottom: 16, background: `${theme.accent}11`, border: `1px solid ${theme.accent}55` }}>
+          ✅ <strong>{resultado.qtd}</strong> talhão(ões) processado(s) a partir de <strong>{resultado.linhas}</strong> linha(s) — modo <strong>{modo === "replace" ? "Substituir" : "Mesclar"}</strong>.
+        </Card>
+      )}
+
+      {linhas.length > 0 && (
+        <Card style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+            <strong>👁️ Pré-visualização — {preview.length} talhão(ões), {linhas.length} cultura(s)</strong>
+            <Btn onClick={importar}>✅ Importar {preview.length} Talhão(ões)</Btn>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <Table headers={["Talhão", "Culturas", "Área Total (ha)"]} rows={
+              preview.slice(0, 80).map((t, i) => {
+                const total = t.culturas.reduce((a, c) => a + (parseFloat(c.area) || 0), 0).toFixed(2);
+                return (
+                  <tr key={i}>
+                    <Td><strong>{t.nome}</strong></Td>
+                    <Td>{t.culturas.map(c => `${c.grao}${c.safra ? ` (${c.safra})` : ""} — ${c.area} ha`).join(" • ")}</Td>
+                    <Td><strong style={{ color: theme.accent }}>{total}</strong></Td>
+                  </tr>
+                );
+              })
+            } />
+            {preview.length > 80 && <p style={{ fontSize: 12, color: theme.muted, marginTop: 8 }}>Exibindo primeiros 80 de {preview.length}. Todos serão importados.</p>}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -816,7 +1054,10 @@ const navGroups = (isAdmin, userModulos) => {
       items: [
         { id: "usuarios", label: "Usuários", icon: "👥" },
         { id: "lixeira", label: "Lixeira", icon: "🗑️" },
+        { id: "importarRecebimentos", label: "Importar Recebimentos", icon: "📊" },
+        { id: "importarTalhoes", label: "Importar Talhões", icon: "🗺️" },
         { id: "backup", label: "Backup", icon: "💾" },
+        { id: "update", label: "Update", icon: "🔄" },
       ]
     }] : [])
   ];
@@ -898,7 +1139,62 @@ function Sidebar({ active, setActive, fazenda, usuario, mobileOpen, onClose }) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ state, setActive }) {
+// Mapeamento de "page" (id usado em setActive) -> submodulo "deptId.subId"
+// Também usado pelo Dashboard para navegar direto a uma sub-aba do departamento.
+const getBaseAba = (ia, abas) => { if (!ia) return null; const id = ia.split("|")[0]; return abas.some(a => a.id === id) ? id : null; };
+
+const PAGE_TO_SUBMODULO = {
+  contratos: "graosDept.contratos",
+  romaneiosEntrada: "graosDept.romaneiosEntrada",
+  romaneiosSaida: "graosDept.romaneiosSaida",
+  expedicao: "graosDept.expedicao",
+  talhoes: "graosDept.talhoes",
+  graos: "graosDept.graos",
+  produtividade: "relatoriosDept.produtividade",
+  fichasAplicacao: "insumosDept.fichasAplicacao",
+  insumos: "insumosDept.insumos",
+  estoque: "insumosDept.estoque",
+  recebimentoInsumos: "insumosDept.recebimentoInsumos",
+  maquinas: "maquinasEquipamentos.maquinas",
+  abastecimento: "maquinasEquipamentos.abastecimento",
+  pecas: "almoxarifado.pecas",
+  estoquePecas: "almoxarifado.estoquePecas",
+  contasPagar: "financas.contasPagar",
+  contasReceber: "financas.contasReceber",
+  despesasOp: "financas.despesasOp",
+  fluxoCaixa: "financas.fluxoCaixa",
+  dre: "financas.dre",
+  clientes: "cadastros.clientes",
+  motoristas: "cadastros.motoristas",
+  transportadoras: "cadastros.transportadoras",
+  fornecedores: "cadastros.fornecedores",
+  caminhoes: "cadastros.caminhoes",
+  relatorioMotoristas: "relatoriosDept.relatorioMotoristas",
+  relatorioCarregamentos: "relatoriosDept.relatorioCarregamentos",
+  fazenda: "cadastros.fazenda",
+};
+
+function podeVerPagina(usuario, page) {
+  if (!usuario) return true;
+  if (usuario.role === "admin") return true;
+  const modulos = usuario.modulos || [];
+  if (modulos.length === 0) return true;
+  const sub = PAGE_TO_SUBMODULO[page];
+  if (!sub) return true;
+  // Se for um módulo "raiz" (sem ponto)
+  if (!sub.includes(".")) return modulos.includes(sub);
+  const [dept] = sub.split(".");
+  if (!modulos.includes(dept)) return false;
+  // Se usuário tem o departamento mas não escolheu submódulos específicos, libera
+  const subIds = (modulosDisponiveis
+    .flatMap(g => g.modulos)
+    .find(m => m.id === dept)?.submodulos || []).map(s => s.id);
+  const userSubs = modulos.filter(m => subIds.includes(m));
+  if (userSubs.length === 0) return true;
+  return modulos.includes(sub);
+}
+
+function Dashboard({ state, setActive, usuario }) {
   const totalCombustivel = (state.abastecimentos || []).reduce((sum, a) => sum + (parseFloat(a.litros) || 0), 0);
   const totalFichas      = (state.fichasAplicacao || []).length;
   const totalPecas       = (state.pecas || []).length;
@@ -908,7 +1204,9 @@ function Dashboard({ state, setActive }) {
   const totalContasPagar = (state.contasPagar || []).filter(c => c.status === "Pendente").reduce((s, c) => s + (c.valor || 0), 0);
   const totalContasReceber = (state.contasReceber || []).filter(c => c.status === "Pendente").reduce((s, c) => s + (c.valor || 0), 0);
 
-  const StatCard = ({ label, value, icon, color, page, sub }) => (
+  const StatCard = ({ label, value, icon, color, page, sub }) => {
+    if (page && !podeVerPagina(usuario, page)) return null;
+    return (
     <div
       onClick={() => page && setActive(page)}
       style={{
@@ -932,18 +1230,23 @@ function Dashboard({ state, setActive }) {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
-  const Group = ({ title, color, children }) => (
+  const Group = ({ title, color, children }) => {
+    const visibleChildren = Children.toArray(children).filter(Boolean);
+    if (visibleChildren.length === 0) return null;
+    return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color, borderBottom: `2px solid ${color}33`, paddingBottom: 6, marginBottom: 12 }}>
         {title}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-        {children}
+        {visibleChildren}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div>
@@ -1007,10 +1310,10 @@ function Dashboard({ state, setActive }) {
       </Group>
 
       <Group title="💰 Finanças" color={theme.gold}>
-        <StatCard label="Contas a Pagar"      value={`R$ ${totalContasPagar.toFixed(2)}`} icon="💰" color={theme.danger} page="financas" sub="Pendentes" />
-        <StatCard label="Contas a Receber"    value={`R$ ${totalContasReceber.toFixed(2)}`} icon="💵" color={theme.accent} page="financas" sub="A receber" />
-        <StatCard label="Despesas"            value={(state.despesasOperacionais || []).length} icon="📋" color={theme.warning} page="financas" sub="Registros" />
-        <StatCard label="Fluxo de Caixa"      value="Ver" icon="📊" color={theme.info} page="financas" sub="Extrato financeiro" />
+        <StatCard label="Contas a Pagar"      value={`R$ ${totalContasPagar.toFixed(2)}`} icon="💰" color={theme.danger} page="contasPagar" sub="Pendentes" />
+        <StatCard label="Contas a Receber"    value={`R$ ${totalContasReceber.toFixed(2)}`} icon="💵" color={theme.accent} page="contasReceber" sub="A receber" />
+        <StatCard label="Despesas"            value={(state.despesasOperacionais || []).length} icon="📋" color={theme.warning} page="despesasOp" sub="Registros" />
+        <StatCard label="Fluxo de Caixa"      value="Ver" icon="📊" color={theme.info} page="fluxoCaixa" sub="Extrato financeiro" />
       </Group>
 
       <Group title="📋 Cadastros & Relatórios" color={theme.gold}>
@@ -1815,12 +2118,14 @@ function Talhoes({ state, setState }) {
   };
   const openEdit = (t) => {
     setTalhaoNome(t.nome);
-    setCulturas(t.culturas?.length > 0 ? t.culturas.map(c => ({ ...c })) : [{ id: uid(), grao: graosDisponiveis[0] || "Soja", area: "", obs: "" }]);
+    setCulturas(t.culturas?.length > 0 ? t.culturas.map(c => ({ ...c, id: c.id || uid(), area: String(c.area ?? "") })) : [{ id: uid(), grao: graosDisponiveis[0] || "Soja", area: "", obs: "" }]);
     setEditing(t.id); setOpen(false); setSaved(false); setTimeout(() => setOpen(true), 10);
   };
   const addCultura = () => setCulturas(prev => [...prev, { id: uid(), grao: graosDisponiveis[0] || "Soja", area: "", obs: "" }]);
   const removeCultura = (cid) => setCulturas(prev => prev.filter(c => c.id !== cid));
-  const updateCultura = (cid, field, value) => setCulturas(prev => prev.map(c => c.id === cid ? { ...c, [field]: value } : c));
+  const updateCultura = useCallback((cid, field, value) => {
+    setCulturas(prev => prev.map(c => c.id === cid ? { ...c, [field]: value } : c));
+  }, []);
   const save = () => {
     if (!talhaoNome.trim()) { alert("Informe o nome do talhão."); return; }
     if (culturas.length === 0) { alert("Adicione ao menos uma cultura."); return; }
@@ -1936,11 +2241,23 @@ function Produtividade({ state }) {
   const romaneiosEntrada = state.romaneiosEntrada || [];
   const SC_KG = 60;
 
-  const [filtroTalhao, setFiltroTalhao] = useState("");
+  const [filtroTalhoes, setFiltroTalhoes] = useState([]);
   const [filtroCultura, setFiltroCultura] = useState("");
+  const [filtroSafra, setFiltroSafra] = useState("");
+  const [buscaTalhao, setBuscaTalhao] = useState("");
+  const [buscaTalhaoOpen, setBuscaTalhaoOpen] = useState(false);
 
-  const talhoesLista = [...new Set(talhoes.map(t => t.nome))];
-  const culturasLista = [...new Set(talhoes.flatMap(t => (t.culturas || []).map(c => c.grao)).filter(Boolean))];
+  const talhoesLista = [...new Set(talhoes.map(t => t.nome))].sort();
+  const culturasLista = [...new Set(talhoes.flatMap(t => (t.culturas || []).map(c => c.grao)).filter(Boolean))].sort();
+  const safrasLista = [...new Set(talhoes.flatMap(t => (t.culturas || []).map(c => c.safra)).filter(Boolean))].sort();
+
+  const talhoesFiltrados = talhoesLista.filter(t => t.toLowerCase().includes(buscaTalhao.toLowerCase()));
+
+  const toggleTalhao = (nome) => {
+    setFiltroTalhoes(prev => prev.includes(nome) ? prev.filter(t => t !== nome) : [...prev, nome]);
+  };
+  const selecionarTodos = () => setFiltroTalhoes(talhoesLista);
+  const limparTalhoes = () => setFiltroTalhoes([]);
 
   const produtividadePorTalhao = {};
 
@@ -1948,8 +2265,12 @@ function Produtividade({ state }) {
     if (!rom.talhao) return;
     const talhaoInfo = talhoes.find(t => t.nome === rom.talhao);
     if (!talhaoInfo) return;
-    if (filtroTalhao && rom.talhao !== filtroTalhao) return;
+    if (filtroTalhoes.length > 0 && !filtroTalhoes.includes(rom.talhao)) return;
     if (filtroCultura && rom.grao !== filtroCultura) return;
+    if (filtroSafra) {
+      const cultInfo = (talhaoInfo.culturas || []).find(c => c.grao === rom.grao);
+      if (!cultInfo || cultInfo.safra !== filtroSafra) return;
+    }
 
     const talhaoNome = rom.talhao;
     const grao = rom.grao || "Grão";
@@ -1989,7 +2310,168 @@ function Produtividade({ state }) {
     });
   });
 
-  const hasData = Object.keys(produtividadePorTalhao).length > 0;
+  const imprimirRelatorio = (modo) => {
+    const fazendaNome = (state.fazenda && state.fazenda.nome) || "Fazenda";
+    const dataAtual = new Date().toLocaleDateString("pt-BR");
+    const horaAtual = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+    const filtrosAtivos = [];
+    if (filtroTalhoes.length > 0) filtrosAtivos.push(`Talhões: ${filtroTalhoes.join(", ")}`);
+    else filtrosAtivos.push("Talhões: Todos");
+    if (filtroCultura) filtrosAtivos.push(`Cultura: ${filtroCultura}`);
+    if (filtroSafra) filtrosAtivos.push(`Safra: ${filtroSafra}`);
+
+    let totalGeralKg = 0, totalGeralSc = 0, totalGeralArea = 0;
+    const porCultura = {};
+    Object.values(produtividadePorTalhao).forEach(d => {
+      totalGeralKg += d.totalKg;
+      totalGeralSc += d.totalSacas;
+      totalGeralArea += d.area;
+      Object.entries(d.porGrao).forEach(([g, info]) => {
+        if (!porCultura[g]) porCultura[g] = { area: 0, kg: 0, sacas: 0 };
+        porCultura[g].area += parseFloat(info.areaCultura) || 0;
+        porCultura[g].kg += info.kg;
+        porCultura[g].sacas += info.sacas;
+      });
+    });
+    const linhasCultura = Object.entries(porCultura).map(([g, v]) => {
+      const media = v.area > 0 ? (v.sacas / v.area).toFixed(1) : "0.0";
+      return `
+        <tr>
+          <td><strong>${g}</strong></td>
+          <td style="text-align:right">${v.area.toLocaleString("pt-BR")}</td>
+          <td style="text-align:right">${Math.round(v.kg).toLocaleString("pt-BR")}</td>
+          <td style="text-align:right">${Math.round(v.sacas).toLocaleString("pt-BR")}</td>
+          <td style="text-align:right;color:#16a34a;font-weight:800;font-family:monospace">${media}</td>
+        </tr>`;
+    }).join("");
+
+    const linhasTalhoes = Object.entries(produtividadePorTalhao).map(([nome, d]) => {
+      const linhasGrao = Object.entries(d.porGrao).map(([g, info]) => `
+        <tr>
+          <td>${g}</td>
+          <td style="text-align:right">${(info.areaCultura || 0).toLocaleString("pt-BR")}</td>
+          <td style="text-align:right">${Math.round(info.kg).toLocaleString("pt-BR")}</td>
+          <td style="text-align:right">${Math.round(info.sacas).toLocaleString("pt-BR")}</td>
+          <td style="text-align:right"><strong>${info.produtividade}</strong></td>
+        </tr>
+      `).join("");
+      return `
+        <div class="talhao">
+          <div class="talhao-header">
+            <div>
+              <div class="talhao-nome">🗺️ ${nome}</div>
+              <div class="talhao-meta">Área: <b>${d.area} ha</b> · Total: <b>${Math.round(d.totalKg).toLocaleString("pt-BR")} kg</b> (${Math.round(d.totalSacas).toLocaleString("pt-BR")} sc)</div>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th>Grão</th><th>Área (ha)</th><th>Total (kg)</th><th>Total (sc)</th><th>Prod. (sc/ha)</th></tr></thead>
+            <tbody>${linhasGrao}</tbody>
+          </table>
+        </div>
+      `;
+    }).join("");
+
+    const faz = state.fazenda || {};
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Produtividade por Talhão — ${fazendaNome}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        @page { size: A4 portrait; margin: 0.8cm 1cm; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: #f1f5f9; padding: 12px; font-size: 10px; color: #1e293b; }
+        .page { max-width: 190mm; margin: 0 auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+        .via-label { text-align:center; font-size:7.5px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:#166534; background:#dcfce7; border:1px solid #86efac; border-radius:20px; padding:3px 14px; display:inline-block; margin-bottom:8px; }
+        .cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #0f172a; padding-bottom:8px; margin-bottom:10px; gap:10px; }
+        .cab-esquerda { display:flex; align-items:center; gap:10px; }
+        .logo { width:42px; height:42px; object-fit:contain; border-radius:5px; }
+        .logo-placeholder { width:42px; height:42px; background:#f0fdf4; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:22px; border:1px solid #bbf7d0; }
+        .faz-nome { font-size:12px; font-weight:900; color:#0f172a; }
+        .faz-sub { font-size:8px; color:#475569; margin-top:1px; line-height:1.4; }
+        .cab-direita { text-align:right; flex-shrink:0; }
+        .tipo-badge { font-size:7px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; padding:3px 10px; border-radius:20px; display:inline-block; margin-bottom:4px; background:#dcfce7; color:#166534; border:1px solid #86efac; }
+        .doc-titulo { font-size:14px; font-weight:900; color:#0f172a; line-height:1; margin-top:2px; }
+        .doc-data { font-size:8px; color:#64748b; margin-top:3px; }
+        .sec-title { font-size:7px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#166534; background:#f0fdf4; border-left:3px solid #16a34a; padding:4px 8px; margin:8px 0 6px; border-radius:0 3px 3px 0; }
+        .filtros { background:#f8fafc; border:1px solid #e2e8f0; border-radius:5px; padding:6px 10px; font-size:8.5px; color:#334155; margin-bottom:6px; }
+        .filtros b { color:#0f172a; }
+        .resumo { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px; }
+        .resumo .card { background:#fff; border:1px solid #e2e8f0; border-radius:5px; padding:7px 8px; text-align:center; }
+        .resumo .card .label { font-size:6.5px; color:#64748b; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
+        .resumo .card .valor { font-size:13px; font-weight:900; color:#16a34a; margin-top:3px; font-family:monospace; }
+        .talhao { border:1px solid #e2e8f0; border-radius:5px; margin-bottom:8px; overflow:hidden; page-break-inside:avoid; }
+        .talhao-header { background:#f8fafc; padding:6px 10px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; }
+        .talhao-nome { font-weight:800; font-size:10px; color:#0f172a; }
+        .talhao-meta { font-size:8px; color:#64748b; margin-top:2px; }
+        .prod-badge { font-size:14px; font-weight:900; color:#16a34a; font-family:monospace; }
+        .prod-badge span { font-size:8px; color:#64748b; font-weight:600; font-family:'Inter',sans-serif; }
+        table { width:100%; border-collapse:collapse; font-size:8.5px; }
+        thead th { background:#1e293b; color:#fff; padding:4px 8px; text-align:left; text-transform:uppercase; font-size:6.5px; letter-spacing:1px; font-weight:700; }
+        tbody td { padding:4px 8px; border:1px solid #e2e8f0; font-size:8px; color:#1e293b; }
+        tbody tr:nth-child(even) td { background:#f8fafc; }
+        .via-footer { text-align:center; font-size:6px; color:#94a3b8; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:5px; }
+        @media print { body { background:#fff; padding:0; } .page { max-width:100%; box-shadow:none; border:none; padding:0; } }
+      </style></head><body>
+      <div class="page">
+        <div class="via-label">RELATÓRIO DE PRODUTIVIDADE</div>
+        <div class="cabecalho">
+          <div class="cab-esquerda">
+            ${faz.logo ? `<img src="${faz.logo}" class="logo" alt="logo"/>` : `<div class="logo-placeholder">🌾</div>`}
+            <div>
+              <div class="faz-nome">${faz.nome || "FAZENDA"}</div>
+              <div class="faz-sub">Produtor: <strong>${faz.produtor || "—"}</strong></div>
+              <div class="faz-sub">CNPJ/CPF: ${faz.cpfCnpj || "—"} | IE: ${faz.ie || "—"}</div>
+              <div class="faz-sub">${faz.endereco || ""} ${faz.numero || ""}, ${faz.cidade || ""}/${faz.estado || ""}</div>
+            </div>
+          </div>
+          <div class="cab-direita">
+            <div class="tipo-badge">PRODUTIVIDADE</div>
+            <div class="doc-titulo">📈 POR TALHÃO</div>
+            <div class="doc-data">${dataAtual} · ${horaAtual}</div>
+          </div>
+        </div>
+
+        <div class="sec-title">FILTROS APLICADOS</div>
+        <div class="filtros">${filtrosAtivos.join(" &nbsp;·&nbsp; ")}</div>
+
+        <div class="sec-title">RESUMO GERAL</div>
+        <div class="resumo">
+          <div class="card"><div class="label">Talhões</div><div class="valor">${Object.keys(produtividadePorTalhao).length}</div></div>
+          <div class="card"><div class="label">Culturas</div><div class="valor">${Object.keys(porCultura).length}</div></div>
+          <div class="card"><div class="label">Área Total</div><div class="valor">${totalGeralArea.toLocaleString("pt-BR")} <span style="font-size:8px;color:#64748b;font-family:Inter">ha</span></div></div>
+          <div class="card"><div class="label">Total Sacas</div><div class="valor">${Math.round(totalGeralSc).toLocaleString("pt-BR")}</div></div>
+        </div>
+
+        <div class="sec-title">DETALHAMENTO POR TALHÃO <span style="font-weight:600;color:#64748b;text-transform:none;letter-spacing:0;font-size:6.5px">(média individual de cada talhão)</span></div>
+        ${linhasTalhoes || '<p style="text-align:center;color:#94a3b8;padding:30px">Nenhum dado para exibir.</p>'}
+
+        <div class="sec-title">MÉDIA GERAL POR CULTURA <span style="font-weight:600;color:#64748b;text-transform:none;letter-spacing:0;font-size:6.5px">(soma das áreas e sacas de todos os talhões)</span></div>
+        <table>
+          <thead><tr><th>Cultura</th><th style="text-align:right">Área Total (ha)</th><th style="text-align:right">Total (kg)</th><th style="text-align:right">Total (sc)</th><th style="text-align:right">Média (sc/ha)</th></tr></thead>
+          <tbody>${linhasCultura || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:14px">Sem dados</td></tr>'}</tbody>
+        </table>
+
+        <div class="via-footer">AgriGest · Produtividade por Talhão · Emitido em ${new Date().toLocaleString("pt-BR")}</div>
+      </div>
+      </body></html>`;
+
+    if (modo === "pdf") {
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank");
+      if (w) {
+        w.onload = () => { setTimeout(() => { w.print(); }, 300); };
+      }
+    } else {
+      const w = window.open("", "_blank");
+      if (w) {
+        w.document.write(html);
+        w.document.close();
+        setTimeout(() => { w.print(); }, 300);
+      }
+    }
+  };
+
+    const hasData = Object.keys(produtividadePorTalhao).length > 0;
   const selectStyle = { width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, outline: "none" };
   const labelStyle = { fontSize: 11, color: theme.muted, marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", display: "block" };
 
@@ -2001,23 +2483,129 @@ function Produtividade({ state }) {
           <p style={{ color: theme.warning, fontSize: 13 }}>⚠️ Nenhum talhão cadastrado. Vá em <strong>Talhões</strong> para cadastrar.</p>
         </Card>
       )}
-      <Card style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 18 }}>🔍 Filtros</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 14 }}>
-          <div>
-            <label style={labelStyle}>🗺️ Talhão</label>
-            <select value={filtroTalhao} onChange={e => setFiltroTalhao(e.target.value)} style={selectStyle}>
-              <option value="">Todos os talhões</option>
-              {talhoesLista.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+      <Card style={{ marginBottom: 20, padding: 0, overflow: "hidden", border: `1px solid ${theme.border}` }}>
+        {/* Cabeçalho */}
+        <div style={{ padding: "18px 22px", borderBottom: `1px solid ${theme.border}`, background: theme.surface, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${theme.accent}15`, border: `1px solid ${theme.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🔍</div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: theme.text, letterSpacing: ".2px" }}>Filtros do Relatório</div>
+              <div style={{ fontSize: 11, color: theme.muted, marginTop: 3, textTransform: "uppercase", letterSpacing: ".5px", fontWeight: 600 }}>Refine os dados exibidos abaixo</div>
+            </div>
           </div>
-          <div>
-            <label style={labelStyle}>🌾 Cultura</label>
-            <select value={filtroCultura} onChange={e => setFiltroCultura(e.target.value)} style={selectStyle}>
-              <option value="">Todas as culturas</option>
-              {culturasLista.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 6, padding: "6px 12px", background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 8, fontSize: 11, color: theme.muted, fontWeight: 600 }}>
+              <span style={{ color: theme.accent, fontWeight: 800 }}>{filtroTalhoes.length || talhoesLista.length}</span>
+              <span>de</span>
+              <span style={{ fontWeight: 700 }}>{talhoesLista.length}</span>
+              <span>talhões</span>
+            </div>
+            <button onClick={() => { limparTalhoes(); setFiltroCultura(""); setFiltroSafra(""); setBuscaTalhao(""); }} style={{ background: "transparent", color: theme.muted, border: `1px solid ${theme.border}`, padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 14 }}>↻</span> Limpar tudo
+            </button>
+            <button onClick={() => imprimirRelatorio("imprimir")} style={{ background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 14 }}>🖨️</span> Imprimir
+            </button>
+            <button onClick={() => imprimirRelatorio("pdf")} style={{ background: theme.accent, color: "#fff", border: `1px solid ${theme.accent}`, padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: `0 2px 8px ${theme.accent}40` }}>
+              <span style={{ fontSize: 14 }}>📄</span> Salvar PDF
+            </button>
           </div>
+        </div>
+
+        {/* Corpo */}
+        <div style={{ padding: 22 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+            <div style={{ position: "relative" }}>
+              <label style={labelStyle}>Talhão {filtroTalhoes.length > 0 && <span style={{ color: theme.accent, marginLeft: 4, fontWeight: 800 }}>· {filtroTalhoes.length}</span>}</label>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, opacity: .6, pointerEvents: "none" }}>🔎</span>
+                <input
+                  value={buscaTalhao}
+                  onChange={e => setBuscaTalhao(e.target.value)}
+                  onFocus={() => setBuscaTalhaoOpen(true)}
+                  onBlur={() => setTimeout(() => setBuscaTalhaoOpen(false), 200)}
+                  placeholder="Buscar talhão..."
+                  style={{ ...selectStyle, paddingLeft: 36, paddingRight: 36 }}
+                />
+                <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: theme.muted, opacity: .7, pointerEvents: "none" }}>▾</span>
+              </div>
+              {buscaTalhaoOpen && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 10, maxHeight: 280, overflowY: "auto", zIndex: 30, boxShadow: "0 12px 32px rgba(0,0,0,.35)" }}>
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); filtroTalhoes.length === talhoesLista.length ? limparTalhoes() : selecionarTodos(); }}
+                    style={{ width: "100%", textAlign: "left", padding: "11px 14px", background: filtroTalhoes.length === talhoesLista.length ? `${theme.accent}14` : "transparent", border: "none", borderBottom: `1px solid ${theme.border}`, color: theme.text, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}
+                  >
+                    <span style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${theme.accent}`, background: filtroTalhoes.length === talhoesLista.length ? theme.accent : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12 }}>
+                      {filtroTalhoes.length === talhoesLista.length && "✓"}
+                    </span>
+                    Selecionar todos os talhões
+                    <span style={{ marginLeft: "auto", fontSize: 11, color: theme.muted, fontWeight: 600 }}>{talhoesLista.length}</span>
+                  </button>
+                  {talhoesFiltrados.length === 0 && (
+                    <div style={{ color: theme.muted, fontSize: 12, padding: 14, textAlign: "center" }}>Nenhum talhão encontrado</div>
+                  )}
+                  {talhoesFiltrados.map(t => {
+                    const ativo = filtroTalhoes.includes(t);
+                    return (
+                      <button
+                        key={t}
+                        onMouseDown={(e) => { e.preventDefault(); toggleTalhao(t); }}
+                        style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: ativo ? `${theme.accent}10` : "transparent", border: "none", color: theme.text, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}
+                      >
+                        <span style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${ativo ? theme.accent : theme.border}`, background: ativo ? theme.accent : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12 }}>
+                          {ativo && "✓"}
+                        </span>
+                        {t}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label style={labelStyle}>Cultura</label>
+              <select value={filtroCultura} onChange={e => setFiltroCultura(e.target.value)} style={selectStyle}>
+                <option value="">Todas as culturas</option>
+                {culturasLista.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Safra</label>
+              <select value={filtroSafra} onChange={e => setFiltroSafra(e.target.value)} style={selectStyle}>
+                <option value="">Todas as safras</option>
+                {safrasLista.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Chips de selecionados */}
+          {(filtroTalhoes.length > 0 || filtroCultura || filtroSafra) && (
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px dashed ${theme.border}` }}>
+              <div style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 10 }}>Filtros ativos</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {filtroCultura && (
+                  <span style={{ background: `${theme.info}18`, color: theme.info, border: `1px solid ${theme.info}40`, padding: "5px 10px 5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    🌾 {filtroCultura}
+                    <button onClick={() => setFiltroCultura("")} style={{ background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0, opacity: .7 }}>×</button>
+                  </span>
+                )}
+                {filtroSafra && (
+                  <span style={{ background: `${theme.warning}18`, color: theme.warning, border: `1px solid ${theme.warning}40`, padding: "5px 10px 5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    📅 {filtroSafra}
+                    <button onClick={() => setFiltroSafra("")} style={{ background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0, opacity: .7 }}>×</button>
+                  </span>
+                )}
+                {filtroTalhoes.map(t => (
+                  <span key={t} style={{ background: `${theme.accent}18`, color: theme.accent, border: `1px solid ${theme.accent}40`, padding: "5px 10px 5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    🗺️ {t}
+                    <button onClick={() => toggleTalhao(t)} style={{ background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0, opacity: .7 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
       <Card>
@@ -2036,10 +2624,6 @@ function Produtividade({ state }) {
                       <span>· Área total: <strong>{data.area} ha</strong></span>
                       <span>· Total recebido: <strong>{data.totalKg.toLocaleString()} kg</strong> ({Math.round(data.totalSacas).toLocaleString()} sc)</span>
                     </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: theme.muted }}>Produtividade Média</div>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: theme.accent }}>{data.produtividadeTotal} <span style={{ fontSize: 14 }}>sc/ha</span></div>
                   </div>
                 </div>
                 <div style={{ overflowX: "auto" }}>
@@ -2694,6 +3278,7 @@ function Estoque({ state, setState }) {
 
 // ─── GRÃOS ────────────────────────────────────────────────────────────────────
 function Graos({ state }) {
+  const SC_KG = 60;
   const graos = state.fazenda?.graos || [];
   return (
     <div>
@@ -2705,7 +3290,8 @@ function Graos({ state }) {
           {graos.map(g => {
             const ent = (state.romaneiosEntrada || []).filter(r => r.grao === g).reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
             const sai = (state.romaneiosSaida || []).filter(r => r.grao === g).reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
-            const saldo = ent - sai;
+            const volume = ent - sai;
+            const sacas = volume / SC_KG;
             return (
               <Card key={g} style={{ borderTop: `3px solid ${theme.accent}` }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}>🌾</div>
@@ -2713,15 +3299,19 @@ function Graos({ state }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: theme.muted, fontSize: 12 }}>Entrada</span>
-                    <span style={{ color: theme.info, fontWeight: 600 }}>{ent.toLocaleString()} kg</span>
+                    <span style={{ color: theme.info, fontWeight: 600 }}>{ent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kg</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: theme.muted, fontSize: 12 }}>Saída</span>
-                    <span style={{ color: theme.gold, fontWeight: 600 }}>{sai.toLocaleString()} kg</span>
+                    <span style={{ color: theme.gold, fontWeight: 600 }}>{sai.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kg</span>
                   </div>
-                  <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: theme.muted, fontSize: 12 }}>Saldo</span>
-                    <span style={{ color: saldo >= 0 ? theme.accent : theme.danger, fontWeight: 800, fontSize: 17 }}>{saldo.toLocaleString()} kg</span>
+                  <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: theme.muted, fontSize: 12 }}>Volume (com descontos)</span>
+                    <span style={{ color: volume >= 0 ? theme.accent : theme.danger, fontWeight: 800, fontSize: 17 }}>{volume.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kg</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: theme.muted, fontSize: 12 }}>Em sacas</span>
+                    <span style={{ color: theme.info, fontWeight: 600 }}>{sacas.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} sc</span>
                   </div>
                 </div>
               </Card>
@@ -6022,7 +6612,7 @@ function RelatorioFinanceiro({ state }) {
 }
 
 // ─── GRÃOS (DEPARTAMENTO COM ABAS) ──────────────────────────────────────────
-function GraosDept({ state, setState, usuario }) {
+function GraosDept({ state, setState, usuario, initialAba }) {
   const allAbas = [
     { id: "graos", label: "🌾 Grãos em Produção", icon: "🌾" },
     { id: "talhoes", label: "🗺️ Talhões", icon: "🗺️" },
@@ -6034,7 +6624,8 @@ function GraosDept({ state, setState, usuario }) {
     { id: "vendaMilho", label: "🌽 Venda de Milho", icon: "🌽" },
   ];
   const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "graosDept", a.id));
-  const [aba, setAba] = useState(abas[0]?.id || "graos");
+  const [aba, setAba] = useState(() => getBaseAba(initialAba, abas) || (abas[0]?.id || "graos"));
+  useEffect(() => { if (initialAba) { const id = initialAba.split("|")[0]; if (abas.some(a => a.id === id)) setAba(id); } }, [initialAba]);
 
   const renderContent = () => {
     switch (aba) {
@@ -6411,7 +7002,7 @@ function RelatorioPluviometria({ state }) {
 }
 
 // ─── RELATÓRIOS (DEPARTAMENTO COM ABAS) ─────────────────────────────────────
-function RelatoriosDept({ state, setState, usuario }) {
+function RelatoriosDept({ state, setState, usuario, initialAba }) {
   const allAbas = [
     { id: "produtividade", label: "📈 Produtividade", icon: "📈" },
     { id: "relatorioMotoristas", label: "📊 Rel. Motoristas", icon: "📊" },
@@ -6421,7 +7012,8 @@ function RelatoriosDept({ state, setState, usuario }) {
     { id: "relPluviometria", label: "📊 Rel. Pluviometria", icon: "📊" },
   ];
   const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "relatoriosDept", a.id));
-  const [aba, setAba] = useState(abas[0]?.id || "produtividade");
+  const [aba, setAba] = useState(() => getBaseAba(initialAba, abas) || (abas[0]?.id || "produtividade"));
+  useEffect(() => { if (initialAba) { const id = initialAba.split("|")[0]; if (abas.some(a => a.id === id)) setAba(id); } }, [initialAba]);
 
   const renderContent = () => {
     switch (aba) {
@@ -6457,7 +7049,7 @@ function RelatoriosDept({ state, setState, usuario }) {
 }
 
 // ─── INSUMOS (DEPARTAMENTO COM ABAS) ────────────────────────────────────────
-function InsumosDept({ state, setState, usuario }) {
+function InsumosDept({ state, setState, usuario, initialAba }) {
   const allAbas = [
     { id: "insumos", label: "🧪 Cadastro de Insumos", icon: "🧪" },
     { id: "estoque", label: "📦 Estoque Insumos", icon: "📦" },
@@ -6465,7 +7057,8 @@ function InsumosDept({ state, setState, usuario }) {
     { id: "fichasAplicacao", label: "📋 Fichas de Aplicação", icon: "📋" },
   ];
   const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "insumosDept", a.id));
-  const [aba, setAba] = useState(abas[0]?.id || "insumos");
+  const [aba, setAba] = useState(() => getBaseAba(initialAba, abas) || (abas[0]?.id || "insumos"));
+  useEffect(() => { if (initialAba) { const id = initialAba.split("|")[0]; if (abas.some(a => a.id === id)) setAba(id); } }, [initialAba]);
 
   const crudPages = {
     insumos: { title: "🧪 Cadastro de Insumos", stateKey: "insumos", fields: [
@@ -6509,7 +7102,7 @@ function InsumosDept({ state, setState, usuario }) {
   );
 }
 
-function Financas({ state, setState, usuario }) {
+function Financas({ state, setState, usuario, initialAba }) {
   const allAbas = [
     { id: "contasPagar", label: "💰 Contas a Pagar", icon: "💰" },
     { id: "contasReceber", label: "💵 Contas a Receber", icon: "💵" },
@@ -6518,7 +7111,8 @@ function Financas({ state, setState, usuario }) {
     { id: "dre", label: "📈 DRE", icon: "📈" },
   ];
   const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "financas", a.id));
-  const [aba, setAba] = useState(abas[0]?.id || "contasPagar");
+  const [aba, setAba] = useState(() => getBaseAba(initialAba, abas) || (abas[0]?.id || "contasPagar"));
+  useEffect(() => { if (initialAba) { const id = initialAba.split("|")[0]; if (abas.some(a => a.id === id)) setAba(id); } }, [initialAba]);
 
   const renderContent = () => {
     switch (aba) {
@@ -6920,7 +7514,7 @@ function Implementos({ state, setState }) {
 }
 
 // ─── MÁQUINAS E EQUIPAMENTOS (DEPARTAMENTO) ──────────────────────────────────
-function MaquinasEquipamentos({ state, setState, usuario }) {
+function MaquinasEquipamentos({ state, setState, usuario, initialAba }) {
   const allAbas = [
     { id: "maquinas", label: "🚜 Máquinas", icon: "🚜" },
     { id: "implementos", label: "🔩 Implementos", icon: "🔩" },
@@ -6931,7 +7525,8 @@ function MaquinasEquipamentos({ state, setState, usuario }) {
     { id: "relatorioCombustivel", label: "📈 Rel. Consumo", icon: "📈" },
   ];
   const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "maquinasEquipamentos", a.id));
-  const [aba, setAba] = useState(abas[0]?.id || "maquinas");
+  const [aba, setAba] = useState(() => getBaseAba(initialAba, abas) || (abas[0]?.id || "maquinas"));
+  useEffect(() => { if (initialAba) { const id = initialAba.split("|")[0]; if (abas.some(a => a.id === id)) setAba(id); } }, [initialAba]);
 
   const renderContent = () => {
     switch (aba) {
@@ -6968,7 +7563,7 @@ function MaquinasEquipamentos({ state, setState, usuario }) {
 }
 
 // ─── ALMOXARIFADO (DEPARTAMENTO) ─────────────────────────────────────────────
-function AlmoxarifadoDept({ state, setState, usuario }) {
+function AlmoxarifadoDept({ state, setState, usuario, initialAba }) {
   const pecasBaixo = (state.pecas || []).filter(p => { const q = parseFloat(p.quantidade) || 0, m = parseFloat(p.estoqueMinimo) || 0; return m > 0 && q <= m; });
 
   const allAbas = [
@@ -6983,7 +7578,8 @@ function AlmoxarifadoDept({ state, setState, usuario }) {
     { id: "requisicoes", label: "🛒 Requisições", icon: "🛒" },
   ];
   const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "almoxarifado", a.id));
-  const [aba, setAba] = useState(abas[0]?.id || "pecas");
+  const [aba, setAba] = useState(() => getBaseAba(initialAba, abas) || (abas[0]?.id || "pecas"));
+  useEffect(() => { if (initialAba) { const id = initialAba.split("|")[0]; if (abas.some(a => a.id === id)) setAba(id); } }, [initialAba]);
 
   const renderContent = () => {
     switch (aba) {
@@ -7218,7 +7814,7 @@ function SafraCadastro({ state, setState }) {
    );
  }
 
-function CadastrosDept({ state, setState, usuario }) {
+function CadastrosDept({ state, setState, usuario, initialAba }) {
   const crudPages = {
     clientes: { title: "Cliente", icon: "👥", stateKey: "clientes", fields: [{ key: "nome", label: "Nome / Razão Social", table: true }, { key: "cpfCnpj", label: "CPF / CNPJ", table: true }, { key: "contato", label: "Telefone", table: true }, { key: "email", label: "E-mail", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
     transportadoras: { title: "Transportadora", icon: "🚛", stateKey: "transportadoras", fields: [{ key: "nome", label: "Razão Social", table: true }, { key: "cnpj", label: "CNPJ", table: true }, { key: "contato", label: "Contato", table: true }, { key: "cidade", label: "Cidade", table: true }, { key: "estado", label: "UF", table: true }] },
@@ -7237,7 +7833,8 @@ function CadastrosDept({ state, setState, usuario }) {
     { id: "motoristas", label: "👷 Motoristas", icon: "👷" },
   ];
   const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "cadastros", a.id));
-  const [aba, setAba] = useState(abas[0]?.id || "clientes");
+  const [aba, setAba] = useState(() => getBaseAba(initialAba, abas) || (abas[0]?.id || "clientes"));
+  useEffect(() => { if (initialAba) { const id = initialAba.split("|")[0]; if (abas.some(a => a.id === id)) setAba(id); } }, [initialAba]);
 
   const renderContent = () => {
     if (aba === "fazenda") return <Fazenda state={state} setState={setState} />;
@@ -7267,24 +7864,610 @@ function CadastrosDept({ state, setState, usuario }) {
 }
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
+// ─── UPDATE MANAGER (Electron + fallback Web) ────────────────────────────────
+// ─── UPDATE MANAGER (100% via navegador) ─────────────────────────────────────
+// Aplica novos bundles do AgriGest direto pelo navegador, usando IndexedDB +
+// Service Worker (public/sw.js). Funciona tanto no preview quanto no app
+// Electron — sem precisar reinstalar nada.
+const UPDATE_DB = "agrigest-updates";
+const UPDATE_STORE = "bundles";
+const UPDATE_ACTIVE = "active_bundle";
+const UPDATE_HIST_KEY = "agrigest_update_hist";
+
+function openUpdateDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(UPDATE_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(UPDATE_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbGet(key) {
+  const db = await openUpdateDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(UPDATE_STORE, "readonly");
+    const r = tx.objectStore(UPDATE_STORE).get(key);
+    r.onsuccess = () => resolve(r.result || null);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function idbSet(key, val) {
+  const db = await openUpdateDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(UPDATE_STORE, "readwrite");
+    tx.objectStore(UPDATE_STORE).put(val, key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbDel(key) {
+  const db = await openUpdateDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(UPDATE_STORE, "readwrite");
+    tx.objectStore(UPDATE_STORE).delete(key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function UpdateManager() {
+  const [hist, setHist] = useState([]);
+  const [arquivo, setArquivo] = useState(null);
+  const [notas, setNotas] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const [bundleAtivo, setBundleAtivo] = useState(null);
+  const fileInputRef = useRef(null);
+  const swSuportado = typeof navigator !== "undefined" && "serviceWorker" in navigator;
+
+  useEffect(() => {
+    try {
+      const h = JSON.parse(localStorage.getItem(UPDATE_HIST_KEY) || "[]");
+      setHist(h);
+    } catch {}
+    idbGet(UPDATE_ACTIVE).then((b) => setBundleAtivo(b || null)).catch(() => {});
+  }, []);
+
+  // Lê um arquivo .js (texto) ou .zip (rejeita por enquanto, pede .js puro do dist).
+  const lerArquivoTexto = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      filename: file.name,
+      code: String(reader.result || ""),
+      size: file.size,
+    });
+    reader.onerror = () => reject(reader.error || new Error("Falha ao ler arquivo"));
+    reader.readAsText(file);
+  });
+
+  const escolherArquivo = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
+  const onFileChange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const nome = file.name.toLowerCase();
+    const ehJsx = nome.endsWith(".jsx");
+    const ehJs = nome.endsWith(".js");
+    if (!ehJsx && !ehJs) {
+      alert("⚠️ Envie um arquivo .jsx (componente AgriGest.jsx) ou .js (bundle compilado do dist/assets/).");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert("❌ Arquivo maior que 50MB. Verifique se é o bundle correto.");
+      return;
+    }
+    try {
+      const f = await lerArquivoTexto(file);
+      f.tipo = ehJsx ? "jsx" : "js";
+      setArquivo(f);
+    } catch (err) {
+      alert("❌ Erro ao ler arquivo: " + (err?.message || err));
+    }
+  };
+
+  // Carrega Babel Standalone sob demanda para transpilar .jsx no navegador
+  const carregarBabel = () => new Promise((resolve, reject) => {
+    if (window.Babel) return resolve(window.Babel);
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@babel/standalone@7.24.7/babel.min.js";
+    s.onload = () => resolve(window.Babel);
+    s.onerror = () => reject(new Error("Falha ao baixar Babel (verifique sua conexão)"));
+    document.head.appendChild(s);
+  });
+
+  // Transpila o .jsx do componente AgriGest em um módulo executável que
+  // substitui apenas a função/componente exportada, preservando o resto do app
+  // (React, hooks, sub-componentes auxiliares já carregados).
+  const transpilarJsx = async (codigoJsx) => {
+    const Babel = await carregarBabel();
+    // Remove imports/exports do arquivo (já temos React global do bundle principal)
+    let limpo = codigoJsx
+      .replace(/^\s*import[^;]+;?\s*$/gm, "")
+      .replace(/^\s*export\s+default\s+/gm, "window.__AGRIGEST_NEXT__ = ")
+      .replace(/^\s*export\s+/gm, "");
+    const out = Babel.transform(limpo, {
+      presets: [["react", { runtime: "classic" }]],
+      filename: "AgriGest.jsx",
+    });
+    return out.code;
+  };
+
+  const aplicar = async () => {
+    if (!arquivo) return alert("Selecione um arquivo .jsx ou .js de atualização primeiro.");
+    if (!swSuportado) return alert("❌ Seu navegador não suporta Service Worker. Use um navegador moderno (Chrome, Edge, Firefox).");
+    if (!window.confirm(`Aplicar atualização "${arquivo.filename}"?\n\n• Seus dados serão PRESERVADOS (campos novos são adicionados sem apagar os existentes).\n• Apenas o código da interface será substituído.\n• A página recarregará automaticamente.`)) return;
+
+    setCarregando(true);
+    try {
+      let codigoFinal = arquivo.code;
+      // Se for .jsx, transpila no navegador antes de salvar
+      if (arquivo.tipo === "jsx") {
+        try {
+          codigoFinal = await transpilarJsx(arquivo.code);
+        } catch (err) {
+          setCarregando(false);
+          return alert("❌ Erro ao transpilar JSX: " + (err?.message || err) + "\n\nDica: verifique se o arquivo é o AgriGest.jsx completo, sem erros de sintaxe.");
+        }
+      }
+      // 1. Grava bundle ativo no IndexedDB
+      await idbSet(UPDATE_ACTIVE, {
+        code: codigoFinal,
+        filename: arquivo.filename,
+        tipo: arquivo.tipo,
+        size: arquivo.size,
+        applied_at: new Date().toISOString(),
+      });
+
+      // 2. Histórico
+      const novo = {
+        id: Date.now(),
+        version: arquivo.filename,
+        applied_at: new Date().toISOString(),
+        notes: notas || "",
+        size: arquivo.size,
+      };
+      const atualizado = [novo, ...hist].slice(0, 50);
+      setHist(atualizado);
+      localStorage.setItem(UPDATE_HIST_KEY, JSON.stringify(atualizado));
+
+      // 3. Garante que o SW esteja ativo
+      if (navigator.serviceWorker?.controller == null) {
+        try { await navigator.serviceWorker.register("/sw.js"); } catch {}
+      }
+
+      alert("✅ Atualização aplicada! A página será recarregada agora.");
+      setTimeout(() => window.location.reload(), 300);
+    } catch (err) {
+      setCarregando(false);
+      alert("❌ Erro inesperado: " + (err?.message || err));
+    }
+  };
+
+  const reverter = async () => {
+    if (!bundleAtivo) return alert("Nenhum bundle customizado ativo.");
+    if (!window.confirm("Reverter para a versão original instalada? A página recarregará.")) return;
+    await idbDel(UPDATE_ACTIVE);
+    setBundleAtivo(null);
+    alert("✅ Revertido. Recarregando...");
+    setTimeout(() => window.location.reload(), 300);
+  };
+
+  return (
+    <div>
+      <SectionTitle>🔄 Sistema de Atualização</SectionTitle>
+
+      <Card style={{ background: theme.success + "22", borderColor: theme.success, marginBottom: 16 }}>
+        <p style={{ color: theme.text, margin: 0, fontSize: 13 }}>
+          ✅ Atualizações são aplicadas <strong>direto pelo navegador</strong>, sem reinstalar nada.
+          Basta enviar o arquivo <code>.js</code> da nova versão (gerado por <code>npm run build</code>,
+          em <code>dist/assets/index-XXXX.js</code>).
+        </p>
+      </Card>
+
+      {bundleAtivo && (
+        <Card style={{ background: theme.gold + "22", borderColor: theme.gold, marginBottom: 16 }}>
+          <div style={{ color: theme.text, fontSize: 13 }}>
+            <strong>📦 Bundle customizado ativo:</strong> {bundleAtivo.filename}
+            {" · "}{(bundleAtivo.size / 1024).toFixed(1)} KB
+            {" · aplicado em "}{new Date(bundleAtivo.applied_at).toLocaleString("pt-BR")}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Btn onClick={reverter} variant="secondary">↩️ Reverter para versão original</Btn>
+          </div>
+        </Card>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".jsx,.js"
+        style={{ display: "none" }}
+        onChange={onFileChange}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginBottom: 24 }}>
+        <Card>
+          <div style={{ fontWeight: 700, fontSize: 16, color: theme.text, marginBottom: 6 }}>📦 Aplicar nova versão</div>
+          <div style={{ fontSize: 12, color: theme.muted, marginBottom: 12 }}>
+            Envie o <code>AgriGest.jsx</code> (recomendado) ou um bundle <code>.js</code> compilado.
+            <strong> Seus dados são preservados automaticamente</strong> — campos novos no schema são criados,
+            campos antigos continuam intactos.
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <Btn onClick={escolherArquivo} variant="primary" style={{ width: "100%" }}>
+              📂 Escolher arquivo (.jsx ou .js)
+            </Btn>
+          </div>
+          {arquivo && (
+            <div style={{ background: theme.surface, padding: 10, borderRadius: 6, fontSize: 12, color: theme.text, marginBottom: 8 }}>
+              <div><strong>Arquivo:</strong> {arquivo.filename}</div>
+              <div><strong>Tamanho:</strong> {(arquivo.size / 1024).toFixed(1)} KB</div>
+            </div>
+          )}
+          <div style={{ marginBottom: 8 }}>
+            <Input placeholder="Notas da versão (opcional)" value={notas} onChange={e => setNotas(e.target.value)} />
+          </div>
+          <Btn onClick={aplicar} variant="gold" disabled={!arquivo || carregando} style={{ width: "100%" }}>
+            {carregando ? "Aplicando..." : "✅ Aplicar e recarregar"}
+          </Btn>
+        </Card>
+
+        <Card>
+          <div style={{ fontWeight: 700, fontSize: 16, color: theme.text, marginBottom: 6 }}>ℹ️ Como funciona</div>
+          <ol style={{ fontSize: 12, color: theme.muted, paddingLeft: 18, lineHeight: 1.7 }}>
+            <li>Arquivos <code>.jsx</code> são transpilados no navegador (Babel Standalone).</li>
+            <li>O código resultante é gravado no IndexedDB e servido pelo Service Worker.</li>
+            <li>Seus dados (banco local em <code>agrigest_data</code>) ficam intactos — eles vivem em outro storage.</li>
+            <li>Para preservar dados ao adicionar campos novos, use o padrão de migração no <code>initState()</code>:
+              <code style={{ display: "block", marginTop: 4, padding: 4, background: theme.surface, fontSize: 11 }}>
+                if (!parsed.novoCampo) parsed.novoCampo = [];
+              </code>
+            </li>
+            <li>Use “Reverter” se algo der errado para voltar à versão original.</li>
+          </ol>
+        </Card>
+      </div>
+
+      <SectionTitle>📜 Histórico de atualizações</SectionTitle>
+      {hist.length === 0 ? (
+        <p style={{ color: theme.muted, fontSize: 13 }}>Nenhuma atualização aplicada ainda.</p>
+      ) : (
+        <Table
+          headers={["Versão", "Aplicada em", "Tamanho", "Notas"]}
+          rows={hist.map(h => (
+            <tr key={h.id}>
+              <Td>{h.version}</Td>
+              <Td>{new Date(h.applied_at).toLocaleString("pt-BR")}</Td>
+              <Td>{h.size ? (h.size / 1024).toFixed(1) + " KB" : "—"}</Td>
+              <Td>{h.notes || "—"}</Td>
+            </tr>
+          ))}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── IMPORTAR RECEBIMENTOS (PLANILHA) ─────────────────────────────────────────
+function ImportarRecebimentos({ state, setState }) {
+  const [linhas, setLinhas] = useState([]);
+  const [erros, setErros] = useState([]);
+  const [arquivo, setArquivo] = useState("");
+  const [textoColado, setTextoColado] = useState("");
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState(null);
+
+  // Cabeçalhos esperados (case-insensitive, normaliza acentos)
+  const COLUNAS = [
+    { keys: ["data"], campo: "data", obrigatorio: true },
+    { keys: ["grao", "grão", "produto", "cultura"], campo: "grao", obrigatorio: true },
+    { keys: ["talhao", "talhão"], campo: "talhao", obrigatorio: false },
+    { keys: ["anosafra", "ano safra", "safra"], campo: "safra", obrigatorio: false },
+    { keys: ["placa"], campo: "placa", obrigatorio: false },
+    { keys: ["motorista"], campo: "motorista", obrigatorio: false },
+    { keys: ["transportadora"], campo: "transportadora", obrigatorio: false },
+    { keys: ["pesobruto", "peso bruto"], campo: "pesoBruto", obrigatorio: true },
+    { keys: ["pesotara", "peso tara", "tara"], campo: "pesoTara", obrigatorio: true },
+    { keys: ["pesoliquido", "peso liquido", "peso líquido", "liquido", "líquido"], campo: "pesoLiquido", obrigatorio: false },
+    { keys: ["classificacao", "classificação", "class"], campo: "classificacao", obrigatorio: false },
+    { keys: ["umidade"], campo: "umidade", obrigatorio: false },
+    { keys: ["impureza"], campo: "impureza", obrigatorio: false },
+    { keys: ["avariado", "avariados"], campo: "avariado", obrigatorio: false },
+  ];
+
+  const norm = (s) => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const detectarSep = (linha) => {
+    const c = (linha.match(/;/g) || []).length;
+    const t = (linha.match(/\t/g) || []).length;
+    const v = (linha.match(/,/g) || []).length;
+    if (t >= c && t >= v) return "\t";
+    if (c >= v) return ";";
+    return ",";
+  };
+
+  const parseCSV = (texto) => {
+    const linhasTxt = texto.split(/\r?\n/).filter(l => l.trim());
+    if (linhasTxt.length < 2) return { header: [], rows: [] };
+    const sep = detectarSep(linhasTxt[0]);
+    const split = (linha) => {
+      const out = []; let atual = ""; let dentroAspas = false;
+      for (let i = 0; i < linha.length; i++) {
+        const c = linha[i];
+        if (c === '"') { dentroAspas = !dentroAspas; continue; }
+        if (c === sep && !dentroAspas) { out.push(atual); atual = ""; continue; }
+        atual += c;
+      }
+      out.push(atual);
+      return out.map(s => s.trim());
+    };
+    const header = split(linhasTxt[0]).map(norm);
+    const rows = linhasTxt.slice(1).map(l => split(l));
+    return { header, rows };
+  };
+
+  const parseDataBR = (s) => {
+    if (!s) return new Date().toISOString().split("T")[0];
+    const v = String(s).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+    const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (m) {
+      const dia = m[1].padStart(2, "0");
+      const mes = m[2].padStart(2, "0");
+      let ano = m[3]; if (ano.length === 2) ano = "20" + ano;
+      return `${ano}-${mes}-${dia}`;
+    }
+    return new Date().toISOString().split("T")[0];
+  };
+
+  const parseNum = (s) => {
+    if (s === null || s === undefined || s === "") return 0;
+    const v = String(s).replace(/\./g, "").replace(",", ".").replace(/[^\d.\-]/g, "");
+    return parseFloat(v) || 0;
+  };
+
+  const processar = (texto) => {
+    setErros([]); setResultado(null);
+    const { header, rows } = parseCSV(texto);
+    if (header.length === 0) { setErros(["Não foi possível ler a planilha. Verifique o formato."]); setLinhas([]); return; }
+
+    // Mapear colunas
+    const mapa = {};
+    COLUNAS.forEach(col => {
+      const idx = header.findIndex(h => col.keys.includes(h));
+      if (idx >= 0) mapa[col.campo] = idx;
+    });
+
+    const errosLocais = [];
+    COLUNAS.filter(c => c.obrigatorio).forEach(c => {
+      if (mapa[c.campo] === undefined) errosLocais.push(`Coluna obrigatória ausente: ${c.keys[0]}`);
+    });
+
+    if (errosLocais.length) { setErros(errosLocais); setLinhas([]); return; }
+
+    const parsed = rows.map((r, i) => {
+      const obj = { _linha: i + 2 };
+      Object.entries(mapa).forEach(([campo, idx]) => { obj[campo] = (r[idx] || "").trim(); });
+      obj.data = parseDataBR(obj.data);
+      obj.pesoBruto = parseNum(obj.pesoBruto);
+      obj.pesoTara = parseNum(obj.pesoTara);
+      obj.pesoLiquido = obj.pesoLiquido ? parseNum(obj.pesoLiquido) : Math.max(0, obj.pesoBruto - obj.pesoTara);
+      obj.umidade = obj.umidade ? parseNum(obj.umidade) : "";
+      obj.impureza = obj.impureza ? parseNum(obj.impureza) : "";
+      obj.avariado = obj.avariado ? parseNum(obj.avariado) : "";
+      return obj;
+    }).filter(o => o.grao || o.pesoBruto > 0);
+
+    setLinhas(parsed);
+  };
+
+  const lerArquivo = (file) => {
+    if (!file) return;
+    setArquivo(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => { const txt = e.target.result; setTextoColado(txt); processar(txt); };
+    reader.readAsText(file, "UTF-8");
+  };
+
+  const importar = () => {
+    if (!linhas.length) { alert("Nada para importar."); return; }
+    if (!window.confirm(`Importar ${linhas.length} recebimento(s)? Serão criados romaneios de entrada automaticamente.`)) return;
+    setProcessando(true);
+
+    setState(s => {
+      let counter = s.romaneioCounter || 1;
+      const novosRomaneios = linhas.map(l => {
+        const liq = l.pesoLiquido || Math.max(0, l.pesoBruto - l.pesoTara);
+        const params = s.classificacaoParams?.[l.grao] || {};
+        const umRes = calcDescUmidade(l.umidade, params.umRef, params.umDesc, params.umDescPesado);
+        const dUm = umRes.desconto;
+        const dImp = calcDesc(l.impureza, params.impRef, params.impDesc);
+        const dAv = calcDesc(l.avariado, params.avRef, params.avDesc);
+        const totalDesc = (parseFloat(dUm) + parseFloat(dImp) + parseFloat(dAv)).toFixed(2);
+        const pesoFinal = Math.max(0, liq * (1 - parseFloat(totalDesc) / 100)).toFixed(0);
+        const numero = padNum(counter++);
+        return {
+          id: uid(),
+          numero,
+          tipo: "Entrada",
+          data: l.data,
+          grao: l.grao,
+          talhao: l.talhao || "",
+          safra: l.safra || (safrasOpcoes[1] || ""),
+          placa: l.placa || "",
+          motorista: l.motorista || "",
+          transportadora: l.transportadora || "",
+          pesoBruto: l.pesoBruto,
+          pesoTara: l.pesoTara,
+          umidade: l.umidade || "",
+          impureza: l.impureza || "",
+          avariado: l.avariado || "",
+          obs: l.classificacao ? `Classificação: ${l.classificacao}` : "",
+          classificacao: l.classificacao || "",
+          liq,
+          pesoFinal,
+          dUm, dImp, dAv,
+          totalDesc,
+          faixaUmidade: umRes.faixa,
+          importado: true,
+        };
+      });
+      return {
+        ...s,
+        romaneiosEntrada: [...(s.romaneiosEntrada || []), ...novosRomaneios],
+        romaneioCounter: counter,
+      };
+    });
+
+    setResultado({ qtd: linhas.length });
+    setLinhas([]); setTextoColado(""); setArquivo(""); setProcessando(false);
+  };
+
+  const baixarModelo = () => {
+    const csv = "data;grao;talhao;ano safra;placa;motorista;transportadora;peso bruto;peso tara;peso liquido;classificacao\n" +
+                "15/03/2025;Soja;Talhão A;2024/2025;ABC1D23;João Silva;Transp X;45000;15000;30000;Tipo 1\n" +
+                "15/03/2025;Milho;Talhão B;2024/2025;XYZ9K88;Maria Souza;Transp Y;38000;14000;24000;Tipo 2\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "modelo_recebimentos.csv";
+    a.click();
+  };
+
+  return (
+    <div>
+      <SectionTitle>📊 Importar Recebimentos (Planilha)</SectionTitle>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: theme.muted, marginBottom: 12 }}>
+          Importe uma planilha CSV/TSV com os recebimentos. Cada linha gerará automaticamente um <strong>romaneio de entrada</strong>.
+        </p>
+        <div style={{ background: `${theme.info}11`, border: `1px solid ${theme.info}44`, padding: 12, borderRadius: 8, fontSize: 12, color: theme.text, marginBottom: 12 }}>
+          <strong>Colunas aceitas:</strong> data, grão, talhão, ano safra, placa, motorista, transportadora, peso bruto, peso tara, peso líquido, classificação, umidade, impureza, avariado.
+          <br /><strong>Obrigatórias:</strong> data, grão, peso bruto, peso tara.
+          <br />Separador: vírgula, ponto-e-vírgula ou tab. Datas em DD/MM/AAAA ou AAAA-MM-DD.
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <Btn onClick={baixarModelo}>⬇️ Baixar Modelo CSV</Btn>
+          <label style={{ display: "inline-block" }}>
+            <input type="file" accept=".csv,.tsv,.txt" onChange={(e) => lerArquivo(e.target.files?.[0])} style={{ display: "none" }} />
+            <span style={{ display: "inline-block", padding: "10px 16px", background: theme.accent, color: "#fff", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>📁 Selecionar Arquivo</span>
+          </label>
+          {arquivo && <span style={{ fontSize: 12, color: theme.muted, alignSelf: "center" }}>📎 {arquivo}</span>}
+        </div>
+
+        <Field label="Ou cole os dados aqui (CSV/TSV)">
+          <textarea
+            rows={6}
+            value={textoColado}
+            onChange={(e) => setTextoColado(e.target.value)}
+            placeholder={"data;grao;talhao;ano safra;placa;motorista;transportadora;peso bruto;peso tara;peso liquido;classificacao\n15/03/2025;Soja;Talhão A;2024/2025;ABC1D23;João;Transp X;45000;15000;30000;Tipo 1"}
+            style={{ fontFamily: "monospace", fontSize: 12, width: "100%", padding: 10, borderRadius: 8, border: `1px solid ${theme.border || "#334155"}`, background: theme.cardBg || theme.bg, color: theme.text, minHeight: 120, resize: "vertical" }}
+          />
+        </Field>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <Btn onClick={() => processar(textoColado)} disabled={!textoColado.trim()}>🔍 Pré-visualizar</Btn>
+          <Btn onClick={() => { setTextoColado(""); setLinhas([]); setErros([]); setArquivo(""); setResultado(null); }} variant="ghost">🧹 Limpar</Btn>
+        </div>
+      </Card>
+
+      {erros.length > 0 && (
+        <Card style={{ padding: 16, marginBottom: 16, background: `${theme.danger || "#dc2626"}11`, border: `1px solid ${theme.danger || "#dc2626"}55` }}>
+          <strong style={{ color: theme.danger || "#dc2626" }}>⚠️ Erros encontrados:</strong>
+          <ul style={{ margin: "8px 0 0 20px", fontSize: 13 }}>{erros.map((e, i) => <li key={i}>{e}</li>)}</ul>
+        </Card>
+      )}
+
+      {resultado && (
+        <Card style={{ padding: 16, marginBottom: 16, background: `${theme.accent}11`, border: `1px solid ${theme.accent}55` }}>
+          ✅ <strong>{resultado.qtd}</strong> recebimento(s) importado(s) com sucesso! Os romaneios de entrada foram criados.
+        </Card>
+      )}
+
+      {linhas.length > 0 && (
+        <Card style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <strong>👁️ Pré-visualização ({linhas.length} linhas)</strong>
+            <Btn onClick={importar} disabled={processando}>✅ Importar {linhas.length} Recebimento(s)</Btn>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <Table headers={["#", "Data", "Grão", "Talhão", "Safra", "Placa", "Motorista", "Transp.", "Bruto", "Tara", "Líquido", "Class."]} rows={
+              linhas.slice(0, 50).map((l, i) => (
+                <tr key={i}>
+                  <Td>{l._linha}</Td><Td>{l.data}</Td><Td>{l.grao}</Td><Td>{l.talhao}</Td><Td>{l.safra}</Td>
+                  <Td>{l.placa}</Td><Td>{l.motorista}</Td><Td>{l.transportadora}</Td>
+                  <Td>{l.pesoBruto}</Td><Td>{l.pesoTara}</Td><Td><strong>{l.pesoLiquido}</strong></Td><Td>{l.classificacao}</Td>
+                </tr>
+              ))
+            } />
+            {linhas.length > 50 && <p style={{ fontSize: 12, color: theme.muted, marginTop: 8 }}>Exibindo primeiras 50 de {linhas.length} linhas. Todas serão importadas.</p>}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [fazendaSelecionada, setFazendaSelecionada] = useState(null);
   const [anoSafra, setAnoSafra] = useState(null);
-  const [active, setActive] = useState("dashboard");
+  const [active, setActiveRaw] = useState("dashboard");
+  const [pendingSubAba, setPendingSubAba] = useState(null);
+  // setActive aceita tanto um id de departamento (ex: "graosDept") quanto um
+  // id de "página" do dashboard (ex: "contratos") — neste caso navega para o
+  // departamento correspondente já abrindo a sub-aba.
+  const setActive = (page) => {
+    const sub = PAGE_TO_SUBMODULO[page];
+    if (sub && sub.includes(".")) {
+      const [dept, subId] = sub.split(".");
+      if (page === "fazenda") { setPendingSubAba(null); setActiveRaw("fazenda"); return; }
+      // Token único para forçar o useEffect mesmo navegando para o mesmo dept
+      setPendingSubAba(subId + "|" + Date.now());
+      setActiveRaw(dept);
+      return;
+    }
+    setPendingSubAba(null);
+    setActiveRaw(page);
+  };
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
   const [state, setState] = useState(initState());
   const [toast, setToast] = useState("");
   const [skipSelector, setSkipSelector] = useState(false);
 
-  // Persiste dados gerais e usuários locais
+  // Carregamento inicial do SQLite (Electron). Substitui o state se houver dados gravados.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.agrigest?.isElectron) {
+      window.agrigest.db.get(STORAGE_KEY).then((value) => {
+        if (value) {
+          try {
+            const parsed = JSON.parse(value);
+            const fixos = USUARIOS_FIXOS.map(u => ({ ...u, modulos: u.modulos || [], isFixo: true }));
+            const locais = (parsed.usuarios || []).filter(u => !fixos.some(f => f.login === u.login));
+            parsed.usuarios = [...fixos, ...locais];
+            setState(parsed);
+          } catch (e) { console.warn("SQLite load falhou:", e); }
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
+  // Persiste dados gerais e usuários locais (localStorage + SQLite quando disponível)
   useEffect(() => {
     try {
       const usuariosLocais = (state.usuarios || []).filter(u => !u.isFixo);
       const dadosParaSalvar = { ...state, usuarios: usuariosLocais };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
+      const json = JSON.stringify(dadosParaSalvar);
+      localStorage.setItem(STORAGE_KEY, json);
+      if (typeof window !== "undefined" && window.agrigest?.isElectron) {
+        window.agrigest.db.set(STORAGE_KEY, json).catch(() => {});
+      }
     } catch (e) {}
   }, [state]);
 
@@ -7356,27 +8539,48 @@ export default function App() {
     if (pageId === "fazenda")   return true; // sempre acessível
     if (usuarioLogado?.role === "admin") return true;
     const modulos = usuarioLogado?.modulos || [];
-    if (["usuarios", "lixeira"].includes(pageId)) return false;
+    if (["usuarios", "lixeira", "importarRecebimentos", "importarTalhoes", "backup", "update"].includes(pageId)) return false;
     if (modulos.length === 0) return true; // sem módulos configurados = libera tudo
-    return modulos.includes(pageId);
+
+    // 1) Match direto (departamento, ex: "graosDept", "financas")
+    if (modulos.includes(pageId)) return true;
+
+    // 2) Página vinda do Dashboard (ex: "contratos") -> resolve para "dept.sub"
+    const sub = PAGE_TO_SUBMODULO[pageId];
+    if (sub) {
+      if (modulos.includes(sub)) return true;
+      if (sub.includes(".")) {
+        const [dept] = sub.split(".");
+        // Tem o departamento inteiro liberado
+        if (modulos.includes(dept)) return true;
+      }
+    }
+
+    // 3) Prefixo "dept." -> usuário tem qualquer submódulo deste dept
+    if (modulos.some(m => m.startsWith(pageId + "."))) return true;
+
+    return false;
   };
 
   const page = () => {
     if (!temAcesso(active)) return <div style={{ textAlign: "center", padding: "60px 20px", color: theme.muted }}><div style={{ fontSize: 54, marginBottom: 16 }}>🔒</div><h2 style={{ color: theme.text, fontWeight: 700, fontSize: 22, marginBottom: 8 }}>Acesso Restrito</h2><p style={{ fontSize: 14 }}>Você não tem permissão para acessar este módulo.</p></div>;
     if (crudPages[active]) return <CrudPage key={active} {...crudPages[active]} state={state} setState={ss} />;
     switch (active) {
-      case "dashboard":          return <Dashboard state={state} setActive={setActive} />;
+      case "dashboard":          return <Dashboard state={state} setActive={setActive} usuario={usuarioLogado} />;
       case "fazenda":            return <Fazenda state={state} setState={ss} />;
-      case "graosDept":          return <GraosDept state={state} setState={ss} usuario={usuarioLogado} />;
-      case "relatoriosDept": return <RelatoriosDept state={state} setState={ss} usuario={usuarioLogado} />;
-      case "insumosDept": return <InsumosDept state={state} setState={ss} usuario={usuarioLogado} />;
+      case "graosDept":          return <GraosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
+      case "relatoriosDept": return <RelatoriosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
+      case "insumosDept": return <InsumosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
       case "usuarios": return <Usuarios state={state} setState={ss} />;
       case "lixeira": return <Lixeira state={state} setState={ss} />;
       case "backup": return <BackupManager state={state} setState={ss} />;
-      case "maquinasEquipamentos": return <MaquinasEquipamentos state={state} setState={ss} usuario={usuarioLogado} />;
-      case "almoxarifado": return <AlmoxarifadoDept state={state} setState={ss} usuario={usuarioLogado} />;
-      case "cadastros": return <CadastrosDept state={state} setState={ss} usuario={usuarioLogado} />;
-      case "financas": return <Financas state={state} setState={ss} usuario={usuarioLogado} />;
+      case "update": return <UpdateManager />;
+      case "importarRecebimentos": return <ImportarRecebimentos state={state} setState={ss} />;
+      case "importarTalhoes": return <ImportarTalhoes state={state} setState={ss} />;
+      case "maquinasEquipamentos": return <MaquinasEquipamentos state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
+      case "almoxarifado": return <AlmoxarifadoDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
+      case "cadastros": return <CadastrosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
+      case "financas": return <Financas state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
       default: return null;
     }
   };

@@ -532,6 +532,7 @@ const modulosDisponiveis = [
     { id: "financas", label: "Departamento Financeiro", submodulos: [
       { id: "financas.contasPagar", label: "Contas a Pagar" },
       { id: "financas.contasReceber", label: "Contas a Receber" },
+      { id: "financas.pagamentoContratos", label: "Pagamento de Contratos" },
       { id: "financas.despesasOp", label: "Despesas Operacionais" },
       { id: "financas.fluxoCaixa", label: "Fluxo de Caixa" },
       { id: "financas.dre", label: "DRE" },
@@ -784,6 +785,7 @@ const initState = () => {
        if (!parsed.pluviometro) parsed.pluviometro = [];
       if (!parsed.contasPagar) parsed.contasPagar = [];
       if (!parsed.contasReceber) parsed.contasReceber = [];
+      if (!parsed.pagamentosContratos) parsed.pagamentosContratos = [];
       if (!parsed.despesasOperacionais) parsed.despesasOperacionais = [];
       if (!parsed.centrosCusto) parsed.centrosCusto = ["Grãos", "Insumos", "Frota", "Administrativo", "Comercial"];
       if (!parsed.categoriasFinanceiras) parsed.categoriasFinanceiras = [
@@ -819,6 +821,7 @@ const initState = () => {
      pluviometro: [],
     contasPagar: [],
     contasReceber: [],
+    pagamentosContratos: [],
     despesasOperacionais: [],
     centrosCusto: ["Grãos", "Insumos", "Frota", "Administrativo", "Comercial"],
     categoriasFinanceiras: ["Compra de Insumos", "Frete", "Manutenção", "Combustível", "Mão de Obra", "Impostos", "Serviços de Terceiros", "Despesas Bancárias", "Outros"],
@@ -1167,6 +1170,7 @@ const PAGE_TO_SUBMODULO = {
   estoquePecas: "almoxarifado.estoquePecas",
   contasPagar: "financas.contasPagar",
   contasReceber: "financas.contasReceber",
+  pagamentoContratos: "financas.pagamentoContratos",
   despesasOp: "financas.despesasOp",
   fluxoCaixa: "financas.fluxoCaixa",
   dre: "financas.dre",
@@ -1295,6 +1299,14 @@ function Dashboard({ state, setActive, usuario, safraAtiva }) {
       )}
 
       <Group title={`🌾 Grãos & Contratos${safraAtiva ? ` — Safra ${safraAtiva}` : ""}`} color={theme.accent}>
+        <StatCard
+          label="Grãos em Produção"
+          value={(state.fazenda?.graos || []).length}
+          icon="🌾"
+          color={theme.accent}
+          page="graos"
+          sub={(state.fazenda?.graos || []).length > 0 ? (state.fazenda.graos.join(", ")) : "Nenhum grão cadastrado"}
+        />
         <StatCard label="Contratos Ativos"    value={contratosSafra.filter(c => c.status === "Ativo").length} icon="📋" color={theme.accent}      page="contratos"        sub={safraAtiva ? `Safra ${safraAtiva}` : "Clique para gerenciar"} />
         <StatCard label="Recebimentos"        value={romaneiosEntradaSafra.length}  icon="📥" color={theme.info}        page="romaneiosEntrada"  sub={safraAtiva ? `Safra ${safraAtiva}` : "Romaneios de entrada"} />
         <StatCard label="Expedições"          value={romaneiosSaidaSafra.length}    icon="📤" color={theme.gold}        page="romaneiosSaida"    sub={safraAtiva ? `Safra ${safraAtiva}` : "Romaneios de saída"} />
@@ -2057,13 +2069,14 @@ function Contratos({ state, setState, safraAtiva }) {
   // Filtra por safra ativa (contratos sem safra aparecem só em "todas" / legado)
   const contratos = safraAtiva ? todosContratos.filter(c => c.safra === safraAtiva) : todosContratos;
   const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const openNew = () => { setForm({ status: "Ativo", safra: safraAtiva || "" }); setEditing(null); setOpen(true); };
+  const openNew = () => { setForm({ status: "Ativo", safra: safraAtiva || "", tipo: "Comum" }); setEditing(null); setOpen(true); };
   const openEdit = c => { setForm({ ...c }); setEditing(c.id); setOpen(true); };
   const del = id => setState(s => ({ ...s, contratos: s.contratos.filter(c => c.id !== id) }));
   const save = () => {
     const c = {
       ...form,
       safra: form.safra || safraAtiva || "",
+      tipo: form.tipo || "Comum",
       id: editing || uid(),
       numero: editing ? form.numero : `CT-${padNum(todosContratos.length + 1)}`,
     };
@@ -2081,9 +2094,14 @@ function Contratos({ state, setState, safraAtiva }) {
       )}
       <Card>
         {contratos.length === 0 ? <EmptyState icon="📋" text={safraAtiva ? `Nenhum contrato cadastrado para a safra ${safraAtiva}.` : "Nenhum contrato cadastrado."} /> : (
-          <Table headers={["Número", "Cliente", "Grão", "Qtd (sc)", "Preço", "Vencimento", "Status", "Ações"]} rows={contratos.map(c => (
+          <Table headers={["Número", "Tipo", "Cliente", "Grão", "Qtd (sc)", "Preço", "Vencimento", "Status", "Ações"]} rows={contratos.map(c => (
             <tr key={c.id}>
               <Td><span style={{ fontFamily: "monospace", color: theme.info }}>{c.numero}</span></Td>
+              <Td>
+                {c.tipo === "Sobre Rodas"
+                  ? <Badge color="blue">🚛 Sobre Rodas</Badge>
+                  : <Badge color="gray">Comum</Badge>}
+              </Td>
               <Td>{c.cliente}</Td><Td>{c.grao}</Td><Td>{c.quantidade}</Td>
               <Td>R$ {c.preco}</Td><Td>{c.vencimento}</Td>
               <Td><Badge color={statusColor[c.status] || "gold"}>{c.status}</Badge></Td>
@@ -2110,6 +2128,21 @@ function Contratos({ state, setState, safraAtiva }) {
               <option value="">Selecione...</option>
               {(state.fazenda?.graos || graosOpcoes).map(g => <option key={g}>{g}</option>)}
             </Select>
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Tipo de Contrato">
+            <Select value={form.tipo || "Comum"} onChange={e => fp("tipo", e.target.value)}>
+              <option value="Comum">Comum</option>
+              <option value="Sobre Rodas">🚛 Sobre Rodas (pagamento por veículo)</option>
+            </Select>
+          </Field>
+          <Field label=" ">
+            <div style={{ fontSize: 11, color: theme.muted, padding: "8px 0" }}>
+              {form.tipo === "Sobre Rodas"
+                ? "💡 Pagamento será lançado por carga/veículo carregado, sem gerar saldo devedor."
+                : "Contrato tradicional: pagamento conforme vencimento."}
+            </div>
           </Field>
         </Row>
         <Row>
@@ -6860,6 +6893,297 @@ function ContasReceber({ state, setState }) {
   );
 }
 
+
+// ─── PAGAMENTO DE CONTRATOS (incluindo "Sobre Rodas") ─────────────────────────
+function PagamentoContratos({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(null);
+  const [filtroTipo, setFiltroTipo] = useState(""); // "", "Comum", "Sobre Rodas"
+  const [filtroContrato, setFiltroContrato] = useState("");
+
+  const contratos = state.contratos || [];
+  const pagamentos = state.pagamentosContratos || [];
+  const romaneiosSaida = state.romaneiosSaida || [];
+
+  const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const openNew = () => {
+    setForm({
+      data: new Date().toISOString().split("T")[0],
+      tipoContrato: "Sobre Rodas",
+      formaPagamento: "PIX",
+      status: "Confirmado",
+      romaneiosSelecionados: [],
+    });
+    setEditing(null);
+    setOpen(true);
+  };
+  const openEdit = (p) => {
+    setForm({ ...p, romaneiosSelecionados: p.romaneiosSelecionados || [] });
+    setEditing(p.id);
+    setOpen(true);
+  };
+  const del = (id) => {
+    if (!window.confirm("Excluir este pagamento? O caminhão vinculado voltará para 'Aguardando pagamento'.")) return;
+    setState(s => ({ ...s, pagamentosContratos: (s.pagamentosContratos || []).filter(x => x.id !== id) }));
+  };
+
+  // Contratos filtrados por tipo selecionado no modal
+  const contratosDisponiveis = contratos.filter(c =>
+    !form.tipoContrato || (form.tipoContrato === "Sobre Rodas" ? c.tipo === "Sobre Rodas" : c.tipo !== "Sobre Rodas")
+  );
+
+  // Romaneios do contrato selecionado (apenas para "Sobre Rodas")
+  const contratoObj = contratos.find(c => c.numero === form.contrato);
+  const romaneiosDoContrato = romaneiosSaida.filter(r => r.contrato === form.contrato);
+
+  // IDs já pagos em outros lançamentos (evitar duplicidade)
+  const idsJaPagos = new Set(
+    pagamentos
+      .filter(p => p.id !== editing)
+      .flatMap(p => p.romaneiosSelecionados || [])
+  );
+  const romaneiosLivres = romaneiosDoContrato.filter(r => !idsJaPagos.has(r.id));
+
+  const toggleRomaneio = (rid) => {
+    setForm(f => {
+      const sel = new Set(f.romaneiosSelecionados || []);
+      if (sel.has(rid)) sel.delete(rid); else sel.add(rid);
+      return { ...f, romaneiosSelecionados: Array.from(sel) };
+    });
+  };
+
+  // Soma de pesos/sacas dos romaneios selecionados → calcula valor automático
+  const calcValor = () => {
+    if (!contratoObj || form.tipoContrato !== "Sobre Rodas") return parseFloat(form.valor) || 0;
+    const preco = parseFloat(contratoObj.preco) || 0;
+    const totalKg = (form.romaneiosSelecionados || [])
+      .map(rid => romaneiosSaida.find(r => r.id === rid))
+      .filter(Boolean)
+      .reduce((s, r) => s + (parseFloat(r.pesoFinal || r.peso || 0) || 0), 0);
+    const sacas = totalKg / 60;
+    return preco * sacas;
+  };
+
+  const save = () => {
+    if (!form.contrato) { alert("Selecione um contrato."); return; }
+    if (form.tipoContrato === "Sobre Rodas" && (!form.romaneiosSelecionados || form.romaneiosSelecionados.length === 0)) {
+      alert("Selecione pelo menos um romaneio (veículo carregado)."); return;
+    }
+    const valorFinal = form.tipoContrato === "Sobre Rodas" ? calcValor() : parseFloat(form.valor) || 0;
+    const item = {
+      ...form,
+      id: editing || uid(),
+      valor: valorFinal,
+      cliente: contratoObj?.cliente || form.cliente || "",
+      grao: contratoObj?.grao || "",
+    };
+    setState(s => ({
+      ...s,
+      pagamentosContratos: editing
+        ? (s.pagamentosContratos || []).map(x => x.id === editing ? item : x)
+        : [...(s.pagamentosContratos || []), item]
+    }));
+    setOpen(false);
+  };
+
+  // Pagamentos filtrados na lista
+  const pagamentosFiltrados = pagamentos.filter(p =>
+    (!filtroTipo || p.tipoContrato === filtroTipo) &&
+    (!filtroContrato || p.contrato === filtroContrato)
+  );
+
+  const totalPago = pagamentosFiltrados.filter(p => p.status === "Confirmado").reduce((s, p) => s + (p.valor || 0), 0);
+  const totalSobreRodas = pagamentos.filter(p => p.tipoContrato === "Sobre Rodas" && p.status === "Confirmado").reduce((s, p) => s + (p.valor || 0), 0);
+  const totalComum = pagamentos.filter(p => p.tipoContrato !== "Sobre Rodas" && p.status === "Confirmado").reduce((s, p) => s + (p.valor || 0), 0);
+
+  // Map de status do romaneio: pago / pendente
+  const statusRomaneio = (rid) => idsJaPagos.has(rid) || (form.romaneiosSelecionados || []).includes(rid);
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontWeight: 800, fontSize: 22, margin: 0 }}>📑 Pagamento de Contratos</h2>
+        <Btn onClick={openNew}>+ Novo Pagamento</Btn>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Total Recebido", value: `R$ ${totalPago.toFixed(2)}`, color: theme.accent },
+          { label: "🚛 Sobre Rodas", value: `R$ ${totalSobreRodas.toFixed(2)}`, color: theme.info },
+          { label: "📋 Comum", value: `R$ ${totalComum.toFixed(2)}`, color: theme.gold },
+        ].map((s, i) => (
+          <Card key={i} style={{ borderLeft: `3px solid ${s.color}`, padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontWeight: 900, fontSize: 24, color: s.color }}>{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card style={{ padding: 14, marginBottom: 14 }}>
+        <Row cols={3}>
+          <Field label="Tipo de Contrato">
+            <Select value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setFiltroContrato(""); }}>
+              <option value="">Todos</option>
+              <option value="Sobre Rodas">🚛 Sobre Rodas</option>
+              <option value="Comum">📋 Comum</option>
+            </Select>
+          </Field>
+          <Field label="Contrato">
+            <Select value={filtroContrato} onChange={e => setFiltroContrato(e.target.value)}>
+              <option value="">Todos</option>
+              {contratos
+                .filter(c => !filtroTipo || (filtroTipo === "Sobre Rodas" ? c.tipo === "Sobre Rodas" : c.tipo !== "Sobre Rodas"))
+                .map(c => <option key={c.id} value={c.numero}>{c.numero} — {c.cliente}</option>)}
+            </Select>
+          </Field>
+          <Field label=" ">
+            <Btn variant="secondary" onClick={() => { setFiltroTipo(""); setFiltroContrato(""); }}>✖ Limpar Filtros</Btn>
+          </Field>
+        </Row>
+      </Card>
+
+      <Card>
+        {pagamentosFiltrados.length === 0 ? (
+          <EmptyState icon="📑" text="Nenhum pagamento de contrato registrado." />
+        ) : (
+          <Table
+            headers={["Data", "Contrato", "Tipo", "Cliente", "Veículos", "Valor (R$)", "Forma", "Status", "Ações"]}
+            rows={pagamentosFiltrados.map(p => {
+              const rs = (p.romaneiosSelecionados || []).map(rid => romaneiosSaida.find(r => r.id === rid)).filter(Boolean);
+              const placas = rs.map(r => r.placa).filter(Boolean).join(", ");
+              return (
+                <tr key={p.id}>
+                  <Td>{p.data}</Td>
+                  <Td><span style={{ fontFamily: "monospace", color: theme.info }}>{p.contrato}</span></Td>
+                  <Td>{p.tipoContrato === "Sobre Rodas" ? <Badge color="blue">🚛 Sobre Rodas</Badge> : <Badge color="gray">Comum</Badge>}</Td>
+                  <Td>{p.cliente || "—"}</Td>
+                  <Td>{placas ? <span style={{ fontSize: 12 }}>{placas} <span style={{ color: theme.muted }}>({rs.length})</span></span> : "—"}</Td>
+                  <Td><strong style={{ color: theme.accent }}>R$ {(p.valor || 0).toFixed(2)}</strong></Td>
+                  <Td>{p.formaPagamento || "—"}</Td>
+                  <Td><Badge color={p.status === "Confirmado" ? "green" : "gold"}>{p.status || "Pendente"}</Badge></Td>
+                  <Td>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <Btn size="sm" variant="secondary" onClick={() => openEdit(p)}>✏️</Btn>
+                      <Btn size="sm" variant="danger" onClick={() => del(p.id)}>🗑️</Btn>
+                    </div>
+                  </Td>
+                </tr>
+              );
+            })}
+          />
+        )}
+      </Card>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Novo"} Pagamento de Contrato`} width={780}>
+        <Row cols={2}>
+          <Field label="Tipo de Contrato">
+            <Select value={form.tipoContrato || "Sobre Rodas"} onChange={e => fp("tipoContrato", e.target.value)}>
+              <option value="Sobre Rodas">🚛 Sobre Rodas</option>
+              <option value="Comum">📋 Comum</option>
+            </Select>
+          </Field>
+          <Field label="Contrato">
+            <Select value={form.contrato || ""} onChange={e => { fp("contrato", e.target.value); fp("romaneiosSelecionados", []); }}>
+              <option value="">Selecione...</option>
+              {contratosDisponiveis.map(c => (
+                <option key={c.id} value={c.numero}>{c.numero} — {c.cliente} ({c.grao})</option>
+              ))}
+            </Select>
+          </Field>
+        </Row>
+
+        {contratoObj && (
+          <div style={{ background: `${theme.info}11`, border: `1px solid ${theme.info}33`, borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: theme.muted }}>
+            <strong style={{ color: theme.text }}>Contrato:</strong> {contratoObj.cliente} • {contratoObj.grao} • Preço: <strong>R$ {contratoObj.preco}/sc</strong> • Qtd: {contratoObj.quantidade} sc
+          </div>
+        )}
+
+        {form.tipoContrato === "Sobre Rodas" && form.contrato && (
+          <Field label={`🚛 Veículos / Romaneios deste contrato (${romaneiosLivres.length} disponíveis)`}>
+            {romaneiosDoContrato.length === 0 ? (
+              <div style={{ padding: 12, color: theme.muted, fontSize: 13, fontStyle: "italic", border: `1px dashed ${theme.border}`, borderRadius: 8 }}>
+                Nenhum romaneio de expedição encontrado para este contrato.
+              </div>
+            ) : (
+              <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${theme.border}`, borderRadius: 8 }}>
+                {romaneiosDoContrato.map(r => {
+                  const jaPagoOutro = idsJaPagos.has(r.id);
+                  const checked = (form.romaneiosSelecionados || []).includes(r.id);
+                  return (
+                    <label key={r.id} style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                      borderBottom: `1px solid ${theme.border}`,
+                      cursor: jaPagoOutro ? "not-allowed" : "pointer",
+                      opacity: jaPagoOutro ? 0.5 : 1,
+                      background: checked ? `${theme.accent}15` : "transparent",
+                    }}>
+                      <input type="checkbox" checked={checked} disabled={jaPagoOutro} onChange={() => toggleRomaneio(r.id)} />
+                      <span style={{ fontFamily: "monospace", color: theme.info, minWidth: 80 }}>{r.numero || `#${r.id?.slice(0, 6)}`}</span>
+                      <span style={{ fontSize: 12 }}>{r.data}</span>
+                      <span style={{ fontSize: 12 }}><strong>🚛 {r.placa || "—"}</strong></span>
+                      <span style={{ fontSize: 12, color: theme.muted }}>{r.motorista || "—"}</span>
+                      <span style={{ fontSize: 12, marginLeft: "auto" }}><strong>{r.pesoFinal || r.peso || 0} kg</strong></span>
+                      {jaPagoOutro && <Badge color="green">Já pago</Badge>}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </Field>
+        )}
+
+        <Row cols={3}>
+          <Field label="Data do Pagamento"><Input type="date" value={form.data || ""} onChange={e => fp("data", e.target.value)} /></Field>
+          <Field label="Forma de Pagamento">
+            <Select value={form.formaPagamento || "PIX"} onChange={e => fp("formaPagamento", e.target.value)}>
+              <option>PIX</option><option>Boleto</option><option>Transferência</option><option>Dinheiro</option><option>Cheque</option>
+            </Select>
+          </Field>
+          <Field label="Status">
+            <Select value={form.status || "Confirmado"} onChange={e => fp("status", e.target.value)}>
+              <option>Confirmado</option><option>Pendente</option>
+            </Select>
+          </Field>
+        </Row>
+
+        <Row cols={2}>
+          <Field label="Valor (R$)">
+            {form.tipoContrato === "Sobre Rodas" ? (
+              <div style={{
+                padding: "10px 12px", background: `${theme.accent}15`, border: `1px solid ${theme.accent}44`,
+                borderRadius: 8, fontWeight: 800, fontSize: 18, color: theme.accent
+              }}>
+                R$ {calcValor().toFixed(2)}
+                <span style={{ fontSize: 11, color: theme.muted, fontWeight: 400, marginLeft: 8 }}>(calculado automaticamente)</span>
+              </div>
+            ) : (
+              <Input type="number" step="0.01" value={form.valor || ""} onChange={e => fp("valor", e.target.value)} placeholder="0.00" />
+            )}
+          </Field>
+          <Field label="Nº Nota Fiscal"><Input value={form.notaFiscal || ""} onChange={e => fp("notaFiscal", e.target.value)} placeholder="Opcional" /></Field>
+        </Row>
+
+        <Field label="Observações">
+          <textarea value={form.obs || ""} onChange={e => fp("obs", e.target.value)} rows={2} style={{ width: "100%", background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "9px 12px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }} placeholder="Ex: Liberado para viagem após confirmação..." />
+        </Field>
+
+        {form.tipoContrato === "Sobre Rodas" && (form.romaneiosSelecionados || []).length > 0 && form.status === "Confirmado" && (
+          <div style={{ background: `${theme.accent}15`, border: `1px solid ${theme.accent}44`, borderRadius: 8, padding: 10, marginTop: 4, fontSize: 12, color: theme.accent }}>
+            ✅ Após salvar, os {form.romaneiosSelecionados.length} veículo(s) selecionado(s) ficarão marcados como pagos e liberados para viagem.
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar Pagamento</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 function DespesasOperacionais({ state, setState }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
@@ -7606,6 +7930,165 @@ function RelatoriosDept({ state, setState, usuario, initialAba }) {
   );
 }
 
+// ─── RECEBIMENTO DE INSUMOS ─────────────────────────────────────────────────
+function RecebimentoInsumos({ state, setState, usuario }) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [search, setSearch] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
+  const emptyForm = () => ({
+    data: today,
+    produto: "",
+    quantidade: "",
+    unidade: "",
+    fornecedor: "",
+    notaFiscal: "",
+    recebidoPor: usuario?.nome || usuario?.login || "",
+    fotoNF: "",
+    fotoNFName: "",
+    fotoProduto: "",
+    fotoProdutoName: "",
+  });
+  const [form, setForm] = useState(emptyForm());
+
+  const items = (state.recebimentoInsumos || []).filter(i =>
+    Object.values(i).some(v => String(v).toLowerCase().includes(search.toLowerCase()))
+  );
+  const insumosList = state.insumos || [];
+  const fornecedoresList = state.fornecedores || [];
+  const unidades = ["Litro", "Kg", "Saco", "Unidade", "Tonelada", "Metro", "Caixa"];
+
+  const openNew = () => { setForm(emptyForm()); setEditing(null); setOpen(true); };
+  const openEdit = i => {
+    setForm({ ...emptyForm(), ...i });
+    setEditing(i.id);
+    setOpen(true);
+  };
+  const del = id => {
+    if (!window.confirm("Excluir este recebimento?")) return;
+    setState(s => ({ ...s, recebimentoInsumos: (s.recebimentoInsumos || []).filter(i => i.id !== id) }));
+  };
+  const onProdutoChange = nome => {
+    const ins = insumosList.find(i => i.nome === nome);
+    setForm(p => ({ ...p, produto: nome, unidade: ins?.unidade || p.unidade }));
+  };
+  const onFile = (key, file) => {
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = ev => setForm(p => ({ ...p, [key]: ev.target.result, [key + "Name"]: file.name }));
+    r.readAsDataURL(file);
+  };
+  const save = () => {
+    if (!form.produto) { alert("Selecione o produto."); return; }
+    if (!form.quantidade) { alert("Informe a quantidade."); return; }
+    if (!form.unidade) { alert("Informe a unidade de medida."); return; }
+    const item = { ...form, id: editing || uid() };
+    setState(s => ({
+      ...s,
+      recebimentoInsumos: editing
+        ? (s.recebimentoInsumos || []).map(i => i.id === editing ? item : i)
+        : [...(s.recebimentoInsumos || []), item]
+    }));
+    setOpen(false);
+  };
+
+  const fileInputStyle = { background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text, padding: "8px 12px", borderRadius: 8, fontSize: 12, width: "100%", cursor: "pointer" };
+
+  return (
+    <div>
+      <SectionTitle action={<Btn onClick={openNew}>+ Novo Recebimento</Btn>}>📥 Recebimento de Insumos</SectionTitle>
+      <Card>
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar recebimento..." />
+        <div style={{ marginTop: 16 }}>
+          {items.length === 0 ? (
+            <EmptyState icon="📥" text="Nenhum recebimento cadastrado." />
+          ) : (
+            <Table
+              headers={["Data", "Produto", "Qtd", "Unidade", "Fornecedor", "Nº NF", "Recebido por", "Anexos", "Ações"]}
+              rows={items.map(item => (
+                <tr key={item.id}>
+                  <Td>{item.data ? new Date(item.data + "T00:00:00").toLocaleDateString("pt-BR") : "—"}</Td>
+                  <Td>{item.produto || "—"}</Td>
+                  <Td>{item.quantidade || "—"}</Td>
+                  <Td>{item.unidade || "—"}</Td>
+                  <Td>{item.fornecedor || "—"}</Td>
+                  <Td>{item.notaFiscal || "—"}</Td>
+                  <Td>{item.recebidoPor || "—"}</Td>
+                  <Td>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {item.fotoNF && <a href={item.fotoNF} target="_blank" rel="noreferrer" title="Foto NF">📄</a>}
+                      {item.fotoProduto && <a href={item.fotoProduto} target="_blank" rel="noreferrer" title="Foto Produto">🖼️</a>}
+                      {!item.fotoNF && !item.fotoProduto && "—"}
+                    </div>
+                  </Td>
+                  <Td>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Btn size="sm" variant="secondary" onClick={() => openEdit(item)}>✏️</Btn>
+                      <Btn size="sm" variant="danger" onClick={() => del(item.id)}>🗑️</Btn>
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            />
+          )}
+        </div>
+      </Card>
+      <Modal open={open} onClose={() => setOpen(false)} title={`${editing ? "Editar" : "Novo"} Recebimento de Insumo`}>
+        <Field label="Data">
+          <Input type="date" value={form.data} onChange={e => setForm(p => ({ ...p, data: e.target.value }))} />
+        </Field>
+        <Field label="Nome do Produto">
+          <Select value={form.produto} onChange={e => onProdutoChange(e.target.value)}>
+            <option value="">Selecione o produto...</option>
+            {insumosList.map(i => <option key={i.id} value={i.nome}>{i.nome}</option>)}
+          </Select>
+        </Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Field label="Quantidade">
+            <Input type="number" value={form.quantidade} onChange={e => setForm(p => ({ ...p, quantidade: e.target.value }))} />
+          </Field>
+          <Field label="Unidade de Medida">
+            <Select value={form.unidade} onChange={e => setForm(p => ({ ...p, unidade: e.target.value }))}>
+              <option value="">Selecione...</option>
+              {unidades.map(u => <option key={u} value={u}>{u}</option>)}
+            </Select>
+          </Field>
+        </div>
+        <Field label="Fornecedor">
+          {fornecedoresList.length > 0 ? (
+            <Select value={form.fornecedor} onChange={e => setForm(p => ({ ...p, fornecedor: e.target.value }))}>
+              <option value="">Selecione o fornecedor...</option>
+              {fornecedoresList.map(f => <option key={f.id} value={f.nome}>{f.nome}</option>)}
+            </Select>
+          ) : (
+            <Input value={form.fornecedor} onChange={e => setForm(p => ({ ...p, fornecedor: e.target.value }))} placeholder="Nome do fornecedor" />
+          )}
+        </Field>
+        <Field label="Número da Nota Fiscal">
+          <Input value={form.notaFiscal} onChange={e => setForm(p => ({ ...p, notaFiscal: e.target.value }))} placeholder="Nº NF" />
+        </Field>
+        <Field label="Recebido por">
+          <Input value={form.recebidoPor} readOnly />
+        </Field>
+        <Field label="Foto da Nota Fiscal">
+          <input type="file" accept="image/*" onChange={e => onFile("fotoNF", e.target.files[0])} style={fileInputStyle} />
+          {form.fotoNFName && <p style={{ color: theme.muted, fontSize: 11, marginTop: 4 }}>📎 {form.fotoNFName}</p>}
+          {form.fotoNF && <img src={form.fotoNF} alt="NF" style={{ maxWidth: 120, marginTop: 6, borderRadius: 6, border: `1px solid ${theme.border}` }} />}
+        </Field>
+        <Field label="Foto do Produto">
+          <input type="file" accept="image/*" onChange={e => onFile("fotoProduto", e.target.files[0])} style={fileInputStyle} />
+          {form.fotoProdutoName && <p style={{ color: theme.muted, fontSize: 11, marginTop: 4 }}>📎 {form.fotoProdutoName}</p>}
+          {form.fotoProduto && <img src={form.fotoProduto} alt="Produto" style={{ maxWidth: 120, marginTop: 6, borderRadius: 6, border: `1px solid ${theme.border}` }} />}
+        </Field>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
+          <Btn onClick={save}>💾 Salvar</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 // ─── INSUMOS (DEPARTAMENTO COM ABAS) ────────────────────────────────────────
 function InsumosDept({ state, setState, usuario, initialAba }) {
   const allAbas = [
@@ -7623,17 +8106,13 @@ function InsumosDept({ state, setState, usuario, initialAba }) {
       { key: "nome", label: "Nome do Insumo" }, { key: "tipo", label: "Tipo", type: "select", options: ["Fertilizante","Herbicida","Inseticida","Fungicida","Adjuvante","Semente","Outro"] },
       { key: "unidade", label: "Unidade", type: "select", options: ["Litro","Kg","Saco","Unidade"] }, { key: "precoUnitario", label: "Preço Unitário (R$)", type: "number" }
     ]},
-    recebimentoInsumos: { title: "📥 Recebimento de Insumos", stateKey: "recebimentoInsumos", fields: [
-      { key: "data", label: "Data", type: "date" }, { key: "insumo", label: "Insumo" },
-      { key: "quantidade", label: "Quantidade", type: "number" }, { key: "fornecedor", label: "Fornecedor" }, { key: "notaFiscal", label: "Nota Fiscal" }
-    ]},
   };
 
   const renderContent = () => {
     switch (aba) {
       case "insumos": return <CrudPage {...crudPages.insumos} state={state} setState={setState} />;
       case "estoque": return <Estoque state={state} setState={setState} />;
-      case "recebimentoInsumos": return <CrudPage {...crudPages.recebimentoInsumos} state={state} setState={setState} />;
+      case "recebimentoInsumos": return <RecebimentoInsumos state={state} setState={setState} usuario={usuario} />;
       case "fichasAplicacao": return <FichasAplicacao state={state} setState={setState} />;
       default: return <CrudPage {...crudPages.insumos} state={state} setState={setState} />;
     }
@@ -7664,6 +8143,7 @@ function Financas({ state, setState, usuario, initialAba }) {
   const allAbas = [
     { id: "contasPagar", label: "💰 Contas a Pagar", icon: "💰" },
     { id: "contasReceber", label: "💵 Contas a Receber", icon: "💵" },
+    { id: "pagamentoContratos", label: "📑 Pagamento de Contratos", icon: "📑" },
     { id: "despesasOp", label: "📋 Despesas Operacionais", icon: "📋" },
     { id: "fluxoCaixa", label: "📊 Fluxo de Caixa", icon: "📊" },
     { id: "dre", label: "📈 DRE", icon: "📈" },
@@ -7676,10 +8156,11 @@ function Financas({ state, setState, usuario, initialAba }) {
     switch (aba) {
       case "contasPagar": return <ContasPagar state={state} setState={setState} />;
       case "contasReceber": return <ContasReceber state={state} setState={setState} />;
+      case "pagamentoContratos": return <PagamentoContratos state={state} setState={setState} />;
       case "despesasOp": return <DespesasOperacionais state={state} setState={setState} />;
       case "fluxoCaixa": return <FluxoCaixa state={state} />;
       case "dre": return <RelatorioFinanceiro state={state} />;
-      default: return <ContasPagar state={state} setState={ss} />;
+      default: return <ContasPagar state={state} setState={setState} />;
     }
   };
 

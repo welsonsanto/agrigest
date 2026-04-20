@@ -477,11 +477,12 @@ const modulosDisponiveis = [
     { id: "graosDept", label: "Grãos", submodulos: [
       { id: "graosDept.graos", label: "Grãos em Produção" },
       { id: "graosDept.talhoes", label: "Talhões" },
-      { id: "graosDept.classificacao", label: "Classificação" },
+      { id: "graosDept.classificacao", label: "Classificação - Expedição" },
+      { id: "graosDept.classificacaoRecepcao", label: "Classificação - Recepção" },
       { id: "graosDept.contratos", label: "Contratos" },
       { id: "graosDept.romaneiosEntrada", label: "Recebimento" },
       { id: "graosDept.romaneiosSaida", label: "Expedição" },
-      { id: "graosDept.expedicao", label: "Agendamentos" },
+      
       { id: "graosDept.vendaMilho", label: "Venda de Milho" },
     ]},
   ]},
@@ -559,13 +560,17 @@ const getSubmoduloIds = (moduloId) => {
   }
   return [];
 };
+// Submódulos restritos a admin (não aparecem para operadores nem mesmo se marcados nas permissões)
+const SUBMODULOS_ADMIN_ONLY = new Set(["graosDept.expedicao"]);
+
 // Helper: check if user has access to a sub-tab within a department
 const temAcessoSubmodulo = (usuario, moduloId, abaId) => {
+  const subKey = `${moduloId}.${abaId}`;
+  if (SUBMODULOS_ADMIN_ONLY.has(subKey)) return usuario?.role === "admin";
   if (usuario?.role === "admin") return true;
   const modulos = usuario?.modulos || [];
   if (modulos.length === 0) return true;
   if (!modulos.includes(moduloId)) return false;
-  const subKey = `${moduloId}.${abaId}`;
   // If user has the parent module but no sub-modules configured for it, allow all
   const subIds = getSubmoduloIds(moduloId);
   const userSubs = modulos.filter(m => subIds.includes(m));
@@ -803,7 +808,7 @@ const initState = () => {
     fazenda: null, fazendas: [], clientes: [], transportadoras: [], fornecedores: [], caminhoes: [], motoristas: [],
     contratos: [], insumos: [], estoqueInsumos: [], recebimentoInsumos: [],
     romaneiosEntrada: [], romaneiosSaida: [], romaneiosEntradaLixeira: [], romaneiosSaidalixeira: [],
-    expedicoes: [], classificacaoParams: {}, romaneioCounter: 1, talhoes: [],
+    expedicoes: [], classificacaoParams: {}, classificacaoRecepcaoParams: {}, romaneioCounter: 1, talhoes: [],
     maquinas: [],
     abastecimentos: [],
     pecas: [],
@@ -1052,6 +1057,7 @@ const navGroups = (isAdmin, userModulos) => {
     ...(isAdmin ? [{
       title: "⚙️ ADMIN", icon: "⚙️",
       items: [
+        { id: "expedicao", label: "Agendamentos", icon: "🚚" },
         { id: "usuarios", label: "Usuários", icon: "👥" },
         { id: "lixeira", label: "Lixeira", icon: "🗑️" },
         { id: "importarRecebimentos", label: "Importar Recebimentos", icon: "📊" },
@@ -1147,7 +1153,7 @@ const PAGE_TO_SUBMODULO = {
   contratos: "graosDept.contratos",
   romaneiosEntrada: "graosDept.romaneiosEntrada",
   romaneiosSaida: "graosDept.romaneiosSaida",
-  expedicao: "graosDept.expedicao",
+  
   talhoes: "graosDept.talhoes",
   graos: "graosDept.graos",
   produtividade: "relatoriosDept.produtividade",
@@ -1176,6 +1182,8 @@ const PAGE_TO_SUBMODULO = {
 
 function podeVerPagina(usuario, page) {
   if (!usuario) return true;
+  const subForPage = PAGE_TO_SUBMODULO[page];
+  if (subForPage && SUBMODULOS_ADMIN_ONLY.has(subForPage)) return usuario.role === "admin";
   if (usuario.role === "admin") return true;
   const modulos = usuario.modulos || [];
   if (modulos.length === 0) return true;
@@ -1194,7 +1202,12 @@ function podeVerPagina(usuario, page) {
   return modulos.includes(sub);
 }
 
-function Dashboard({ state, setActive, usuario }) {
+function Dashboard({ state, setActive, usuario, safraAtiva }) {
+  const bySafra = (arr) => safraAtiva ? (arr || []).filter(r => r.safra === safraAtiva) : (arr || []);
+  const romaneiosEntradaSafra = bySafra(state.romaneiosEntrada);
+  const romaneiosSaidaSafra   = bySafra(state.romaneiosSaida);
+  const contratosSafra        = bySafra(state.contratos);
+
   const totalCombustivel = (state.abastecimentos || []).reduce((sum, a) => sum + (parseFloat(a.litros) || 0), 0);
   const totalFichas      = (state.fichasAplicacao || []).length;
   const totalPecas       = (state.pecas || []).length;
@@ -1281,11 +1294,10 @@ function Dashboard({ state, setActive, usuario }) {
         </div>
       )}
 
-      <Group title="🌾 Grãos & Contratos" color={theme.accent}>
-        <StatCard label="Contratos Ativos"    value={state.contratos.filter(c => c.status === "Ativo").length} icon="📋" color={theme.accent}      page="contratos"        sub="Clique para gerenciar" />
-        <StatCard label="Recebimentos"        value={state.romaneiosEntrada.length}  icon="📥" color={theme.info}        page="romaneiosEntrada"  sub="Romaneios de entrada" />
-        <StatCard label="Expedições"          value={state.romaneiosSaida.length}    icon="📤" color={theme.gold}        page="romaneiosSaida"    sub="Romaneios de saída" />
-        <StatCard label="Agendamentos"        value={(state.expedicoes || []).length} icon="🚚" color={theme.warning}    page="expedicao"         sub="Expedições agendadas" />
+      <Group title={`🌾 Grãos & Contratos${safraAtiva ? ` — Safra ${safraAtiva}` : ""}`} color={theme.accent}>
+        <StatCard label="Contratos Ativos"    value={contratosSafra.filter(c => c.status === "Ativo").length} icon="📋" color={theme.accent}      page="contratos"        sub={safraAtiva ? `Safra ${safraAtiva}` : "Clique para gerenciar"} />
+        <StatCard label="Recebimentos"        value={romaneiosEntradaSafra.length}  icon="📥" color={theme.info}        page="romaneiosEntrada"  sub={safraAtiva ? `Safra ${safraAtiva}` : "Romaneios de entrada"} />
+        <StatCard label="Expedições"          value={romaneiosSaidaSafra.length}    icon="📤" color={theme.gold}        page="romaneiosSaida"    sub={safraAtiva ? `Safra ${safraAtiva}` : "Romaneios de saída"} />
       </Group>
 
       <Group title="📈 Produção & Talhões" color={theme.accentLight}>
@@ -1319,8 +1331,8 @@ function Dashboard({ state, setActive, usuario }) {
       <Group title="📋 Cadastros & Relatórios" color={theme.gold}>
         <StatCard label="Clientes"            value={state.clientes.length}          icon="👥" color={theme.accentLight} page="clientes"        sub="Compradores cadastrados" />
         <StatCard label="Motoristas"          value={state.motoristas.length}        icon="👷" color={theme.muted}       page="motoristas"      sub="Condutores ativos" />
-        <StatCard label="Rel. Motoristas"     value={(state.romaneiosEntrada || []).length} icon="📊" color={theme.info} page="relatorioMotoristas" sub="Viagens e toneladas" />
-        <StatCard label="Rel. Carregamentos"  value={(state.romaneiosSaida || []).length}  icon="📦" color={theme.gold}  page="relatorioCarregamentos" sub="Expedições por cliente" />
+        <StatCard label="Rel. Motoristas"     value={romaneiosEntradaSafra.length} icon="📊" color={theme.info} page="relatorioMotoristas" sub={safraAtiva ? `Viagens — Safra ${safraAtiva}` : "Viagens e toneladas"} />
+        <StatCard label="Rel. Carregamentos"  value={romaneiosSaidaSafra.length}  icon="📦" color={theme.gold}  page="relatorioCarregamentos" sub={safraAtiva ? `Carregamentos — Safra ${safraAtiva}` : "Expedições por cliente"} />
       </Group>
     </div>
   );
@@ -1404,24 +1416,24 @@ function Fazenda({ state, setState }) {
 }
 
 // ─── CLASSIFICAÇÃO ───────────────────────────────────────────────────────────
-function Classificacao({ state, setState }) {
+function Classificacao({ state, setState, paramsKey = "classificacaoParams", title = "⚙️ Parâmetros de Classificação", subtitle = "Configure as tolerâncias por grão. Aplicadas automaticamente nos romaneios de expedição (saída).", contextLabel = "Expedição" }) {
   const available = state.fazenda?.graos || graosOpcoes;
   const [grao, setGrao] = useState(available[0]);
   const [params, setParams] = useState({});
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setParams(state.classificacaoParams?.[grao] || {
+    setParams(state[paramsKey]?.[grao] || {
       umRef: "", umDesc: "", umDescPesado: "",
       impRef: "", impDesc: "",
       avRef: "", avDesc: "",
     });
-  }, [grao, state.classificacaoParams]);
+  }, [grao, state[paramsKey], paramsKey]);
 
   const fp = (k, v) => setParams(p => ({ ...p, [k]: v }));
 
   const save = () => {
-    setState(s => ({ ...s, classificacaoParams: { ...s.classificacaoParams, [grao]: params } }));
+    setState(s => ({ ...s, [paramsKey]: { ...(s[paramsKey] || {}), [grao]: params } }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -1439,10 +1451,10 @@ function Classificacao({ state, setState }) {
 
   return (
     <div>
-      <SectionTitle>⚙️ Parâmetros de Classificação</SectionTitle>
+      <SectionTitle>{title}</SectionTitle>
       <Card style={{ marginBottom: 14 }}>
         <p style={{ color: theme.muted, fontSize: 13, marginBottom: 14 }}>
-          Configure as tolerâncias por grão. Aplicadas automaticamente nos romaneios de recebimento (entrada).
+          {subtitle} <strong style={{ color: theme.gold }}>(Contexto: {contextLabel})</strong>
         </p>
         <Field label="Grão">
           <Select value={grao} onChange={e => setGrao(e.target.value)}>
@@ -1451,7 +1463,7 @@ function Classificacao({ state, setState }) {
         </Field>
       </Card>
       <Card>
-        <div style={{ fontWeight: 700, fontSize: 16, color: theme.gold, marginBottom: 18 }}>Parâmetros para: {grao}</div>
+        <div style={{ fontWeight: 700, fontSize: 16, color: theme.gold, marginBottom: 18 }}>Parâmetros para: {grao} — {contextLabel}</div>
 
         <div style={blockStyle}>
           {blockHeader("💧", "Umidade — Faixa Normal", "Aplicada quando umidade aferida está entre a tolerância e 19,99%", theme.info)}
@@ -1932,7 +1944,7 @@ function Usuarios({ state, setState }) {
                             }} style={{ padding: "3px 8px", borderRadius: 5, cursor: "pointer", border: `1px solid ${theme.border}`, background: allSubsChecked ? `${theme.info}18` : "transparent", color: theme.info, fontSize: 10, fontWeight: 600 }}>
                               {allSubsChecked ? "☑️ Todos" : "☐ Todos"}
                             </button>
-                            {mod.submodulos.map(sub => {
+                            {mod.submodulos.filter(sub => !sub.adminOnly).map(sub => {
                               const subChecked = (form.modulos || []).includes(sub.id);
                               return (
                                 <button key={sub.id} onClick={() => {
@@ -1949,6 +1961,16 @@ function Usuarios({ state, setState }) {
                                 </button>
                               );
                             })}
+                            {mod.submodulos.filter(sub => sub.adminOnly).map(sub => (
+                              <span key={sub.id} title="Disponível apenas para administradores" style={{
+                                padding: "3px 10px", borderRadius: 5,
+                                border: `1px dashed ${theme.gold}66`,
+                                background: `${theme.gold}10`,
+                                color: theme.gold,
+                                fontSize: 10, fontWeight: 600,
+                                display: "inline-flex", alignItems: "center", gap: 4
+                              }}>👑 {sub.label} (Admin)</span>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -2027,17 +2049,24 @@ function Lixeira({ state, setState }) {
 }
 
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
-function Contratos({ state, setState }) {
+function Contratos({ state, setState, safraAtiva }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
   const [editing, setEditing] = useState(null);
-  const contratos = state.contratos || [];
+  const todosContratos = state.contratos || [];
+  // Filtra por safra ativa (contratos sem safra aparecem só em "todas" / legado)
+  const contratos = safraAtiva ? todosContratos.filter(c => c.safra === safraAtiva) : todosContratos;
   const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const openNew = () => { setForm({ status: "Ativo" }); setEditing(null); setOpen(true); };
+  const openNew = () => { setForm({ status: "Ativo", safra: safraAtiva || "" }); setEditing(null); setOpen(true); };
   const openEdit = c => { setForm({ ...c }); setEditing(c.id); setOpen(true); };
   const del = id => setState(s => ({ ...s, contratos: s.contratos.filter(c => c.id !== id) }));
   const save = () => {
-    const c = { ...form, id: editing || uid(), numero: editing ? form.numero : `CT-${padNum(contratos.length + 1)}` };
+    const c = {
+      ...form,
+      safra: form.safra || safraAtiva || "",
+      id: editing || uid(),
+      numero: editing ? form.numero : `CT-${padNum(todosContratos.length + 1)}`,
+    };
     setState(s => ({ ...s, contratos: editing ? s.contratos.map(x => x.id === editing ? c : x) : [...s.contratos, c] }));
     setOpen(false);
   };
@@ -2045,8 +2074,13 @@ function Contratos({ state, setState }) {
   return (
     <div>
       <SectionTitle action={<Btn onClick={openNew}>+ Novo Contrato</Btn>}>📋 Contratos</SectionTitle>
+      {safraAtiva && (
+        <div style={{ marginBottom: 12, padding: "8px 14px", background: `${theme.gold}12`, border: `1px solid ${theme.gold}33`, borderRadius: 8, fontSize: 12, color: theme.gold, fontWeight: 600 }}>
+          🌾 Exibindo contratos da safra <strong>{safraAtiva}</strong> ({contratos.length} {contratos.length === 1 ? "contrato" : "contratos"})
+        </div>
+      )}
       <Card>
-        {contratos.length === 0 ? <EmptyState icon="📋" text="Nenhum contrato cadastrado." /> : (
+        {contratos.length === 0 ? <EmptyState icon="📋" text={safraAtiva ? `Nenhum contrato cadastrado para a safra ${safraAtiva}.` : "Nenhum contrato cadastrado."} /> : (
           <Table headers={["Número", "Cliente", "Grão", "Qtd (sc)", "Preço", "Vencimento", "Status", "Ações"]} rows={contratos.map(c => (
             <tr key={c.id}>
               <Td><span style={{ fontFamily: "monospace", color: theme.info }}>{c.numero}</span></Td>
@@ -2669,22 +2703,46 @@ function Produtividade({ state }) {
 }
 
 // ─── ROMANEIOS DE ENTRADA ─────────────────────────────────────────────────────
-function RomaneiosEntrada({ state, setState }) {
-  return <RomaneiosGeneric state={state} setState={setState} tipo="Entrada" />;
+function RomaneiosEntrada({ state, setState, safraAtiva }) {
+  return <RomaneiosGeneric state={state} setState={setState} tipo="Entrada" safraAtiva={safraAtiva} />;
 }
 
 // ─── ROMANEIOS DE SAÍDA ───────────────────────────────────────────────────────
-function RomaneiosSaida({ state, setState }) {
-  return <RomaneiosGeneric state={state} setState={setState} tipo="Saída" />;
+function RomaneiosSaida({ state, setState, safraAtiva }) {
+  return <RomaneiosGeneric state={state} setState={setState} tipo="Saída" safraAtiva={safraAtiva} />;
 }
 
 // ─── ROMANEIOS GENÉRICO ──────────────────────────────────────────────────────
-function RomaneiosGeneric({ state, setState, tipo }) {
+function RomaneiosGeneric({ state, setState, tipo, safraAtiva }) {
   const [open, setOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [filtroGrao, setFiltroGrao] = useState("");
+  const [filtroCliente, setFiltroCliente] = useState("");
+  const [filtroContrato, setFiltroContrato] = useState("");
   const key = tipo === "Entrada" ? "romaneiosEntrada" : "romaneiosSaida";
   const lixeiraKey = tipo === "Entrada" ? "romaneiosEntradaLixeira" : "romaneiosSaidalixeira";
-  const items = state[key] || [];
+  const allItems = state[key] || [];
+  const semSafra = allItems.filter(r => !r.safra);
+  const itemsBase = safraAtiva ? allItems.filter(r => r.safra === safraAtiva) : allItems;
+  const isEntradaList = tipo === "Entrada";
+  const items = itemsBase.filter(r =>
+    (!filtroGrao || r.grao === filtroGrao) &&
+    (isEntradaList || !filtroCliente || r.cliente === filtroCliente) &&
+    (isEntradaList || !filtroContrato || r.contrato === filtroContrato)
+  );
+  const graosDisponiveis = state.fazenda?.graos || Array.from(new Set(allItems.map(r => r.grao).filter(Boolean)));
+  const clientesDisponiveis = Array.from(new Set(itemsBase.map(r => r.cliente).filter(Boolean)));
+  const contratosDisponiveis = Array.from(new Set(itemsBase.filter(r => !filtroCliente || r.cliente === filtroCliente).map(r => r.contrato).filter(Boolean)));
+  const paramsFiltro = filtroGrao ? (isEntradaList ? state.classificacaoRecepcaoParams : state.classificacaoParams)?.[filtroGrao] || {} : null;
+
+  const atribuirSafraAtiva = () => {
+    if (!safraAtiva) return;
+    if (!window.confirm(`Atribuir ${semSafra.length} registro(s) sem safra à safra ${safraAtiva}?`)) return;
+    setState(s => ({
+      ...s,
+      [key]: (s[key] || []).map(r => r.safra ? r : { ...r, safra: safraAtiva })
+    }));
+  };
 
   const del = id => {
     if (window.confirm(`Mover romaneio para a lixeira? Você poderá restaurá-lo depois.`)) {
@@ -2721,7 +2779,7 @@ function RomaneiosGeneric({ state, setState, tipo }) {
       avariado: "",
       obs: "",
       talhao: "",
-      safra: safrasOpcoes[0],
+      safra: safraAtiva || safrasOpcoes[0],
     };
 
     if (!isEntrada) {
@@ -2731,7 +2789,8 @@ function RomaneiosGeneric({ state, setState, tipo }) {
 
     const [form, setForm] = useState(item || baseFields);
     const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
-    const p = state.classificacaoParams?.[form.grao] || {};
+    const paramsSource = isEntrada ? state.classificacaoRecepcaoParams : state.classificacaoParams;
+    const p = paramsSource?.[form.grao] || {};
     const liq = Math.max(0, (parseFloat(form.pesoBruto) || 0) - (parseFloat(form.pesoTara) || 0));
 
     const umidadeResult = calcDescUmidade(form.umidade, p.umRef, p.umDesc, p.umDescPesado);
@@ -3012,7 +3071,19 @@ function RomaneiosGeneric({ state, setState, tipo }) {
           <Field label="Líquido (kg)"><Input value={liq || ""} readOnly highlight={theme.accent} /></Field>
         </Row>
         <div style={{ background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, color: theme.gold, marginBottom: 14, fontSize: 13 }}>⚖️ Classificação</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 6 }}>
+            <div style={{ fontWeight: 700, color: theme.gold, fontSize: 13 }}>
+              ⚖️ Classificação <span style={{ color: theme.muted, fontWeight: 500, fontSize: 11 }}>· Grão: <strong style={{ color: theme.accent }}>{form.grao || "—"}</strong></span>
+            </div>
+            <Badge color={isEntrada ? "blue" : "gold"}>
+              {isEntrada ? "📥 Tabela: Recepção" : "📤 Tabela: Expedição"}
+            </Badge>
+          </div>
+          {Object.keys(p).length === 0 && (
+            <div style={{ background: `${theme.danger}15`, border: `1px solid ${theme.danger}55`, color: theme.danger, padding: "8px 12px", borderRadius: 8, fontSize: 11, marginBottom: 12 }}>
+              ⚠️ Não há parâmetros de classificação cadastrados para <strong>{form.grao}</strong> na tabela de <strong>{isEntrada ? "Recepção" : "Expedição"}</strong>. Cadastre em <em>Grãos → {isEntrada ? "Classificação - Recepção" : "Classificação"}</em>.
+            </div>
+          )}
           {[{ label: "Umidade", k: "umidade", ref: p.umRef, desc: dUm, faixa: faixaUmidade },
             { label: "Impureza", k: "impureza", ref: p.impRef, desc: dImp },
             { label: "Avariado", k: "avariado", ref: p.avRef, desc: dAv }].map(item => (
@@ -3056,9 +3127,98 @@ function RomaneiosGeneric({ state, setState, tipo }) {
       <SectionTitle action={<Btn onClick={() => { setEditItem(null); setOpen(true); }}>+ Novo {tipo === "Entrada" ? "Recebimento" : "Expedição"}</Btn>}>
         {tipo === "Entrada" ? "📥 Recebimento de Grãos" : "📤 Expedição de Grãos"}
       </SectionTitle>
+      {safraAtiva && (
+        <div style={{ marginBottom: 12, padding: "8px 14px", background: `${theme.gold}12`, border: `1px solid ${theme.gold}33`, borderRadius: 8, fontSize: 12, color: theme.gold, fontWeight: 600 }}>
+          🌾 Exibindo registros da safra <strong>{safraAtiva}</strong> ({items.length} {items.length === 1 ? "registro" : "registros"})
+        </div>
+      )}
+      {safraAtiva && semSafra.length > 0 && (
+        <div style={{ marginBottom: 12, padding: "10px 14px", background: "#f59e0b22", border: "1px solid #f59e0b66", borderRadius: 8, fontSize: 12, color: "#f59e0b", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span>⚠️ Existem {semSafra.length} registro(s) antigo(s) sem safra atribuída — não aparecem em nenhum filtro de safra.</span>
+          <Btn onClick={atribuirSafraAtiva}>Atribuir à safra {safraAtiva}</Btn>
+        </div>
+      )}
+      {graosDisponiveis.length > 0 && (
+        <Card style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: theme.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".5px" }}>🔎 Filtrar por grão</span>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <Select value={filtroGrao} onChange={e => setFiltroGrao(e.target.value)}>
+                <option value="">Todos os grãos ({itemsBase.length})</option>
+                {graosDisponiveis.map(g => {
+                  const qtd = itemsBase.filter(r => r.grao === g).length;
+                  return <option key={g} value={g}>{g} ({qtd})</option>;
+                })}
+              </Select>
+            </div>
+            {filtroGrao && (
+              <Btn size="sm" variant="secondary" onClick={() => setFiltroGrao("")}>✖ Limpar</Btn>
+            )}
+          </div>
+          {!isEntradaList && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, marginTop: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, color: theme.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>👤 Cliente</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Select value={filtroCliente} onChange={e => { setFiltroCliente(e.target.value); setFiltroContrato(""); }}>
+                    <option value="">Todos os clientes ({clientesDisponiveis.length})</option>
+                    {clientesDisponiveis.map(c => {
+                      const qtd = itemsBase.filter(r => r.cliente === c).length;
+                      return <option key={c} value={c}>{c} ({qtd})</option>;
+                    })}
+                  </Select>
+                  {filtroCliente && <Btn size="sm" variant="secondary" onClick={() => { setFiltroCliente(""); setFiltroContrato(""); }}>✖</Btn>}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: theme.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>📄 Contrato</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Select value={filtroContrato} onChange={e => setFiltroContrato(e.target.value)}>
+                    <option value="">Todos os contratos ({contratosDisponiveis.length})</option>
+                    {contratosDisponiveis.map(c => {
+                      const qtd = itemsBase.filter(r => r.contrato === c && (!filtroCliente || r.cliente === filtroCliente)).length;
+                      return <option key={c} value={c}>{c} ({qtd})</option>;
+                    })}
+                  </Select>
+                  {filtroContrato && <Btn size="sm" variant="secondary" onClick={() => setFiltroContrato("")}>✖</Btn>}
+                </div>
+              </div>
+            </div>
+          )}
+          {filtroGrao && (
+            <div style={{ marginTop: 12, padding: 12, background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 6 }}>
+                <strong style={{ color: theme.gold, fontSize: 12 }}>⚖️ Parâmetros de Classificação - {isEntradaList ? "Recepção" : "Expedição"} · {filtroGrao}</strong>
+                <Badge color={isEntradaList ? "blue" : "gold"}>{isEntradaList ? "📥 Tabela: Recepção" : "📤 Tabela: Expedição"}</Badge>
+              </div>
+              {Object.keys(paramsFiltro).length === 0 ? (
+                <div style={{ color: theme.danger, fontSize: 11 }}>⚠️ Nenhum parâmetro cadastrado para <strong>{filtroGrao}</strong> em Classificação - {isEntradaList ? "Recepção" : "Expedição"}.</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
+                  <div style={{ padding: 8, background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: ".5px" }}>Umidade Ref.</div>
+                    <div style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{paramsFiltro.umRef ?? "—"}%</div>
+                    <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>Desconto: {paramsFiltro.umDesc ?? "—"}% · Pesado: {paramsFiltro.umDescPesado ?? "—"}%</div>
+                  </div>
+                  <div style={{ padding: 8, background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: ".5px" }}>Impureza Ref.</div>
+                    <div style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{paramsFiltro.impRef ?? "—"}%</div>
+                    <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>Desconto: {paramsFiltro.impDesc ?? "—"}%</div>
+                  </div>
+                  <div style={{ padding: 8, background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: theme.muted, textTransform: "uppercase", letterSpacing: ".5px" }}>Avariado Ref.</div>
+                    <div style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{paramsFiltro.avRef ?? "—"}%</div>
+                    <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>Desconto: {paramsFiltro.avDesc ?? "—"}%</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
       <Card>
         {items.length === 0 ? (
-          <EmptyState icon="📄" text={`Nenhum ${tipo === "Entrada" ? "recebimento" : "expedição"} de grãos registrado.`} />
+          <EmptyState icon="📄" text={safraAtiva ? `Nenhum ${tipo === "Entrada" ? "recebimento" : "expedição"} registrado para a safra ${safraAtiva}.` : `Nenhum ${tipo === "Entrada" ? "recebimento" : "expedição"} de grãos registrado.`} />
         ) : (
           <Table
             headers={["Nº", "Data", "Grão", "Placa", "Motorista", ...(tipo === "Entrada" ? ["Talhão", "Safra"] : ["Contrato"]), "Peso Final", "Ações"]}
@@ -3091,25 +3251,324 @@ function RomaneiosGeneric({ state, setState, tipo }) {
 }
 
 // ─── EXPEDIÇÃO (AGENDAMENTOS) ─────────────────────────────────────────────────
-function Expedicao({ state, setState }) {
+const EXPEDICAO_CAMPOS_OBRIGATORIOS = ["data", "contrato", "cliente", "grao", "romaneio"];
+const EXPEDICAO_CAMPOS_LABELS = {
+  data: "Data",
+  contrato: "Contrato",
+  cliente: "Cliente",
+  grao: "Grão",
+  romaneio: "Romaneio",
+  status: "Status",
+  pesoBruto: "Peso Bruto",
+  pesoTara: "Peso Tara",
+  pesoLiquido: "Peso Líquido",
+  umidade: "Umidade (%)",
+  impureza: "Impureza (%)",
+  avariado: "Avariado (%)",
+};
+
+const EXPEDICAO_CAMPOS_NUMERICOS = ["pesoBruto", "pesoTara", "pesoLiquido", "umidade", "impureza", "avariado"];
+
+// Normaliza chaves do cabeçalho da planilha (case/acento-insensitive) para os nomes internos
+const _normHeader = (h) =>
+  String(h || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const EXPEDICAO_HEADER_ALIASES = {
+  data: "data",
+  contrato: "contrato",
+  "nº contrato": "contrato",
+  "n contrato": "contrato",
+  cliente: "cliente",
+  grao: "grao",
+  "grão": "grao",
+  romaneio: "romaneio",
+  "romaneio de saida": "romaneio",
+  "romaneio de saída": "romaneio",
+  status: "status",
+  "peso bruto": "pesoBruto",
+  "pesobruto": "pesoBruto",
+  "peso tara": "pesoTara",
+  "pesotara": "pesoTara",
+  "tara": "pesoTara",
+  "peso liquido": "pesoLiquido",
+  "peso líquido": "pesoLiquido",
+  "pesoliquido": "pesoLiquido",
+  "liquido": "pesoLiquido",
+  "umidade": "umidade",
+  "umidade (%)": "umidade",
+  "impureza": "impureza",
+  "impureza (%)": "impureza",
+  "impurezas": "impureza",
+  "avariado": "avariado",
+  "avariados": "avariado",
+  "avariado (%)": "avariado",
+};
+
+// Converte número de planilha aceitando vírgula decimal e símbolos como "%"/"kg"
+const _excelNumber = (v) => {
+  if (v == null || v === "") return "";
+  if (typeof v === "number") return v;
+  const s = String(v).replace(/[^\d,.\-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  if (s === "" || s === "-" || s === ".") return "";
+  const n = Number(s);
+  return isNaN(n) ? "" : n;
+};
+
+// Converte uma data textual ("dd/mm/aaaa", "yyyy-mm-dd"...) para "YYYY-MM-DD"
+const _excelDateToISO = (v) => {
+  if (v == null || v === "") return "";
+  if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10);
+  const s = String(v).trim();
+  // dd/mm/yyyy
+  const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (br) {
+    let [, d, m, y] = br;
+    if (y.length === 2) y = "20" + y;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  // yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return s;
+};
+
+// ─── PARSER CSV NATIVO ───────────────────────────────────────────────────────
+// Suporta separador "," ou ";" (auto-detectado), aspas duplas com escape ("")
+// e quebras de linha CRLF/LF. Retorna array de objetos com cabeçalho da 1ª linha.
+const parseCSV = (text) => {
+  // Remove BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  // Auto-detecta separador analisando a 1ª linha (fora de aspas)
+  const firstLine = text.split(/\r?\n/, 1)[0] || "";
+  let inQ = false, semi = 0, comma = 0;
+  for (let i = 0; i < firstLine.length; i++) {
+    const c = firstLine[i];
+    if (c === '"') inQ = !inQ;
+    else if (!inQ && c === ";") semi++;
+    else if (!inQ && c === ",") comma++;
+  }
+  const sep = semi > comma ? ";" : ",";
+
+  const rows = [];
+  let cur = [];
+  let field = "";
+  let q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else { q = false; }
+      } else field += c;
+    } else {
+      if (c === '"') q = true;
+      else if (c === sep) { cur.push(field); field = ""; }
+      else if (c === "\n") { cur.push(field); rows.push(cur); cur = []; field = ""; }
+      else if (c === "\r") { /* ignore, será tratado pelo \n seguinte */ }
+      else field += c;
+    }
+  }
+  // Último campo/linha (se arquivo não termina com \n)
+  if (field !== "" || cur.length > 0) { cur.push(field); rows.push(cur); }
+  // Remove linhas totalmente vazias
+  const clean = rows.filter(r => r.some(v => String(v).trim() !== ""));
+  if (clean.length === 0) return [];
+  const headers = clean[0].map(h => String(h).trim());
+  return clean.slice(1).map(r => {
+    const o = {};
+    headers.forEach((h, idx) => { o[h] = r[idx] != null ? r[idx] : ""; });
+    return o;
+  });
+};
+
+// Gera string CSV (separador ";", compatível com Excel BR) a partir de matriz
+const toCSV = (rows, sep = ";") => {
+  const esc = (v) => {
+    const s = v == null ? "" : String(v);
+    return /[";\n,\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return rows.map(r => r.map(esc).join(sep)).join("\r\n");
+};
+
+const baixarArquivoTexto = (nome, conteudo, mime = "text/csv;charset=utf-8") => {
+  // Prefixo BOM para Excel reconhecer UTF-8 corretamente
+  const blob = new Blob(["\uFEFF" + conteudo], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+function Expedicao({ state, setState, safraAtiva }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
   const [editing, setEditing] = useState(null);
-  const items = state.expedicoes || [];
+  const [importResult, setImportResult] = useState(null); // { ok, errors, total }
+  const fileInputRef = useRef(null);
+  const allItems = state.expedicoes || [];
+  const items = safraAtiva ? allItems.filter(x => x.safra === safraAtiva) : allItems;
   const fp = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const openNew = () => { setForm({ status: "Pendente" }); setEditing(null); setOpen(true); };
+  const openNew = () => { setForm({ status: "Pendente", safra: safraAtiva || "" }); setEditing(null); setOpen(true); };
   const openEdit = i => { setForm({ ...i }); setEditing(i.id); setOpen(true); };
   const del = id => setState(s => ({ ...s, expedicoes: s.expedicoes.filter(x => x.id !== id) }));
   const save = () => {
-    const item = { ...form, id: editing || uid(), numero: editing ? form.numero : `EXP-${padNum(items.length + 1)}` };
+    const item = {
+      ...form,
+      safra: form.safra || safraAtiva || "",
+      id: editing || uid(),
+      numero: editing ? form.numero : `EXP-${padNum(allItems.length + 1)}`,
+    };
     setState(s => ({ ...s, expedicoes: editing ? s.expedicoes.map(x => x.id === editing ? item : x) : [...(s.expedicoes || []), item] }));
     setOpen(false);
   };
+
+  // ─── IMPORTAÇÃO POR PLANILHA (CSV) ───────────────────────────────────────
+  const baixarTemplate = () => {
+    const headers = [
+      "Data", "Contrato", "Cliente", "Grão", "Romaneio", "Status",
+      "Peso Bruto", "Peso Tara", "Peso Líquido", "Umidade (%)", "Impureza (%)", "Avariado (%)",
+    ];
+    const exemplo = [
+      ["2025-04-18", "CT-00001", "Cliente Exemplo Ltda", "Soja", "1", "Pendente", 30000, 15000, 15000, "13,5", "1,2", "0,8"],
+      ["18/04/2025", "CT-00002", "Outro Cliente", "Milho", "2", "Em trânsito", 28500, 14200, 14300, "14,0", "1,5", "1,0"],
+    ];
+    const csv = toCSV([headers, ...exemplo], ";");
+    baixarArquivoTexto("modelo-expedicoes.csv", csv);
+  };
+
+  const onSelecionarArquivo = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const nome = (file.name || "").toLowerCase();
+    if (!nome.endsWith(".csv") && !nome.endsWith(".txt")) {
+      setImportResult({ ok: 0, errors: [{ linha: "-", motivo: "Formato não suportado. Envie um arquivo .csv (no Excel: Arquivo → Salvar Como → CSV)." }], total: 0 });
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = String(ev.target.result || "");
+        const rows = parseCSV(text);
+        processarLinhas(rows);
+      } catch (err) {
+        setImportResult({ ok: 0, errors: [{ linha: "-", motivo: "Falha ao ler arquivo: " + (err?.message || err) }], total: 0 });
+      }
+    };
+    reader.readAsText(file, "UTF-8");
+    // Reseta para permitir reimportar o mesmo arquivo
+    e.target.value = "";
+  };
+
+  const processarLinhas = (rows) => {
+    if (!rows || rows.length === 0) {
+      setImportResult({ ok: 0, errors: [{ linha: "-", motivo: "Arquivo sem linhas de dados." }], total: 0 });
+      return;
+    }
+    const errors = [];
+    const novos = [];
+    let counter = items.length + novos.length;
+
+    rows.forEach((raw, idx) => {
+      const linhaNum = idx + 2; // +1 cabeçalho, +1 base 1
+      // Normaliza chaves
+      const reg = {};
+      Object.entries(raw).forEach(([k, v]) => {
+        const interno = EXPEDICAO_HEADER_ALIASES[_normHeader(k)];
+        if (interno) reg[interno] = v;
+      });
+
+      // Converte data
+      if (reg.data) reg.data = _excelDateToISO(reg.data);
+
+      // Status default
+      if (!reg.status || !["Pendente", "Em trânsito", "Concluída"].includes(String(reg.status).trim())) {
+        reg.status = "Pendente";
+      } else {
+        reg.status = String(reg.status).trim();
+      }
+
+      // Trim strings
+      ["contrato", "cliente", "grao", "romaneio"].forEach(k => {
+        if (reg[k] != null) reg[k] = String(reg[k]).trim();
+      });
+
+      // Converte campos numéricos
+      EXPEDICAO_CAMPOS_NUMERICOS.forEach(k => {
+        reg[k] = _excelNumber(reg[k]);
+      });
+
+      // Calcula peso líquido se ausente mas houver bruto e tara
+      if (reg.pesoLiquido === "" && reg.pesoBruto !== "" && reg.pesoTara !== "") {
+        reg.pesoLiquido = Number(reg.pesoBruto) - Number(reg.pesoTara);
+      }
+
+      // Valida obrigatórios
+      const faltando = EXPEDICAO_CAMPOS_OBRIGATORIOS.filter(c => !reg[c] || String(reg[c]).trim() === "");
+      if (faltando.length > 0) {
+        errors.push({
+          linha: linhaNum,
+          motivo: "Campos obrigatórios ausentes: " + faltando.map(f => EXPEDICAO_CAMPOS_LABELS[f]).join(", "),
+        });
+        return;
+      }
+
+      counter += 1;
+      novos.push({
+        id: uid(),
+        numero: `EXP-${padNum(counter)}`,
+        data: reg.data,
+        contrato: reg.contrato,
+        cliente: reg.cliente,
+        grao: reg.grao,
+        romaneio: reg.romaneio,
+        status: reg.status,
+        pesoBruto: reg.pesoBruto,
+        pesoTara: reg.pesoTara,
+        pesoLiquido: reg.pesoLiquido,
+        umidade: reg.umidade,
+        impureza: reg.impureza,
+        avariado: reg.avariado,
+        safra: safraAtiva || "",
+      });
+    });
+
+    if (novos.length > 0) {
+      setState(s => ({ ...s, expedicoes: [...(s.expedicoes || []), ...novos] }));
+    }
+    setImportResult({ ok: novos.length, errors, total: rows.length });
+  };
+
   return (
     <div>
-      <SectionTitle action={<Btn onClick={openNew}>+ Nova Expedição</Btn>}>🚚 Agendamentos</SectionTitle>
+      <SectionTitle action={
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Btn variant="secondary" onClick={baixarTemplate} title="Baixar modelo de CSV">📄 Modelo CSV</Btn>
+          <Btn variant="secondary" onClick={() => fileInputRef.current?.click()} title="Importar arquivo .csv (no Excel: Arquivo → Salvar Como → CSV)">📥 Importar CSV</Btn>
+          <Btn onClick={openNew}>+ Nova Expedição</Btn>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv,.txt"
+            style={{ display: "none" }}
+            onChange={onSelecionarArquivo}
+          />
+        </div>
+      }>🚚 Agendamentos</SectionTitle>
+      {safraAtiva && (
+        <div style={{ marginBottom: 12, padding: "8px 14px", background: `${theme.gold}12`, border: `1px solid ${theme.gold}33`, borderRadius: 8, fontSize: 12, color: theme.gold, fontWeight: 600 }}>
+          🌾 Exibindo agendamentos da safra <strong>{safraAtiva}</strong> ({items.length} {items.length === 1 ? "agendamento" : "agendamentos"})
+        </div>
+      )}
       <Card>
-        {items.length === 0 ? <EmptyState icon="🚚" text="Nenhum agendamento registrado." /> : (
+        {items.length === 0 ? <EmptyState icon="🚚" text={safraAtiva ? `Nenhum agendamento registrado para a safra ${safraAtiva}.` : "Nenhum agendamento registrado."} /> : (
           <Table headers={["Número", "Data", "Contrato", "Cliente", "Grão", "Status", "Ações"]} rows={items.map(i => (
             <tr key={i.id}>
               <Td><span style={{ fontFamily: "monospace", color: theme.info }}>{i.numero}</span></Td>
@@ -3156,10 +3615,102 @@ function Expedicao({ state, setState }) {
             </Select>
           </Field>
         </Row>
+        <Row>
+          <Field label="Peso Bruto (kg)">
+            <Input type="number" step="0.01" value={form.pesoBruto ?? ""} onChange={e => {
+              const pb = e.target.value;
+              setForm(f => {
+                const next = { ...f, pesoBruto: pb };
+                const nb = parseFloat(pb);
+                const nt = parseFloat(f.pesoTara);
+                if (!isNaN(nb) && !isNaN(nt)) next.pesoLiquido = (nb - nt).toFixed(2);
+                return next;
+              });
+            }} />
+          </Field>
+          <Field label="Peso Tara (kg)">
+            <Input type="number" step="0.01" value={form.pesoTara ?? ""} onChange={e => {
+              const pt = e.target.value;
+              setForm(f => {
+                const next = { ...f, pesoTara: pt };
+                const nb = parseFloat(f.pesoBruto);
+                const nt = parseFloat(pt);
+                if (!isNaN(nb) && !isNaN(nt)) next.pesoLiquido = (nb - nt).toFixed(2);
+                return next;
+              });
+            }} />
+          </Field>
+          <Field label="Peso Líquido (kg)">
+            <Input type="number" step="0.01" value={form.pesoLiquido ?? ""} onChange={e => fp("pesoLiquido", e.target.value)} />
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Umidade (%)">
+            <Input type="number" step="0.01" value={form.umidade ?? ""} onChange={e => fp("umidade", e.target.value)} />
+          </Field>
+          <Field label="Impureza (%)">
+            <Input type="number" step="0.01" value={form.impureza ?? ""} onChange={e => fp("impureza", e.target.value)} />
+          </Field>
+          <Field label="Avariado (%)">
+            <Input type="number" step="0.01" value={form.avariado ?? ""} onChange={e => fp("avariado", e.target.value)} />
+          </Field>
+        </Row>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <Btn variant="secondary" onClick={() => setOpen(false)}>Cancelar</Btn>
           <Btn onClick={save}>💾 Salvar</Btn>
         </div>
+      </Modal>
+
+      <Modal open={!!importResult} onClose={() => setImportResult(null)} title="Resultado da Importação" width={620}>
+        {importResult && (
+          <div>
+            <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+              <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, padding: "10px 14px", borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: theme.muted }}>Linhas no arquivo</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{importResult.total}</div>
+              </div>
+              <div style={{ background: theme.surface, border: `1px solid ${theme.accent}`, padding: "10px 14px", borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: theme.muted }}>Importadas</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: theme.accentLight }}>{importResult.ok}</div>
+              </div>
+              <div style={{ background: theme.surface, border: `1px solid ${theme.danger}`, padding: "10px 14px", borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: theme.muted }}>Com erro</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: theme.danger }}>{importResult.errors.length}</div>
+              </div>
+            </div>
+
+            {importResult.errors.length > 0 && (
+              <div style={{ maxHeight: 280, overflowY: "auto", border: `1px solid ${theme.border}`, borderRadius: 8 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: theme.surface }}>
+                      <th style={{ padding: 8, textAlign: "left", color: theme.muted, borderBottom: `1px solid ${theme.border}` }}>Linha</th>
+                      <th style={{ padding: 8, textAlign: "left", color: theme.muted, borderBottom: `1px solid ${theme.border}` }}>Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importResult.errors.map((er, i) => (
+                      <tr key={i}>
+                        <td style={{ padding: 8, color: theme.text, borderBottom: `1px solid ${theme.border}` }}>{er.linha}</td>
+                        <td style={{ padding: 8, color: theme.danger, borderBottom: `1px solid ${theme.border}` }}>{er.motivo}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ marginTop: 14, fontSize: 12, color: theme.muted, lineHeight: 1.6 }}>
+              <div><strong>Obrigatórios:</strong> Data, Contrato, Cliente, Grão, Romaneio.</div>
+              <div><strong>Opcionais:</strong> Status (default "Pendente"), Peso Bruto, Peso Tara, Peso Líquido, Umidade (%), Impureza (%), Avariado (%).</div>
+              <div style={{ marginTop: 4, fontStyle: "italic" }}>Se Peso Líquido vier vazio, será calculado automaticamente como Bruto − Tara.</div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+              <Btn onClick={() => setImportResult(null)}>OK</Btn>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
@@ -3277,19 +3828,25 @@ function Estoque({ state, setState }) {
 }
 
 // ─── GRÃOS ────────────────────────────────────────────────────────────────────
-function Graos({ state }) {
+function Graos({ state, safraAtiva }) {
   const SC_KG = 60;
   const graos = state.fazenda?.graos || [];
+  const filtraSafra = (arr) => safraAtiva ? arr.filter(r => r.safra === safraAtiva) : arr;
   return (
     <div>
       <SectionTitle>🌾 Grãos em Produção</SectionTitle>
+      {safraAtiva && (
+        <div style={{ marginBottom: 12, padding: "8px 14px", background: `${theme.gold}12`, border: `1px solid ${theme.gold}33`, borderRadius: 8, fontSize: 12, color: theme.gold, fontWeight: 600 }}>
+          🌾 Volumes calculados a partir dos romaneios da safra <strong>{safraAtiva}</strong>
+        </div>
+      )}
       {graos.length === 0 ? (
         <Card><EmptyState icon="🌾" text="Cadastre a fazenda e selecione os grãos produzidos." /></Card>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
           {graos.map(g => {
-            const ent = (state.romaneiosEntrada || []).filter(r => r.grao === g).reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
-            const sai = (state.romaneiosSaida || []).filter(r => r.grao === g).reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
+            const ent = filtraSafra(state.romaneiosEntrada || []).filter(r => r.grao === g).reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
+            const sai = filtraSafra(state.romaneiosSaida || []).filter(r => r.grao === g).reduce((a, r) => a + (parseFloat(r.pesoFinal) || 0), 0);
             const volume = ent - sai;
             const sacas = volume / SC_KG;
             return (
@@ -6612,15 +7169,15 @@ function RelatorioFinanceiro({ state }) {
 }
 
 // ─── GRÃOS (DEPARTAMENTO COM ABAS) ──────────────────────────────────────────
-function GraosDept({ state, setState, usuario, initialAba }) {
+function GraosDept({ state, setState, usuario, initialAba, safraAtiva }) {
   const allAbas = [
     { id: "graos", label: "🌾 Grãos em Produção", icon: "🌾" },
     { id: "talhoes", label: "🗺️ Talhões", icon: "🗺️" },
-    { id: "classificacao", label: "⚙️ Classificação", icon: "⚙️" },
+    { id: "classificacao", label: "⚙️ Classificação - Expedição", icon: "⚙️" },
+    { id: "classificacaoRecepcao", label: "📥 Classificação - Recepção", icon: "📥" },
     { id: "contratos", label: "📋 Contratos", icon: "📋" },
     { id: "romaneiosEntrada", label: "📥 Recebimento", icon: "📥" },
     { id: "romaneiosSaida", label: "📤 Expedição", icon: "📤" },
-    { id: "expedicao", label: "🚚 Agendamentos", icon: "🚚" },
     { id: "vendaMilho", label: "🌽 Venda de Milho", icon: "🌽" },
   ];
   const abas = allAbas.filter(a => temAcessoSubmodulo(usuario, "graosDept", a.id));
@@ -6629,15 +7186,16 @@ function GraosDept({ state, setState, usuario, initialAba }) {
 
   const renderContent = () => {
     switch (aba) {
-      case "graos": return <Graos state={state} />;
+      case "graos": return <Graos state={state} safraAtiva={safraAtiva} />;
       case "talhoes": return <Talhoes state={state} setState={setState} />;
-      case "classificacao": return <Classificacao state={state} setState={setState} />;
-      case "contratos": return <Contratos state={state} setState={setState} />;
-      case "romaneiosEntrada": return <RomaneiosEntrada state={state} setState={setState} />;
-      case "romaneiosSaida": return <RomaneiosSaida state={state} setState={setState} />;
-      case "expedicao": return <Expedicao state={state} setState={setState} />;
+      case "classificacao": return <Classificacao state={state} setState={setState} paramsKey="classificacaoParams" title="⚙️ Parâmetros de Classificação - Expedição" subtitle="Configure as tolerâncias por grão. Aplicadas automaticamente nos romaneios de expedição (saída)." contextLabel="Expedição" />;
+      case "classificacaoRecepcao": return <Classificacao state={state} setState={setState} paramsKey="classificacaoRecepcaoParams" title="📥 Parâmetros de Classificação - Recepção" subtitle="Configure as tolerâncias por grão para o recebimento. Aplicadas automaticamente nos romaneios de recebimento (entrada). Independentes da classificação de expedição." contextLabel="Recepção" />;
+      case "contratos": return <Contratos state={state} setState={setState} safraAtiva={safraAtiva} />;
+      case "romaneiosEntrada": return <RomaneiosEntrada state={state} setState={setState} safraAtiva={safraAtiva} />;
+      case "romaneiosSaida": return <RomaneiosSaida state={state} setState={setState} safraAtiva={safraAtiva} />;
+      
       case "vendaMilho": return <VendaMilhoBags state={state} setState={setState} />;
-      default: return <Graos state={state} />;
+      default: return <Graos state={state} safraAtiva={safraAtiva} />;
     }
   };
 
@@ -8153,7 +8711,7 @@ function UpdateManager() {
 }
 
 // ─── IMPORTAR RECEBIMENTOS (PLANILHA) ─────────────────────────────────────────
-function ImportarRecebimentos({ state, setState }) {
+function ImportarRecebimentos({ state, setState, safraAtiva }) {
   const [linhas, setLinhas] = useState([]);
   const [erros, setErros] = useState([]);
   const [arquivo, setArquivo] = useState("");
@@ -8273,6 +8831,29 @@ function ImportarRecebimentos({ state, setState }) {
     reader.readAsText(file, "UTF-8");
   };
 
+  const zerarRomaneiosEntrada = () => {
+    const total = (state.romaneiosEntrada || []).length;
+    if (total === 0) {
+      alert("Não há romaneios de entrada para apagar.");
+      return;
+    }
+    const msg = `⚠️ ATENÇÃO!\n\nEsta ação irá:\n• Apagar TODOS os ${total} romaneios de entrada (recebimentos)\n• Esvaziar a lixeira de recebimentos\n• Resetar a numeração para 1\n\nEsta operação NÃO pode ser desfeita!\n\nDeseja continuar?`;
+    if (!window.confirm(msg)) return;
+    const confirmacao = window.prompt(`Para confirmar, digite EXATAMENTE: ZERAR`);
+    if (confirmacao !== "ZERAR") {
+      alert("Operação cancelada.");
+      return;
+    }
+    setState(s => ({
+      ...s,
+      romaneiosEntrada: [],
+      romaneiosEntradaLixeira: [],
+      romaneioCounter: 1,
+    }));
+    setLinhas([]); setTextoColado(""); setArquivo(""); setResultado(null); setErros([]);
+    alert(`✅ ${total} romaneio(s) de entrada apagado(s) e numeração resetada para 1.`);
+  };
+
   const importar = () => {
     if (!linhas.length) { alert("Nada para importar."); return; }
     if (!window.confirm(`Importar ${linhas.length} recebimento(s)? Serão criados romaneios de entrada automaticamente.`)) return;
@@ -8282,7 +8863,7 @@ function ImportarRecebimentos({ state, setState }) {
       let counter = s.romaneioCounter || 1;
       const novosRomaneios = linhas.map(l => {
         const liq = l.pesoLiquido || Math.max(0, l.pesoBruto - l.pesoTara);
-        const params = s.classificacaoParams?.[l.grao] || {};
+        const params = s.classificacaoRecepcaoParams?.[l.grao] || s.classificacaoParams?.[l.grao] || {};
         const umRes = calcDescUmidade(l.umidade, params.umRef, params.umDesc, params.umDescPesado);
         const dUm = umRes.desconto;
         const dImp = calcDesc(l.impureza, params.impRef, params.impDesc);
@@ -8297,7 +8878,7 @@ function ImportarRecebimentos({ state, setState }) {
           data: l.data,
           grao: l.grao,
           talhao: l.talhao || "",
-          safra: l.safra || (safrasOpcoes[1] || ""),
+          safra: safraAtiva || l.safra || (safrasOpcoes[1] || ""),
           placa: l.placa || "",
           motorista: l.motorista || "",
           transportadora: l.transportadora || "",
@@ -8342,6 +8923,12 @@ function ImportarRecebimentos({ state, setState }) {
     <div>
       <SectionTitle>📊 Importar Recebimentos (Planilha)</SectionTitle>
 
+      {safraAtiva && (
+        <div style={{ marginBottom: 12, padding: "10px 14px", background: `${theme.gold}12`, border: `1px solid ${theme.gold}44`, borderRadius: 8, fontSize: 12, color: theme.gold, fontWeight: 600 }}>
+          🌾 Todos os recebimentos importados serão atribuídos à safra <strong>{safraAtiva}</strong> (a coluna "ano safra" da planilha será ignorada para garantir consistência).
+        </div>
+      )}
+
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <p style={{ fontSize: 13, color: theme.muted, marginBottom: 12 }}>
           Importe uma planilha CSV/TSV com os recebimentos. Cada linha gerará automaticamente um <strong>romaneio de entrada</strong>.
@@ -8358,6 +8945,13 @@ function ImportarRecebimentos({ state, setState }) {
             <span style={{ display: "inline-block", padding: "10px 16px", background: theme.accent, color: "#fff", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>📁 Selecionar Arquivo</span>
           </label>
           {arquivo && <span style={{ fontSize: 12, color: theme.muted, alignSelf: "center" }}>📎 {arquivo}</span>}
+        </div>
+
+        <div style={{ marginTop: 8, padding: 12, background: `${theme.danger}10`, border: `1px solid ${theme.danger}44`, borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12, color: theme.text }}>
+            <strong style={{ color: theme.danger }}>⚠️ Zona de perigo:</strong> apagar todos os recebimentos cadastrados ({(state.romaneiosEntrada || []).length}) e resetar a numeração para <strong>1</strong>.
+          </div>
+          <Btn variant="danger" onClick={zerarRomaneiosEntrada}>🗑️ Zerar Recebimentos</Btn>
         </div>
 
         <Field label="Ou cole os dados aqui (CSV/TSV)">
@@ -8537,9 +9131,12 @@ export default function App() {
   const temAcesso = (pageId) => {
     if (pageId === "dashboard") return true;
     if (pageId === "fazenda")   return true; // sempre acessível
+    // Páginas/submódulos restritos a admin
+    const subForPage = PAGE_TO_SUBMODULO[pageId];
+    if (subForPage && SUBMODULOS_ADMIN_ONLY.has(subForPage)) return usuarioLogado?.role === "admin";
     if (usuarioLogado?.role === "admin") return true;
     const modulos = usuarioLogado?.modulos || [];
-    if (["usuarios", "lixeira", "importarRecebimentos", "importarTalhoes", "backup", "update"].includes(pageId)) return false;
+    if (["usuarios", "lixeira", "importarRecebimentos", "importarTalhoes", "backup", "update", "expedicao"].includes(pageId)) return false;
     if (modulos.length === 0) return true; // sem módulos configurados = libera tudo
 
     // 1) Match direto (departamento, ex: "graosDept", "financas")
@@ -8566,21 +9163,22 @@ export default function App() {
     if (!temAcesso(active)) return <div style={{ textAlign: "center", padding: "60px 20px", color: theme.muted }}><div style={{ fontSize: 54, marginBottom: 16 }}>🔒</div><h2 style={{ color: theme.text, fontWeight: 700, fontSize: 22, marginBottom: 8 }}>Acesso Restrito</h2><p style={{ fontSize: 14 }}>Você não tem permissão para acessar este módulo.</p></div>;
     if (crudPages[active]) return <CrudPage key={active} {...crudPages[active]} state={state} setState={ss} />;
     switch (active) {
-      case "dashboard":          return <Dashboard state={state} setActive={setActive} usuario={usuarioLogado} />;
+      case "dashboard":          return <Dashboard state={state} setActive={setActive} usuario={usuarioLogado} safraAtiva={anoSafra} />;
       case "fazenda":            return <Fazenda state={state} setState={ss} />;
-      case "graosDept":          return <GraosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
+      case "graosDept":          return <GraosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} safraAtiva={anoSafra} />;
       case "relatoriosDept": return <RelatoriosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
       case "insumosDept": return <InsumosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
       case "usuarios": return <Usuarios state={state} setState={ss} />;
       case "lixeira": return <Lixeira state={state} setState={ss} />;
       case "backup": return <BackupManager state={state} setState={ss} />;
       case "update": return <UpdateManager />;
-      case "importarRecebimentos": return <ImportarRecebimentos state={state} setState={ss} />;
+      case "importarRecebimentos": return <ImportarRecebimentos state={state} setState={ss} safraAtiva={anoSafra} />;
       case "importarTalhoes": return <ImportarTalhoes state={state} setState={ss} />;
       case "maquinasEquipamentos": return <MaquinasEquipamentos state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
       case "almoxarifado": return <AlmoxarifadoDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
       case "cadastros": return <CadastrosDept state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
       case "financas": return <Financas state={state} setState={ss} usuario={usuarioLogado} initialAba={pendingSubAba} />;
+      case "expedicao": return <Expedicao state={state} setState={ss} safraAtiva={anoSafra} />;
       default: return null;
     }
   };
